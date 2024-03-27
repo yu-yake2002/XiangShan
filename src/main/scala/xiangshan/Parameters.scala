@@ -23,7 +23,8 @@ import xiangshan.backend.exu._
 import xiangshan.backend.dispatch.DispatchParameters
 import xiangshan.cache.DCacheParameters
 import xiangshan.cache.prefetch._
-import xiangshan.frontend.{BasePredictor, BranchPredictionResp, FTB, FakePredictor, RAS, Tage, ITTage, Tage_SC, FauFTB}
+import xiangshan.frontend.{BasePredictor, BranchPredictionResp, FTB, FakePredictor, RAS, Tage, ITTage, Tage_SC, FauFTB,
+  UnifiedFtb}
 import xiangshan.frontend.icache.ICacheParameters
 import xiangshan.cache.mmu.{L2TLBParameters, TLBParameters}
 import freechips.rocketchip.diplomacy.AddressSet
@@ -66,6 +67,9 @@ case class XSCoreParameters
   EnbaleTlbDebug: Boolean = false,
   EnableJal: Boolean = false,
   EnableFauFTB: Boolean = true,
+  EnableUnifiedCache: Boolean = false,
+  EnableUnifiedFtb: Boolean = false,
+  EnableUnifiedTage: Boolean = false,
   UbtbGHRLength: Int = 4,
   // HistoryLength: Int = 512,
   EnableGHistDiff: Boolean = true,
@@ -272,7 +276,12 @@ case class XSCoreParameters
   usePTWRepeater: Boolean = false,
   softTLB: Boolean = false, // dpi-c l1tlb debug only
   softPTW: Boolean = false, // dpi-c l2tlb debug only
-  softPTWDelay: Int = 1
+  softPTWDelay: Int = 1,
+  FtbPfBuf: Int = 8,
+  FtbPfTrigger: Int = 128,
+  RlControllerWarmup: Int = 5, // Warmup round
+  RlControllerCoef: Int = 1,
+  RlControllerGamma: Int = 99
 ){
   val allHistLens = SCHistLens ++ ITTageTableInfos.map(_._2) ++ TageTableInfos.map(_._2) :+ UbtbGHRLength
   val HistoryLength = allHistLens.max + numBr * FtqSize + 9 // 256 for the predictor configs now
@@ -526,4 +535,14 @@ trait HasXSParameter {
   val numCSRPCntLsu      = 8
   val numCSRPCntHc       = 5
   val printEventCoding   = true
+
+  // Experiment: Unified Cache
+  val EnableUnifiedCache: Boolean = coreParams.EnableUnifiedCache
+  val EnableUnifiedFtb: Boolean = coreParams.EnableUnifiedFtb
+  val EnableUnifiedTage: Boolean = coreParams.EnableUnifiedTage
+  val FtbPfBuf: Int = coreParams.FtbPfBuf
+  val FtbPfTrigger: Int = coreParams.FtbPfTrigger
+  val RlControllerWarmup: Int = coreParams.RlControllerWarmup
+  val RlControllerCoef: Int = coreParams.RlControllerCoef
+  val RlControllerGamma: Int = coreParams.RlControllerGamma
 }

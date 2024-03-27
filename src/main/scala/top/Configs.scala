@@ -351,3 +351,18 @@ class DefaultConfig(n: Int = 1) extends Config(
     ++ new WithNKBL1D(64, ways = 4)
     ++ new BaseConfig(n)
 )
+
+class UnifiedCacheTestConfig(n: Int = 1) extends Config(
+  new MinimalConfig(n).alter((site, here, up) => {
+    case XSTileKey => up(XSTileKey).map(_.copy(
+      EnableUnifiedCache = true,
+      EnableUnifiedFtb = true,
+      EnableUnifiedTage = false,
+      FtbPfBuf = 8,
+      FtbPfTrigger = 128,
+      RlControllerWarmup = 5,
+      RlControllerCoef = 1,
+      RlControllerGamma = 99
+    ))
+  })
+)
