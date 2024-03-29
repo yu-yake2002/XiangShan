@@ -144,6 +144,9 @@ abstract class XSCoreBase()(implicit p: config.Parameters) extends LazyModule
 
   memBlock.frontendBridge.icache_node := frontend.icache.clientNode
   memBlock.frontendBridge.instr_uncache_node := frontend.instrUncache.clientNode
+  if (EnableUnifiedFtb){
+    memBlock.frontendBridge.ftb_node := frontend.bpuPort.clientNode
+  }
 }
 
 class XSCore()(implicit p: config.Parameters) extends XSCoreBase

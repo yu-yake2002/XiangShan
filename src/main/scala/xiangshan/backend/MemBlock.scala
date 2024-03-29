@@ -142,10 +142,25 @@ class ICacheBuffer()(implicit p: Parameters) extends LazyModule {
   }
 }
 
+class FtbCacheBuffer()(implicit p: Parameters) extends LazyModule {
+  val node = new TLBufferNode(BufferParams.default, BufferParams.default, BufferParams.default, BufferParams.default, BufferParams.default)
+  lazy val module = new FtbCacheBufferImpl
+
+  class FtbCacheBufferImpl extends LazyModuleImp(this) {
+    (node.in zip node.out) foreach { case ((in, edgeIn), (out, edgeOut)) =>
+      out.a <> BufferParams.default(BufferParams.default(in.a))
+      in.d <> BufferParams.default(BufferParams.default(out.d))
+    }
+  }
+}
+
 // Frontend bus goes through MemBlock
 class FrontendBridge()(implicit p: Parameters) extends LazyModule {
   val icache_node = LazyModule(new ICacheBuffer()).suggestName("icache").node// to keep IO port name
   val instr_uncache_node = LazyModule(new InstrUncacheBuffer()).suggestName("instr_uncache").node
+  val ftb_node = if (p(XSCoreParamsKey).EnableUnifiedFtb) {
+    LazyModule(new FtbCacheBuffer()).suggestName("ftbcache").node
+  } else { null }
   lazy val module = new LazyModuleImp(this) {
   }
 }

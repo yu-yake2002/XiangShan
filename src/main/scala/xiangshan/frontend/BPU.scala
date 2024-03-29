@@ -168,7 +168,7 @@ abstract class BasePredictor(implicit p: Parameters) extends XSModule
   val meta_size = 0
   val spec_meta_size = 0
   val is_fast_pred = false
-  val io = IO(new BasePredictorIO())
+  lazy val io = IO(new BasePredictorIO())
 
   io.out := io.in.bits.resp_in(0)
 
@@ -219,10 +219,10 @@ class PredictorIO(implicit p: Parameters) extends XSBundle {
 }
 
 class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with HasPerfEvents with HasCircularQueuePtrHelper {
-  val io = IO(new PredictorIO)
+  lazy val io = IO(new PredictorIO)
 
   val ctrl = DelayN(io.ctrl, 1)
-  val predictors = Module(if (useBPD) new Composer else new FakePredictor)
+  lazy val predictors = Module(if (useBPD) new Composer else new FakePredictor)
 
   def numOfStage = 3
   require(numOfStage > 1, "BPU numOfStage must be greater than 1")

@@ -33,6 +33,9 @@ class Frontend()(implicit p: Parameters) extends LazyModule with HasXSParameter 
   val instrUncache  = LazyModule(new InstrUncache())
   val icache        = LazyModule(new ICache())
 
+  // experiment: Unified Cache
+  val bpuPort: UnifiedFtbPort = if (EnableUnifiedFtb) {LazyModule(new UnifiedFtbPort())} else null
+
   lazy val module = new FrontendImp(this)
 }
 
@@ -67,7 +70,7 @@ class FrontendImp (outer: Frontend) extends LazyModuleImp(outer)
   //decouped-frontend modules
   val instrUncache = outer.instrUncache.module
   val icache       = outer.icache.module
-  val bpu     = Module(new Predictor)
+  val bpu     = Module(if (EnableUnifiedFtb) new UnifiedPredictor else new Predictor)
   val ifu     = Module(new NewIFU)
   val ibuffer =  Module(new IBuffer)
   val ftq = Module(new Ftq)
@@ -84,6 +87,17 @@ class FrontendImp (outer: Frontend) extends LazyModuleImp(outer)
   val tlbCsr = DelayN(io.tlbCsr, 2)
   val csrCtrl = DelayN(io.csrCtrl, 2)
   val sfence = RegNext(RegNext(io.sfence))
+
+  // experiment: Unified Cache
+  if (EnableUnifiedFtb) {
+    assert(outer.bpuPort.isInstanceOf[UnifiedFtbPort])
+    val port = outer.bpuPort.module
+    val unifiedPred = bpu.asInstanceOf[UnifiedPredictor]
+    port.io.hartId := io.hartId
+    port.io.readReq <> unifiedPred.io.readReq
+    port.io.readResp <> unifiedPred.io.readResp
+    port.io.writeReq <> unifiedPred.io.writeReq
+  }
 
   // trigger
   ifu.io.frontendTrigger := csrCtrl.frontend_trigger

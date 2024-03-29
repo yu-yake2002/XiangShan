@@ -23,8 +23,7 @@ import xiangshan.backend.exu._
 import xiangshan.backend.dispatch.DispatchParameters
 import xiangshan.cache.DCacheParameters
 import xiangshan.cache.prefetch._
-import xiangshan.frontend.{BasePredictor, BranchPredictionResp, FTB, FakePredictor, RAS, Tage, ITTage, Tage_SC, FauFTB,
-  UnifiedFtb}
+import xiangshan.frontend.{BasePredictor, BranchPredictionResp, FTB, FakePredictor, FauFTB, ITTage, RAS, Tage, Tage_SC, UnifiedController, UnifiedFtb}
 import xiangshan.frontend.icache.ICacheParameters
 import xiangshan.cache.mmu.{L2TLBParameters, TLBParameters}
 import freechips.rocketchip.diplomacy.AddressSet
@@ -109,8 +108,18 @@ case class XSCoreParameters
   numBr: Int = 2,
   branchPredictor: Function2[BranchPredictionResp, Parameters, Tuple2[Seq[BasePredictor], BranchPredictionResp]] =
     ((resp_in: BranchPredictionResp, p: Parameters) => {
-      val ftb = Module(new FTB()(p))
-      val ubtb =Module(new FauFTB()(p))
+      val enableUnifiedFtb: Boolean = p(XSCoreParamsKey).EnableUnifiedFtb
+      val ftb = Module(if (enableUnifiedFtb) new UnifiedFtb()(p) else new FTB()(p))
+      val ftbCtrl = if (enableUnifiedFtb) Module(new UnifiedController()(p)) else null
+
+      if (enableUnifiedFtb) {
+        val unifiedFtb = ftb.asInstanceOf[UnifiedFtb]
+        unifiedFtb.io.prefetchCtrler := ftbCtrl.io.gates(0)
+        unifiedFtb.io.generateCtrler := ftbCtrl.io.gates(1)
+        ftbCtrl.io.newCommits := 0.U
+      }
+
+      val ubtb = Module(new FauFTB()(p))
       // val bim = Module(new BIM()(p))
       val tage = Module(new Tage_SC()(p))
       val ras = Module(new RAS()(p))

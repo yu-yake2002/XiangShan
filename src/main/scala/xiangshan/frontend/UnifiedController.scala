@@ -33,7 +33,8 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
   })
 
   // cycles and commits in this interval
-  val cyclesCounter: UInt = RegNext(cyclesCounter + 1.U(10.W), 1.U(10.W))
+  val cyclesCounter: UInt = RegInit(1.U(10.W))
+  cyclesCounter := cyclesCounter + 1.U
   val commitsCounter: UInt = RegInit(0.U(13.W))
 
   // indicator of update
@@ -123,13 +124,19 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
 
   class PotentialCalculator extends Module {
     val io = IO(new Bundle {
-      val input = DecoupledIO(UInt(8.W))
+      val input = Flipped(DecoupledIO(UInt(8.W)))
       val output = DecoupledIO(UInt(8.W))
     })
     // TODO: calculate potential
+    io.input.ready := false.B
+    io.output.valid := false.B
+    io.output.bits := DontCare
   }
 
   val pCalc: PotentialCalculator = Module(new PotentialCalculator())
+  pCalc.io.input.valid := false.B
+  pCalc.io.input.bits := DontCare
+  pCalc.io.output.ready := false.B
 
   val updatedArm: UInt = RegInit(0.U(2.W))
   when (update === true.B) {
