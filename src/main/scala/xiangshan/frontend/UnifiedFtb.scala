@@ -628,19 +628,8 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   lazy val pfe: PrefetchEngine = Module(new PrefetchEngine(FtbPfBuf, FtbPfTrigger))
   val tgg: TemporalGroupGen = Module(new TemporalGroupGen(FtbPfTrigger))
 
-  override lazy val s2_ftb_entry_dup = {
-    if (ftbBank.io.read_hits.valid == null) {
-      println("err1")
-    }
-    if (ftbBank.io.read_resp == null) {
-      println("err2")
-    }
-    if (pfe == null) {
-      println("err3")
-    }
-    io.s1_fire.map(f => RegEnable(
+  override lazy val s2_ftb_entry_dup = io.s1_fire.map(f => RegEnable(
       Mux(ftbBank.io.read_hits.valid, ftbBank.io.read_resp, pfe.io.readResp), f))
-  }
 
   override lazy val s1_hit: Bool = (ftbBank.io.read_hits.valid || pfe.io.readHit) && io.ctrl.btb_enable
 //  // TODO: override me correctly!
