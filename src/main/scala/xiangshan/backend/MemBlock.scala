@@ -159,8 +159,8 @@ class FrontendBridge()(implicit p: Parameters) extends LazyModule {
   val icache_node = LazyModule(new ICacheBuffer()).suggestName("icache").node// to keep IO port name
   val instr_uncache_node = LazyModule(new InstrUncacheBuffer()).suggestName("instr_uncache").node
   val ftb_node = if (p(XSCoreParamsKey).EnableUnifiedFtb) {
-    LazyModule(new FtbCacheBuffer()).suggestName("ftbcache").node
-  } else { null }
+    LazyModule(new TLBuffer).suggestName("ftbcache").node
+  } else null
   lazy val module = new LazyModuleImp(this) {
   }
 }

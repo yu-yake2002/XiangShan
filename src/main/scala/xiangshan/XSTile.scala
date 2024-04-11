@@ -58,7 +58,9 @@ class XSTile()(implicit p: Parameters) extends LazyModule
 
   l2top.misc_l2_pmu := l2top.l1i_logger := core.memBlock.frontendBridge.icache_node
   if (EnableUnifiedFtb) {
-    l2top.misc_l2_pmu := core.memBlock.frontendBridge.ftb_node
+    // l2top.misc_l2_pmu := l2top.chnC_buffer.node := core.memBlock.frontendBridge.ftb_node
+    l2top.misc_l2_pmu := l2top.l1d_logger := l2top.chnC_buffer.node :=
+      core.memBlock.dcache_port := core.memBlock.l1d_to_l2_buffer.node := core.memBlock.frontendBridge.ftb_node
   }
   if (!coreParams.softPTW) {
     l2top.misc_l2_pmu := l2top.ptw_logger := l2top.ptw_to_l2_buffer.node := core.memBlock.ptw_to_l2_buffer.node

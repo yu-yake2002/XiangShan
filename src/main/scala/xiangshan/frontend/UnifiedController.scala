@@ -169,7 +169,10 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
   }
 
   // transform arm to gates
+//  for (i <- 0 until 2) {
+//    io.gates(i) := selectedArm(i)
+//  }
   for (i <- 0 until 2) {
-    io.gates(i) := selectedArm(i)
+    io.gates(i) := true.B
   }
 }

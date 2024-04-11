@@ -108,17 +108,7 @@ case class XSCoreParameters
   numBr: Int = 2,
   branchPredictor: Function2[BranchPredictionResp, Parameters, Tuple2[Seq[BasePredictor], BranchPredictionResp]] =
     ((resp_in: BranchPredictionResp, p: Parameters) => {
-      val enableUnifiedFtb: Boolean = p(XSCoreParamsKey).EnableUnifiedFtb
-      val ftb = Module(if (enableUnifiedFtb) new UnifiedFtb()(p) else new FTB()(p))
-      val ftbCtrl = if (enableUnifiedFtb) Module(new UnifiedController()(p)) else null
-
-      if (enableUnifiedFtb) {
-        val unifiedFtb = ftb.asInstanceOf[UnifiedFtb]
-        unifiedFtb.io.prefetchCtrler := ftbCtrl.io.gates(0)
-        unifiedFtb.io.generateCtrler := ftbCtrl.io.gates(1)
-        ftbCtrl.io.newCommits := 0.U
-      }
-
+      val ftb = Module(new FTB()(p))
       val ubtb = Module(new FauFTB()(p))
       // val bim = Module(new BIM()(p))
       val tage = Module(new Tage_SC()(p))
