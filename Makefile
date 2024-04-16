@@ -120,7 +120,7 @@ $(TOP_V): $(SCALA_FILE)
 	mkdir -p $(@D)
 	$(TIME_CMD) mill -i xiangshan[$(CHISEL_VERSION)].runMain $(FPGATOP)   \
 		-td $(@D) --config $(CONFIG) $(FPGA_MEM_ARGS)                    \
-		--num-cores $(NUM_CORES) $(RELEASE_ARGS)
+		--num-cores $(NUM_CORES) $(RELEASE_ARGS) --full-stacktrace
 ifeq ($(MFC),1)
 	$(SPLIT_VERILOG) $(BUILD_DIR) $(TOP).v
 	$(MEM_GEN_SEP) "$(MEM_GEN)" "$(TOP_V).conf" "$(BUILD_DIR)"
