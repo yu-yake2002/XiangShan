@@ -102,7 +102,7 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   }
 
   // Memory
-  val table: Mem[Vec[CuckooFilterEntry]] = Mem(numBuckets, Vec(entriesPerBucket, new CuckooFilterEntry))
+  val table = Reg(Vec(numBuckets, Vec(entriesPerBucket, new CuckooFilterEntry)))
 
   // Helper function to check if fingerprint is present in bucket
   def fpInBucket(fp: UInt, bucket: Vec[CuckooFilterEntry]): Bool = {
@@ -116,10 +116,9 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   val rReadBucket1: Vec[CuckooFilterEntry] = table(rReadHash1)
   val rReadBucket2: Vec[CuckooFilterEntry] = table(rReadHash2)
 
-  // TODO: Fix me!
-//  io.matchFound := Mux(io.keyRead.valid, (fpInBucket(rReadFingerprint, rReadBucket1) ||
-//    fpInBucket(rReadFingerprint, rReadBucket2)), false.B)
-  io.matchFound := true.B
+  io.matchFound := Mux(io.keyRead.valid, (fpInBucket(rReadFingerprint, rReadBucket1) ||
+    fpInBucket(rReadFingerprint, rReadBucket2)), false.B)
+//  io.matchFound := true.B
 
   // Write
   // before writing, read these buckets
@@ -455,20 +454,24 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
   class PrefetchEngine(val bufSize: Int, val pfTrigger: Int) extends XSModule {
     val io = IO(new Bundle {
+      // s0
       val valve: Bool = Input(Bool())
       val reqPc: DecoupledIO[UInt] = Flipped(DecoupledIO(UInt(VAddrBits.W)))
       val readResp: FTBEntry = Output(new FTBEntry)
       val readHit: Bool = Output(Bool())
 
-      // Cuckoo Filter
-      val filterReq: ValidIO[UInt] = Valid(UInt(VAddrBits.W))
-      val filterResp: Bool = Input(Bool())
-      // to Unified Cache
-      val cacheReq: DecoupledIO[UnifiedFtbReadReq] = DecoupledIO(new UnifiedFtbReadReq)
-      val cacheResp: ValidIO[UnifiedFtbReadResp] = Flipped(ValidIO(new UnifiedFtbReadResp))
+      // s1
+      val s1_mainFtbHit: Bool = Input(Bool())
+      val s1_filterReq: ValidIO[UInt] = Valid(UInt(VAddrBits.W))
+      val s1_filterResp: Bool = Input(Bool())
+
+      // s2: to Unified Cache
+      val s2_cacheReq: DecoupledIO[UnifiedFtbReadReq] = DecoupledIO(new UnifiedFtbReadReq)
+      val s2_cacheResp: ValidIO[UnifiedFtbReadResp] = Flipped(ValidIO(new UnifiedFtbReadResp))
     })
     dontTouch(io)
 
+    // LoopFifo with synchronized read and write
     class LoopFifo(depth: Int)(implicit p: Parameters) extends Module {
       // Ensure depth is a power of 2
       require(isPow2(depth), "Depth must be a power of 2")
@@ -484,6 +487,9 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
         val dataIn: ValidIO[UnifiedFtbFifoEntry] = Flipped(Valid(new UnifiedFtbFifoEntry))
 
         val queryPc: DecoupledIO[UInt] = Flipped(DecoupledIO(UInt(VAddrBits.W)))
+
+        // queryResult.valid is true when the queryPc hits in the fifo.
+        // queryResult.bits is the FTBEntry if queryResult.valid is true.
         val queryResult: ValidIO[FTBEntry] = Valid(new FTBEntry)
       })
       private val querySetIdx: UInt = ftbAddr.getIdx(io.queryPc.bits)
@@ -498,9 +504,6 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
       // Set query interface ready signal
       io.queryPc.ready := true.B
-      // Initialize query result to invalid
-      io.queryResult.valid := false.B
-      io.queryResult.bits := DontCare
 
       // Enqueue operation
       when(io.dataIn.valid) {
@@ -510,6 +513,11 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       }
 
       // Query operation
+      val queryResultEntry = Reg(new FTBEntry())
+      val queryResultValid = RegInit(false.B)
+      io.queryResult.valid := queryResultValid
+      io.queryResult.bits := queryResultEntry
+
       when(io.queryPc.fire) {
         // Wire for parallel matching results
         val matchingResultVec = Wire(Vec(depth, Vec((new UnifiedFtbFifoEntry).entryCnt, Bool())))
@@ -523,61 +531,60 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
           fifoEntriesValid(i) && matchingResultVec(i).reduce(_ || _)
         }
         // Select the matching FIFO entry index
-        val matchingFifoIndex = PriorityEncoder(matchingFifoEntries.reverse)
+        val matchingFifoIndex = PriorityEncoder(matchingFifoEntries)
 
-        io.queryResult.valid := matchingFifoEntries.reduce(_ || _)
-        io.queryResult.bits := matchingFtbEntryVec(matchingFifoIndex)
+        queryResultValid := matchingFifoEntries.reduce(_ || _)
+        queryResultEntry := matchingFtbEntryVec(matchingFifoIndex)
+      }.otherwise {
+        queryResultValid := false.B
       }
     }
 
     val fifo = Module(new LoopFifo(bufSize))
-
-    val pred_rdata: ValidIO[FTBEntry] = HoldUnless(fifo.io.queryResult, RegNext(io.reqPc.valid))
-
     fifo.io.queryPc <> io.reqPc
-    val req_tag: UInt = RegEnable(ftbAddr.getTag(io.reqPc.bits)(tagSize-1, 0), io.reqPc.valid)
-    val req_idx: UInt = RegEnable(ftbAddr.getIdx(io.reqPc.bits), io.reqPc.valid)
-    io.readResp := pred_rdata.bits
-    io.readHit := pred_rdata.valid
 
-    val fifoMiss: Bool = Wire(Bool())
-    fifoMiss := !fifo.io.queryResult.valid && fifo.io.queryPc.valid
+    /************* s1 *************/
+    val s1_req_valid = RegNext(io.reqPc.valid)
+    val s1_pred_rdata: ValidIO[FTBEntry] = HoldUnless(fifo.io.queryResult, s1_req_valid)
+    io.readResp := s1_pred_rdata.bits
+    io.readHit := s1_pred_rdata.valid
+
+    val s1_fifoMiss: Bool = Wire(Bool())
+    s1_fifoMiss := !fifo.io.queryResult.valid && s1_req_valid
+    val s1_vaddr: UInt = RegNext(io.reqPc.bits)
+    // Look up in the Filter
+    io.s1_filterReq.valid := io.valve && s1_fifoMiss && !io.s1_mainFtbHit
+    io.s1_filterReq.bits := s1_vaddr
 
     /************* s2 *************/
-    val s2_vaddr: UInt = RegNext(io.reqPc.bits)
-    // Look up in the Filter
-    io.filterReq.valid := RegNext(io.valve && fifoMiss)
-    io.filterReq.bits := s2_vaddr
-
-    /************* s3 *************/
     // Send request to Unified cache
     val inflightVaddr: UInt = Reg(UInt(VAddrBits.W))
 
     val s_idle :: s_send_mem_acquire :: s_wait_mem_grant :: Nil = Enum(3)
     val state: UInt = RegInit(s_idle)
 
-    io.cacheReq.valid := (state === s_send_mem_acquire)
-    io.cacheReq.bits.vaddr := inflightVaddr
+    io.s2_cacheReq.valid := (state === s_send_mem_acquire)
+    io.s2_cacheReq.bits.vaddr := inflightVaddr
 
-    fifo.io.dataIn.valid := io.cacheResp.fire && !(io.cacheResp.bits.denied) && state === s_wait_mem_grant
-    fifo.io.dataIn.bits.entries := VecInit.tabulate(fifo.io.dataIn.bits.entryCnt)(i => io.cacheResp.bits.data(
+    fifo.io.dataIn.valid := io.s2_cacheResp.fire && !(io.s2_cacheResp.bits.denied) && state === s_wait_mem_grant
+    fifo.io.dataIn.bits.entries := VecInit.tabulate(fifo.io.dataIn.bits.entryCnt)(i => io.s2_cacheResp.bits.data(
       (new FTBEntryWithTagSet).getWidth * (i + 1) - 1, (new FTBEntryWithTagSet).getWidth * i
     ).asTypeOf(new FTBEntryWithTagSet))
 
     switch(state) {
       is(s_idle) {
-        when(io.filterReq.valid && io.filterResp && io.valve) {
+        when(io.s1_filterReq.valid && io.s1_filterResp && io.valve) {
           state := s_send_mem_acquire
-          inflightVaddr := s2_vaddr
+          inflightVaddr := s1_vaddr
         }
       }
       is(s_send_mem_acquire) {
-        when(io.cacheReq.fire) {
+        when(io.s2_cacheReq.fire) {
           state := s_wait_mem_grant
         }
       }
       is(s_wait_mem_grant) {
-        when(io.cacheResp.fire) {
+        when(io.s2_cacheResp.fire) {
           state := s_idle
         }
       }
@@ -652,17 +659,17 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     )
   }
 
-
   // Additional lookup logic
   pfe.io.valve := io.prefetchCtrler
   pfe.io.reqPc.valid := io.s0_fire(0)
   pfe.io.reqPc.bits := s0_pc_dup(0)
+  pfe.io.s1_mainFtbHit := ftbBank.io.read_hits.valid
   // to cuckoo filter
-  filter.io.keyRead <> pfe.io.filterReq
-  pfe.io.filterResp := filter.io.matchFound
+  filter.io.keyRead <> pfe.io.s1_filterReq
+  pfe.io.s1_filterResp := filter.io.matchFound
   // to unified cache
-  io.readReq <> pfe.io.cacheReq
-  pfe.io.cacheResp <> io.readResp
+  io.readReq <> pfe.io.s2_cacheReq
+  pfe.io.s2_cacheResp <> io.readResp
 
   // Additional update logic
   tgg.io.valve := io.generateCtrler
