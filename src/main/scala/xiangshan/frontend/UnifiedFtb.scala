@@ -21,7 +21,7 @@ import chisel3.util._
 import chisel3.util.random.LFSR
 import freechips.rocketchip.diplomacy.{IdRange, LazyModule, LazyModuleImp, TransferSizes}
 import freechips.rocketchip.tilelink._
-import utility.{HoldUnless, ReplacementPolicy, SRAMTemplate}
+import utility.{DelayN, GTimer, HoldUnless, ReplacementPolicy, SRAMTemplate}
 import utils.XSPerfAccumulate
 import xiangshan._
 import xiangshan.cache.{L1CacheParameters, MemoryOpConstants}
@@ -66,6 +66,7 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   require(numBuckets > 0, "Number of buckets must be greater than 0.")
   require(isPow2(numBuckets), "Number of buckets must be a power of 2.")
   require(numEntries % numBuckets == 0, "Number of entries must be divisible by number of buckets.")
+  def filterOffset: Int = log2Ceil(CacheLineSize / 8)
 
   val entriesPerBucket: Int = numEntries / numBuckets // Compute entries per bucket
   require(isPow2(entriesPerBucket), "Entries per bucket must be a power of 2.")
@@ -77,7 +78,8 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
     val matchFound: Bool = Output(Bool())
     val reset: Bool = Input(Bool()) // Reset signal
   })
-  dontTouch(io)
+  val reducedKeyRead: UInt = io.keyRead.bits(VAddrBits - 1, filterOffset)
+  val reducedKeyWrite: UInt = io.keyWrite.bits(VAddrBits - 1, filterOffset)
 
   class CuckooFilterEntry() extends XSBundle {
     val valid: Bool = Bool()
@@ -95,7 +97,7 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
 
   def hash2(key: UInt): UInt = {
     val numParts = (VAddrBits + hashBits - 1) / hashBits // Calculate number of parts
-    val paddedKey = Cat(0.U((hashBits * numParts - key.getWidth).W), key)
+    val paddedKey = Cat(key, 0.U((hashBits * numParts - key.getWidth).W))
     // Split key into parts
     val parts = VecInit.tabulate(numParts)(i => paddedKey(hashBits * (i + 1) - 1, hashBits * i))
     parts.foldLeft(0.U(hashBits.W))((acc, part) => acc ^ part)
@@ -110,8 +112,8 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   }
 
   // Lookup
-  val rReadHash1: UInt = Mux(io.keyRead.valid, hash1(io.keyRead.bits), 0.U(hashBits.W))
-  val rReadHash2: UInt = Mux(io.keyRead.valid, hash2(io.keyRead.bits), 0.U(hashBits.W))
+  val rReadHash1: UInt = Mux(io.keyRead.valid, hash1(reducedKeyRead), 0.U(hashBits.W))
+  val rReadHash2: UInt = Mux(io.keyRead.valid, hash2(reducedKeyRead), 0.U(hashBits.W))
   val rReadFingerprint: UInt = rReadHash1 ^ rReadHash2
   val rReadBucket1: Vec[CuckooFilterEntry] = table(rReadHash1)
   val rReadBucket2: Vec[CuckooFilterEntry] = table(rReadHash2)
@@ -155,8 +157,8 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   val doingReplacement: Bool = writeState =/= 0.U
 
   // direct write
-  val directWriteHash1: UInt = hash1(io.keyWrite.bits)
-  val directWriteHash2: UInt = hash2(io.keyWrite.bits)
+  val directWriteHash1: UInt = hash1(reducedKeyWrite)
+  val directWriteHash2: UInt = hash2(reducedKeyWrite)
   val directWriteFingerprint: UInt = directWriteHash1 ^ directWriteHash2
 
   // replace
@@ -223,7 +225,7 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
 }
 
 class UnifiedFtbReadReq(implicit p: Parameters) extends XSBundle {
-  val vaddr: UInt = UInt(VAddrBits.W)
+  val reducedVaddr: UInt = UInt((VAddrBits - 1).W)
 }
 
 class UnifiedFtbReadResp(implicit p: Parameters) extends XSBundle {
@@ -232,7 +234,7 @@ class UnifiedFtbReadResp(implicit p: Parameters) extends XSBundle {
 }
 
 class UnifiedFtbWriteReq(implicit p: Parameters) extends XSBundle {
-  val vaddr: UInt = UInt(VAddrBits.W)
+  val reducedVaddr: UInt = UInt((VAddrBits - 1).W)
   val data: UInt = UInt(CacheLineSize.W)
 }
 
@@ -302,7 +304,7 @@ class UnifiedFtbPortImp(outer: UnifiedFtbPort) extends LazyModuleImp(outer) with
     val readBeatCnt = Reg(UInt(log2Up(refillCycles).W))
     val respDataReg = Reg(Vec(refillCycles, UInt(beatBits.W)))
     io.readResp.valid := (readState === s_write_back_wait_resp)
-    io.readResp.bits.data := Cat(respDataReg).pad(CacheLineSize)
+    io.readResp.bits.data := Cat(respDataReg.reverse).pad(CacheLineSize)
     io.readResp.bits.denied := req_denied
     //state change
     switch(readState) {
@@ -310,7 +312,7 @@ class UnifiedFtbPortImp(outer: UnifiedFtbPort) extends LazyModuleImp(outer) with
         when(io.readReq.fire) {
           readBeatCnt := 0.U
           readState := s_send_mem_acquire
-          req.vaddr := io.readReq.bits.vaddr
+          req.reducedVaddr := io.readReq.bits.reducedVaddr
         }
       }
 
@@ -345,7 +347,7 @@ class UnifiedFtbPortImp(outer: UnifiedFtbPort) extends LazyModuleImp(outer) with
 
     val getBlock = edge.Get(
       fromSource = id.U,
-      toAddress = addrAlign(req.vaddr(VAddrBits - 1, 1), blockBytes, PAddrBits),
+      toAddress = addrAlign(req.reducedVaddr, blockBytes, PAddrBits),
       lgSize = (log2Up(blockBytes)).U
     )._2
 
@@ -401,7 +403,7 @@ class UnifiedFtbPortImp(outer: UnifiedFtbPort) extends LazyModuleImp(outer) with
 
     val putBlock = edge.Release(
       fromSource = id.U,
-      toAddress = addrAlign(req.vaddr(VAddrBits - 1, 1), blockBytes, PAddrBits),
+      toAddress = addrAlign(req.reducedVaddr, blockBytes, PAddrBits),
       lgSize = (log2Up(blockBytes)).U,
       shrinkPermissions = TLPermissions.NtoN,
       data = writeData(writeBeatCnt)
@@ -454,13 +456,14 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
   class PrefetchEngine(val bufSize: Int, val pfTrigger: Int) extends XSModule {
     val io = IO(new Bundle {
-      // s0
       val valve: Bool = Input(Bool())
-      val reqPc: DecoupledIO[UInt] = Flipped(DecoupledIO(UInt(VAddrBits.W)))
-      val readResp: FTBEntry = Output(new FTBEntry)
-      val readHit: Bool = Output(Bool())
+
+      // s0
+      val s0_reqPc: DecoupledIO[UInt] = Flipped(DecoupledIO(UInt(VAddrBits.W)))
 
       // s1
+      val s1_readResp: FTBEntry = Output(new FTBEntry)
+      val s1_readHit: Bool = Output(Bool())
       val s1_mainFtbHit: Bool = Input(Bool())
       val s1_filterReq: ValidIO[UInt] = Valid(UInt(VAddrBits.W))
       val s1_filterResp: Bool = Input(Bool())
@@ -483,6 +486,10 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
         val entries: Vec[FTBEntryWithTagSet] = Vec(entryCnt, new FTBEntryWithTagSet)
       }
 
+      def entryCnt: Int = {
+        CacheLineSize / (new FTBEntryWithTagSet).getWidth
+      }
+
       val io = IO(new Bundle {
         val dataIn: ValidIO[UnifiedFtbFifoEntry] = Flipped(Valid(new UnifiedFtbFifoEntry))
 
@@ -492,6 +499,12 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
         // queryResult.bits is the FTBEntry if queryResult.valid is true.
         val queryResult: ValidIO[FTBEntry] = Valid(new FTBEntry)
       })
+      val dataInDebug = Wire(Vec(entryCnt, UInt((new FTBEntryWithTagSet).getWidth.W)))
+      for (i <- 0 until entryCnt) {
+        dataInDebug(i) := io.dataIn.bits.entries(i).asUInt
+      }
+      dontTouch(dataInDebug)
+
       private val querySetIdx: UInt = ftbAddr.getIdx(io.queryPc.bits)
       private val queryTag: UInt = ftbAddr.getTag(io.queryPc.bits)(tagSize-1, 0)
 
@@ -538,20 +551,22 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       }.otherwise {
         queryResultValid := false.B
       }
+
+
     }
 
     val fifo = Module(new LoopFifo(bufSize))
-    fifo.io.queryPc <> io.reqPc
+    fifo.io.queryPc <> io.s0_reqPc
 
     /************* s1 *************/
-    val s1_req_valid = RegNext(io.reqPc.valid)
+    val s1_req_valid = RegNext(io.s0_reqPc.valid)
     val s1_pred_rdata: ValidIO[FTBEntry] = HoldUnless(fifo.io.queryResult, s1_req_valid)
-    io.readResp := s1_pred_rdata.bits
-    io.readHit := s1_pred_rdata.valid
+    io.s1_readResp := s1_pred_rdata.bits
+    io.s1_readHit := s1_pred_rdata.valid
 
     val s1_fifoMiss: Bool = Wire(Bool())
     s1_fifoMiss := !fifo.io.queryResult.valid && s1_req_valid
-    val s1_vaddr: UInt = RegNext(io.reqPc.bits)
+    val s1_vaddr: UInt = RegNext(io.s0_reqPc.bits(VAddrBits - 1, 1))
     // Look up in the Filter
     io.s1_filterReq.valid := io.valve && s1_fifoMiss && !io.s1_mainFtbHit
     io.s1_filterReq.bits := s1_vaddr
@@ -564,12 +579,12 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     val state: UInt = RegInit(s_idle)
 
     io.s2_cacheReq.valid := (state === s_send_mem_acquire)
-    io.s2_cacheReq.bits.vaddr := inflightVaddr
+    io.s2_cacheReq.bits.reducedVaddr := inflightVaddr
 
-    fifo.io.dataIn.valid := io.s2_cacheResp.fire && !(io.s2_cacheResp.bits.denied) && state === s_wait_mem_grant
+    fifo.io.dataIn.valid := io.s2_cacheResp.fire && !io.s2_cacheResp.bits.denied && state === s_wait_mem_grant
     fifo.io.dataIn.bits.entries := VecInit.tabulate(fifo.io.dataIn.bits.entryCnt)(i => io.s2_cacheResp.bits.data(
       (new FTBEntryWithTagSet).getWidth * (i + 1) - 1, (new FTBEntryWithTagSet).getWidth * i
-    ).asTypeOf(new FTBEntryWithTagSet))
+    ).asTypeOf(new FTBEntryWithTagSet)).reverse
 
     switch(state) {
       is(s_idle) {
@@ -605,8 +620,11 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     })
 
     val entriesBuf: Vec[FTBEntryWithTagSet] = Reg(Vec(bufferSize, new FTBEntryWithTagSet))
-    val lastEntryAddr: UInt = Cat(entriesBuf(bufferSize - 1).tag, entriesBuf(bufferSize - 1).setIdx)
-    val lastGroupAddr = RegEnable(lastEntryAddr, io.cacheReq.fire)
+    val entriesDebug = Wire(Vec(bufferSize, UInt((new FTBEntryWithTagSet).getWidth.W)))
+    for (i <- 0 until bufferSize) {
+      entriesDebug(i) := entriesBuf(i).asUInt
+    }
+    dontTouch(entriesDebug)
 
     val updateTag: UInt = ftbAddr.getTag(io.updatePc)
     val updateSetIdx: UInt = ftbAddr.getIdx(io.updatePc)
@@ -618,6 +636,10 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     val redundant: Bool = entriesBuf.map(e => e.tag === updateTag &&
       e.setIdx === updateSetIdx && e.entry.valid).reduce(_ || _)
 
+    val lastEntryAddr: UInt = RegEnable(io.updatePc(VAddrBits - 1, 1), io.updateFtbEntry.valid && !full && !redundant)
+    //val lastEntryAddr: UInt = Cat(entriesBuf(bufferSize - 1).tag, entriesBuf(bufferSize - 1).setIdx)
+    val lastGroupAddr: UInt = RegEnable(lastEntryAddr, io.cacheReq.fire)
+
     when(io.updateFtbEntry.valid && !full && !redundant) {
       // fill this entry
       entriesBuf(writePtr) := updateFtbEntryWithTagSet
@@ -627,7 +649,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
     io.cacheReq.valid := full
     io.cacheReq.bits.data := Cat(entriesBuf.map(_.asUInt)).pad(CacheLineSize)
-    io.cacheReq.bits.vaddr := lastGroupAddr
+    io.cacheReq.bits.reducedVaddr := lastGroupAddr
     when(io.cacheReq.fire) {
       writePtr := 0.U
       for (i <- 0 until bufferSize) {
@@ -643,9 +665,9 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   val tgg: TemporalGroupGen = Module(new TemporalGroupGen(FtbPfTrigger))
 
   override lazy val s2_ftb_entry_dup = io.s1_fire.map(f => RegEnable(
-      Mux(ftbBank.io.read_hits.valid, ftbBank.io.read_resp, pfe.io.readResp), f))
+      Mux(ftbBank.io.read_hits.valid, ftbBank.io.read_resp, pfe.io.s1_readResp), f))
 
-  override lazy val s1_hit: Bool = (ftbBank.io.read_hits.valid || pfe.io.readHit) && io.ctrl.btb_enable
+  override lazy val s1_hit: Bool = (ftbBank.io.read_hits.valid || pfe.io.s1_readHit) && io.ctrl.btb_enable
 //  // TODO: override me correctly!
 //  override val writeWay: UInt = ftbBank.io.read_hits.bits
 
@@ -655,14 +677,17 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       s2_pc,
       // Previous stage meta for better timing
       Some(s1_pc, s1_fire),
-      Some(Mux(ftbBank.io.update_hits.valid, ftbBank.io.read_resp, pfe.io.readResp), s1_fire)
+      Some(Mux(ftbBank.io.update_hits.valid, ftbBank.io.read_resp, pfe.io.s1_readResp), s1_fire)
     )
   }
 
+  io.out.last_stage_meta := RegEnable(RegEnable(FTBMeta(writeWay.asUInt, s1_hit, GTimer(),
+    ftbBank.io.read_hits.valid && io.ctrl.btb_enable).asUInt, io.s1_fire(0)), io.s2_fire(0))
+
   // Additional lookup logic
   pfe.io.valve := io.prefetchCtrler
-  pfe.io.reqPc.valid := io.s0_fire(0)
-  pfe.io.reqPc.bits := s0_pc_dup(0)
+  pfe.io.s0_reqPc.valid := io.s0_fire(0)
+  pfe.io.s0_reqPc.bits := s0_pc_dup(0)
   pfe.io.s1_mainFtbHit := ftbBank.io.read_hits.valid
   // to cuckoo filter
   filter.io.keyRead <> pfe.io.s1_filterReq
@@ -673,9 +698,11 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
   // Additional update logic
   tgg.io.valve := io.generateCtrler
-  tgg.io.updatePc := update.pc
-  tgg.io.updateFtbEntry.valid := io.update.valid
-  tgg.io.updateFtbEntry.bits := update.ftb_entry
+  // tgg.io.updateFtbEntry.valid := DelayN(u_valid && !u_meta.hit, 2)
+  tgg.io.updateFtbEntry.valid := DelayN(u_valid && (!u_meta.blockHit.get), 2)
+  tgg.io.updatePc := ftbBank.io.update_pc
+  tgg.io.updateFtbEntry.bits := ftb_write.entry
+
   // to cuckoo filter
   filter.io.keyWrite <> tgg.io.filterWrite
   // to unified cache

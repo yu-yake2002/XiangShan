@@ -26,10 +26,9 @@ class UnifiedPredictorIO(implicit p: Parameters) extends PredictorIO {
   val writeReq: DecoupledIO[UnifiedFtbWriteReq] = DecoupledIO(new UnifiedFtbWriteReq)
 }
 
-class UnifiedPredictor(implicit p: Parameters) extends Predictor{
+class UnifiedPredictor(implicit p: Parameters) extends Predictor {
   assert(EnableUnifiedFtb)
   override lazy val io = IO(new UnifiedPredictorIO)
-  dontTouch(io)
   override lazy val predictors: BasePredictor = Module(
     if (EnableUnifiedFtb) {
       new UnifiedComposer
@@ -55,7 +54,6 @@ class UnifiedComposerIO(implicit p: Parameters) extends BasePredictorIO {
 class UnifiedComposer(implicit p: Parameters) extends Composer{
   assert(EnableUnifiedFtb)
   override lazy val io = IO(new UnifiedComposerIO)
-  dontTouch(io)
   for (c <- components) {
     c match {
       case ftb: UnifiedFtb =>

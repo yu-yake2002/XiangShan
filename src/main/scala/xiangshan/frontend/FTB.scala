@@ -252,14 +252,16 @@ class FTBMeta(implicit p: Parameters) extends XSBundle with FTBParams {
   val writeWay = UInt(log2Ceil(numWays).W)
   val hit = Bool()
   val pred_cycle = if (!env.FPGAPlatform) Some(UInt(64.W)) else None
+  val blockHit = if (EnableUnifiedFtb) Some(Bool()) else None
 }
 
 object FTBMeta {
-  def apply(writeWay: UInt, hit: Bool, pred_cycle: UInt)(implicit p: Parameters): FTBMeta = {
+  def apply(writeWay: UInt, hit: Bool, pred_cycle: UInt, blockHit: Bool = false.B)(implicit p: Parameters): FTBMeta = {
     val e = Wire(new FTBMeta)
     e.writeWay := writeWay
     e.hit := hit
     e.pred_cycle.map(_ := pred_cycle)
+    e.blockHit.map(_ := blockHit)
     e
   }
 }
