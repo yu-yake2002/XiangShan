@@ -74,13 +74,14 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   val hashBits: Int = log2Ceil(numBuckets) // Compute number of bits for hash result
 
   val io = IO(new Bundle {
-    val keyRead: ValidIO[UInt] = Flipped(Valid(UInt(VAddrBits.W)))
-    val keyWrite: ValidIO[UInt] = Flipped(Valid(UInt(VAddrBits.W)))
+    val keyRead: ValidIO[UInt] = Flipped(Valid(UInt((VAddrBits - 1).W)))
+    val keyWrite: ValidIO[UInt] = Flipped(Valid(UInt((VAddrBits - 1).W)))
+    val keyDelete: ValidIO[UInt] = Flipped(Valid(UInt((VAddrBits - 1).W)))
     val matchFound: Bool = Output(Bool())
-    val reset: Bool = Input(Bool()) // Reset signal
   })
-  val reducedKeyRead: UInt = io.keyRead.bits(VAddrBits - 1, filterOffset)
-  val reducedKeyWrite: UInt = io.keyWrite.bits(VAddrBits - 1, filterOffset)
+  val reducedKeyRead: UInt = io.keyRead.bits
+  val reducedKeyWrite: UInt = io.keyWrite.bits
+  val reducedKeyDelete: UInt = io.keyDelete.bits
 
   class CuckooFilterEntry() extends XSBundle {
     val valid: Bool = Bool()
@@ -121,9 +122,23 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
 
   io.matchFound := Mux(io.keyRead.valid, fpInBucket(rReadFingerprint, rReadBucket1) ||
     fpInBucket(rReadFingerprint, rReadBucket2), false.B)
-//  io.matchFound := true.B
 
-  // Write
+  /**** Delete ****/
+  val dReadHash1: UInt = Mux(io.keyDelete.valid, hash1(reducedKeyDelete), 0.U(hashBits.W))
+  val dReadHash2: UInt = Mux(io.keyDelete.valid, hash2(reducedKeyDelete), 0.U(hashBits.W))
+  val dReadFingerprint: UInt = dReadHash1 ^ dReadHash2
+  val dReadBucket1: Vec[CuckooFilterEntry] = table(dReadHash1)
+  val dReadBucket2: Vec[CuckooFilterEntry] = table(dReadHash2)
+  val dHitInBucket1: Bool = fpInBucket(dReadFingerprint, dReadBucket1)
+  val dHitInBucket2: Bool = fpInBucket(dReadFingerprint, dReadBucket2)
+  val dHitInBucket: Bool = dHitInBucket1 || dHitInBucket2
+  val dWriteBucket: UInt = Mux(dHitInBucket1, dReadHash1, dReadHash2)
+  val dWriteEntry: UInt = Mux(dHitInBucket1,
+    PriorityEncoder(dReadBucket1.map(e => e.fp === dReadFingerprint && e.valid)),
+    PriorityEncoder(dReadBucket1.map(e => e.fp === dReadFingerprint && e.valid))
+  )
+
+  /**** Write ****/
   // before writing, read these buckets
   val wReadHash1: UInt = Wire(UInt(hashBits.W))
   val wReadHash2: UInt = Wire(UInt(hashBits.W))
@@ -134,18 +149,21 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   val bucket2InvalidBits: IndexedSeq[Bool] = wReadBucket2.map(!_.valid)
   val bucket1HasSpace: Bool = bucket1InvalidBits.reduce(_ || _)
   val bucket2HasSpace: Bool = bucket2InvalidBits.reduce(_ || _)
-  val hitInBucket1: Bool = fpInBucket(wReadFingerprint, wReadBucket1)
-  val hitInBucket2: Bool = fpInBucket(wReadFingerprint, wReadBucket2)
-  val hitInBucket: Bool = hitInBucket1 || hitInBucket2
+  val wHitInBucket1: Bool = fpInBucket(wReadFingerprint, wReadBucket1)
+  val wHitInBucket2: Bool = fpInBucket(wReadFingerprint, wReadBucket2)
+  val wHitInBucket: Bool = wHitInBucket1 || wHitInBucket2
 
-  // main logic of writing
+  /**** main logic of writing ****/
+  // False for deleting, true for writing. Writing has higher priority.
+  val writeSelect: Bool = Wire(Bool())
   val writeEnable: Bool = Wire(Bool())
   val writeBucket: UInt = Wire(UInt(hashBits.W))
   val writeEntry: UInt = Wire(UInt(log2Ceil(entriesPerBucket).W))
   val writeFingerprint: UInt = Wire(UInt(hashBits.W))
+  val writeValidBit: Bool = Wire(Bool())
   when (writeEnable) {
     table(writeBucket)(writeEntry).fp := writeFingerprint
-    table(writeBucket)(writeEntry).valid := true.B
+    table(writeBucket)(writeEntry).valid := writeValidBit
   }
 
   // LFSR's output and control
@@ -171,27 +189,41 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
   wReadHash2       := Mux(acceptNewWrite, directWriteHash2,       tmpHash2)
   wReadFingerprint := Mux(acceptNewWrite, directWriteFingerprint, tmpFingerprint)
 
-  writeEnable := (doingReplacement && !hitInBucket2) || (io.keyWrite.valid && !hitInBucket)
+  writeSelect := (doingReplacement && !wHitInBucket2) || (io.keyWrite.valid && !wHitInBucket)
+  writeEnable := Mux(writeSelect,
+    (doingReplacement && !wHitInBucket2) || (io.keyWrite.valid && !wHitInBucket),
+    io.keyDelete.valid && dHitInBucket
+  )
+  // When deleting an entry, new fingerprint doesn't matter.
   writeFingerprint := Mux(acceptNewWrite, directWriteFingerprint, tmpFingerprint)
-  when (acceptNewWrite) {
-    // If bucket1 has space, insert to bucket1.
-    // Else insert to bucket2 (probably need replace).
-    writeBucket := Mux(bucket1HasSpace, directWriteHash1, directWriteHash2)
-    when (bucket1HasSpace) {
-      writeEntry := PriorityEncoder(bucket1InvalidBits) // Find the first empty slot
-    }.elsewhen(bucket2HasSpace) {
-      writeEntry := PriorityEncoder(bucket2InvalidBits) // Find the first empty slot
+  writeValidBit := Mux(writeSelect, true.B, false.B)
+  when (writeSelect) {
+    when(acceptNewWrite) {
+      // If bucket1 has space, insert to bucket1.
+      // Else insert to bucket2 (probably need replace).
+      writeBucket := Mux(bucket1HasSpace, directWriteHash1, directWriteHash2)
+      when(bucket1HasSpace) {
+        // Find the first empty slot.
+        writeEntry := PriorityEncoder(bucket1InvalidBits)
+      }.elsewhen(bucket2HasSpace) {
+        // Find the first empty slot.
+        writeEntry := PriorityEncoder(bucket2InvalidBits)
+      }.otherwise {
+        // Both buckets are full, perform cuckoo replacement in bucket2.
+        writeEntry := randomIndex
+      }
     }.otherwise {
-      // Both buckets are full, perform cuckoo replacement in bucket2
-      writeEntry := randomIndex
+      writeBucket := tmpHash2
+      writeEntry := Mux(bucket2HasSpace, PriorityEncoder(bucket2InvalidBits), randomIndex)
     }
   }.otherwise {
-    writeBucket := tmpHash2
-    writeEntry := Mux(bucket2HasSpace, PriorityEncoder(bucket2InvalidBits), randomIndex)
+    // Delete an entry.
+    writeBucket := dWriteBucket
+    writeEntry := dWriteEntry
   }
 
   when (acceptNewWrite) { // deal with new request
-    when (io.keyWrite.valid && !hitInBucket) {
+    when (io.keyWrite.valid && !wHitInBucket) {
       when (!bucket1HasSpace && !bucket2HasSpace) {
         // Both buckets are full, perform cuckoo replacement
         writeState := maxAttempts.asUInt
@@ -201,25 +233,19 @@ class CuckooFilter(val numEntries: Int, val numBuckets: Int, val maxAttempts: In
       }
     }
   }.otherwise { // deal with previous request
-    when (!hitInBucket2) {
+    when (wHitInBucket2) {
+      // hit entry
+      writeState := 0.U
+    }.otherwise {
       when (bucket2HasSpace) {
-        // hit or find empty entry
+        // find empty entry
         writeState := 0.U
       }.otherwise {
-        // miss
+        // do replacement
         writeState := writeState - 1.U
         lfsrIncrement := true.B
         tmpFingerprint := wReadBucket2(randomIndex).fp
         tmpHash1 := tmpHash2
-      }
-    }
-  }
-
-  // Reset
-  when(io.reset) {
-    for (i <- 0 until numBuckets) {
-      for (j <- 0 until entriesPerBucket) {
-        table(i)(j).valid := false.B
       }
     }
   }
@@ -466,14 +492,15 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       val s1_readResp: FTBEntry = Output(new FTBEntry)
       val s1_readHit: Bool = Output(Bool())
       val s1_mainFtbHit: Bool = Input(Bool())
-      val s1_filterReq: ValidIO[UInt] = Valid(UInt(VAddrBits.W))
+      val s1_filterReq: ValidIO[UInt] = Valid(UInt((VAddrBits - 1).W))
       val s1_filterResp: Bool = Input(Bool())
 
       // s2: to Unified Cache
       val s2_cacheReq: DecoupledIO[UnifiedFtbReadReq] = DecoupledIO(new UnifiedFtbReadReq)
       val s2_cacheResp: ValidIO[UnifiedFtbReadResp] = Flipped(ValidIO(new UnifiedFtbReadResp))
+
+      val s2_filterDeleteReq: ValidIO[UInt] = Valid(UInt((VAddrBits - 1).W))
     })
-    dontTouch(io)
 
     // LoopFifo with synchronized read and write
     class LoopFifo(depth: Int)(implicit p: Parameters) extends XSModule with HasUnifiedFtbParams {
@@ -569,7 +596,14 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     val s1_req_valid = RegNext(io.s0_reqPc.valid)
     val s1_pred_rdata = HoldUnless(fifo.io.queryResult, s1_req_valid)
     io.s1_readResp := s1_pred_rdata.entry
-    io.s1_readHit := s1_pred_rdata.entryHit
+//    io.s1_readHit := s1_pred_rdata.entryHit
+
+    /*** Temp fix ***/
+    val startLower        = Cat(0.U(1.W),    RegNext(io.s0_reqPc.bits(instOffsetBits+log2Ceil(PredictWidth)-1, instOffsetBits)))
+    val endLowerwithCarry = Cat(s1_pred_rdata.entry.carry, s1_pred_rdata.entry.pftAddr)
+    val fallThroughErr    = startLower >= endLowerwithCarry
+
+    io.s1_readHit := s1_pred_rdata.entryHit && !fallThroughErr
 
     val s1_fifoMiss: Bool = !s1_pred_rdata.entryHit && !s1_pred_rdata.triggerHit && s1_req_valid
     val s1_vaddr: UInt = RegNext(io.s0_reqPc.bits(VAddrBits - 1, 1))
@@ -592,6 +626,9 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       (new FTBEntryWithTagSet).getWidth * (i + 1) - 1, (new FTBEntryWithTagSet).getWidth * i
     ).asTypeOf(new FTBEntryWithTagSet)).reverse
     fifo.io.dataIn.bits.trigger := inflightVaddr(VAddrBits - instOffsetBits - 1, blockOffsetBits)
+
+    io.s2_filterDeleteReq.valid := io.s2_cacheResp.fire && io.s2_cacheResp.bits.denied && state === s_wait_mem_grant
+    io.s2_filterDeleteReq.bits := inflightVaddr
 
     switch(state) {
       is(s_idle) {
@@ -622,7 +659,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       val updatePc: UInt = Input(UInt(VAddrBits.W))
       val updateFtbEntry: ValidIO[FTBEntry] = Flipped(Valid(new FTBEntry))
 
-      val filterWrite: ValidIO[UInt] = Valid(UInt(VAddrBits.W))
+      val filterWrite: ValidIO[UInt] = Valid(UInt((VAddrBits - 1).W))
       val cacheReq: DecoupledIO[UnifiedFtbWriteReq] = DecoupledIO(new UnifiedFtbWriteReq)
     })
 
@@ -639,7 +676,6 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       e.setIdx === updateSetIdx && e.entry.valid).reduce(_ || _)
 
     val lastEntryAddr: UInt = RegEnable(io.updatePc(VAddrBits - 1, 1), io.updateFtbEntry.valid && !full && !redundant)
-    //val lastEntryAddr: UInt = Cat(entriesBuf(bufferSize - 1).tag, entriesBuf(bufferSize - 1).setIdx)
     val lastGroupAddr: UInt = RegEnable(lastEntryAddr, io.cacheReq.fire)
 
     when(io.updateFtbEntry.valid && !full && !redundant) {
@@ -693,6 +729,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   pfe.io.s1_mainFtbHit := ftbBank.io.read_hits.valid
   // to cuckoo filter
   filter.io.keyRead <> pfe.io.s1_filterReq
+  filter.io.keyDelete <> pfe.io.s2_filterDeleteReq
   pfe.io.s1_filterResp := filter.io.matchFound
   // to unified cache
   io.readReq <> pfe.io.s2_cacheReq
@@ -709,6 +746,4 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   filter.io.keyWrite <> tgg.io.filterWrite
   // to unified cache
   io.writeReq <> tgg.io.cacheReq
-
-  filter.io.reset := false.B
 }
