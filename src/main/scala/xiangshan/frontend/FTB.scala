@@ -480,8 +480,8 @@ class FTB(implicit p: Parameters) extends BasePredictor with FTBParams with BPUU
   val delay2_entry = DelayN(update.ftb_entry, 2)
 
 
-  val update_now = u_valid && u_meta.hit
-  val update_need_read = u_valid && !u_meta.hit
+  lazy val update_now = u_valid && u_meta.hit
+  lazy val update_need_read = u_valid && !u_meta.hit
   // stall one more cycle because we use a whole cycle to do update read tag hit
   io.s1_ready := ftbBank.io.req_pc.ready && !(update_need_read) && !RegNext(update_need_read)
 

@@ -268,7 +268,7 @@ class FoldedHistory(val len: Int, val compLen: Int, val max_update_num: Int)(imp
       res.asUInt
     }
 
-    val new_folded_hist = if (need_oldest_bits) {
+    val new_folded_hist: UInt = if (need_oldest_bits) {
       val oldest_bits = ob
       require(oldest_bits.length == max_update_num)
       // mask off bits that do not update

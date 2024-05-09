@@ -402,3 +402,66 @@ class UnifiedCacheTestConfig(n: Int = 1) extends Config(
     ))
   })
 )
+
+class UnifiedCacheEvalConfig
+(
+  n: Int = 1
+) extends Config(
+  new DefaultConfig(n).alter((site, here, up) => {
+    case XSTileKey => up(XSTileKey).map(p => p.copy(
+      EnableUnifiedCache = true,
+      EnableUnifiedFtb = true,
+      EnableUnifiedTage = false,
+      FtbPfBuf = 8,
+      FtbPfTrigger = 128,
+      RlControllerWarmup = 5,
+      RlControllerCoef = 1,
+      RlControllerGamma = 99,
+      L2CacheParamsOpt = Some(L2Param(
+        name = "L2",
+        ways = 8,
+        sets = 512,
+        clientCaches = Seq(L1Param(
+          "dcache",
+          sets = 2 * p.dcacheParametersOpt.get.nSets / 4,
+          ways = p.dcacheParametersOpt.get.nWays + 2,
+          aliasBitsOpt = p.dcacheParametersOpt.get.aliasBitsOpt,
+          vaddrBitsOpt = Some(p.VAddrBits - log2Up(p.dcacheParametersOpt.get.blockBytes))
+        )),
+        reqField = Seq(utility.ReqSourceField()),
+        echoField = Seq(huancun.DirtyField()),
+        prefetch = Some(coupledL2.prefetch.PrefetchReceiverParams()),
+        enablePerf = !site(DebugOptionsKey).FPGAPlatform,
+        elaboratedTopDown = !site(DebugOptionsKey).FPGAPlatform
+      )),
+      L2NBanks = 4,
+      branchPredictor = ((resp_in: BranchPredictionResp, p: Parameters) => {
+        val ftbCtrl = Module(new UnifiedController()(p))
+        val ftb = Module(new UnifiedFtb()(p))
+        val ubtb = Module(new FauFTB()(p))
+        // val bim = Module(new BIM()(p))
+        val tage = Module(new Tage_SC()(p))
+        val ras = Module(new RAS()(p))
+        val ittage = Module(new ITTage()(p))
+        val preds = Seq(ubtb, tage, ftb, ittage, ras)
+        preds.map(_.io := DontCare)
+
+        ftb.io.prefetchCtrler := ftbCtrl.io.gates(0)
+        ftb.io.generateCtrler := ftbCtrl.io.gates(1)
+        ftbCtrl.io.newCommits := 0.U
+        // ubtb.io.resp_in(0)  := resp_in
+        // bim.io.resp_in(0)   := ubtb.io.resp
+        // btb.io.resp_in(0)   := bim.io.resp
+        // tage.io.resp_in(0)  := btb.io.resp
+        // loop.io.resp_in(0)  := tage.io.resp
+        ubtb.io.in.bits.resp_in(0) := resp_in
+        tage.io.in.bits.resp_in(0) := ubtb.io.out
+        ftb.io.in.bits.resp_in(0)  := tage.io.out
+        ittage.io.in.bits.resp_in(0)  := ftb.io.out
+        ras.io.in.bits.resp_in(0) := ittage.io.out
+
+        (preds, ras.io.out)
+      }),
+    ))
+  })
+)

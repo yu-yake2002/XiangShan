@@ -326,6 +326,9 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
 
   def getHist(ptr: CGHPtr): UInt = (Cat(ghv_wire.asUInt, ghv_wire.asUInt) >> (ptr.value+1.U))(HistoryLength-1, 0)
   s0_ghist := getHist(s0_ghist_ptr_dup(0))
+  dontTouch(s0_ghist)
+  val debug_ghv_wire = ghv_wire.asUInt
+  dontTouch(debug_ghv_wire)
 
   val resp = predictors.io.out
 
@@ -488,7 +491,10 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
     when (s1_valid_dup(0)) {
       s0_ghist := s1_predicted_ghist.asUInt
     }
+    val debug_s1_predicted_ghist = s1_predicted_ghist.asUInt
+    dontTouch(debug_s1_predicted_ghist)
   }
+  dontTouch(s1_valid_dup(0))
 
   val s1_ghv_wens = (0 until HistoryLength).map(n =>
     (0 until numBr).map(b => (s1_ghist_ptr_dup(0)).value === (CGHPtr(false.B, n.U) + b.U).value && resp.s1.shouldShiftVec(0)(b) && s1_valid_dup(0)))
@@ -576,6 +582,10 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
     when(s2_redirect_dup(0)) {
       s0_ghist := s2_predicted_ghist.asUInt
     }
+    val debug_s2_predicted_ghist = s2_predicted_ghist.asUInt
+    dontTouch(debug_s2_predicted_ghist)
+    val debug_get_hist = getHist(s2_predicted_ghist_ptr_dup(0))
+    dontTouch(debug_get_hist)
   }
 
   val s2_ghv_wens = (0 until HistoryLength).map(n =>
@@ -603,7 +613,6 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
 
   for (((s2_redirect, s2_fire), s2_redirect_s1_last_pred_vec) <- s2_redirect_dup zip s2_fire_dup zip s2_redirect_s1_last_pred_vec_dup)
     s2_redirect := s2_fire && s2_redirect_s1_last_pred_vec.reduce(_||_)
-
 
   for (((npcGen, s2_redirect), s2_target) <- npcGen_dup zip s2_redirect_dup zip resp.s2.getTarget)
     npcGen.register(s2_redirect, s2_target, Some("s2_target"), 5)
@@ -657,6 +666,8 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
     when(s3_redirect_dup(0)) {
       s0_ghist := s3_predicted_ghist.asUInt
     }
+    val debug_s3_predicted_ghist = s3_predicted_ghist.asUInt
+    dontTouch(debug_s3_predicted_ghist)
   }
 
   val s3_ghv_wens = (0 until HistoryLength).map(n =>
@@ -775,6 +786,8 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
     when(do_redirect_dup(0).valid) {
       s0_ghist := updated_ghist.asUInt
     }
+    val debug_updated_ghist = updated_ghist.asUInt
+    dontTouch(debug_updated_ghist)
   }
 
   // Commit time history checker
@@ -866,6 +879,8 @@ class Predictor(implicit p: Parameters) extends XSModule with HasBPUConst with H
   s0_pc_dup.zip(npcGen_dup).map {case (s0_pc, npcGen) => s0_pc := npcGen()}
   s0_folded_gh_dup.zip(foldedGhGen_dup).map {case (s0_folded_gh, foldedGhGen) => s0_folded_gh := foldedGhGen()}
   s0_ghist_ptr_dup.zip(ghistPtrGen_dup).map {case (s0_ghist_ptr, ghistPtrGen) => s0_ghist_ptr := ghistPtrGen()}
+  val debug_ghist_wire = (s0_ghist_ptr_dup(0).value === (RegNext(s0_ghist_ptr_dup(0).value) + 1.U)) && s2_redirect_dup(0)
+  dontTouch(debug_ghist_wire)
   s0_ahead_fh_oldest_bits_dup.zip(aheadFhObGen_dup).map {case (s0_ahead_fh_oldest_bits, aheadFhObGen) =>
     s0_ahead_fh_oldest_bits := aheadFhObGen()}
   s0_last_br_num_oh_dup.zip(lastBrNumOHGen_dup).map {case (s0_last_br_num_oh, lastBrNumOHGen) =>
