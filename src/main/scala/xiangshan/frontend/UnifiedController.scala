@@ -18,15 +18,17 @@ package xiangshan.frontend
 import chisel3.{Vec, _}
 import chisel3.util._
 import org.chipsalliance.cde.config.Parameters
+import utils.XSPerfHistogram
 import xiangshan._
 
 trait UnifiedControllerParams extends HasXSParameter {
-  val warmup: Int = RlControllerWarmup
-  val coef: Int = RlControllerCoef
-  val gamma: Int = RlControllerGamma
+  def warmup: Int = RlControllerWarmup
+  def coef: Int = RlControllerCoef
+  def gamma: Int = RlControllerGamma
 
-  val intWidth: Int = 12
-  val fracWidth: Int = 12
+  def intWidth: Int = 12
+  def fracWidth: Int = 12
+  def totWidth: Int = intWidth + fracWidth
 }
 
 class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedControllerParams{
@@ -50,16 +52,9 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
 
   def fixedPointValue(value: Double): UInt = {
     assert(value >= 0)
-    var frac: Double = value - value.toInt
-    val fracPart = for (i <- 1 to fracWidth) yield {
-      val bit = frac * 2.0 >= 1.0
-      frac *= 2.0
-      if (bit) {
-        frac -= 1.0
-      }
-      bit.B
-    }
-    fixedPointValue(value.toInt.U(intWidth.W), Reverse(VecInit(fracPart).asUInt))
+    val frac: Double = value - value.toInt
+    val fracBits: Int = (frac * Math.pow(2, fracWidth)).toInt
+    fixedPointValue(value.toInt.U(intWidth.W), fracBits.U(fracWidth.W))
   }
 
   /**
@@ -70,7 +65,7 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
       val input = Flipped(ValidIO(new FixedPoint))
       val logResult: FixedPoint = Output(new FixedPoint)
     })
-    // assert(!(io.input.valid && io.input.bits.sign === false.B), "Negative number is invalid.")
+    assert(!(io.input.valid && io.input.bits.sign === true.B), "Negative number is invalid.")
     val resultSign: Bool = !io.input.bits.value(intWidth + fracWidth - 1, fracWidth).orR
     io.logResult.sign := resultSign
 
@@ -102,13 +97,13 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
       val input = Flipped(ValidIO(new FixedPoint))
       val sqrtResult: FixedPoint = Output(new FixedPoint)
     })
-    // assert(!(io.input.valid && io.input.bits.sign === false.B), "Negative number is invalid.")
+    assert(!(io.input.valid && io.input.bits.sign === true.B), "Negative number is invalid.")
     io.sqrtResult.sign := false.B
 
     // Segment intervals
-    val segments: IndexedSeq[(UInt, UInt)] = for (i <- -6 to 1) yield {
+    val segments: IndexedSeq[(UInt, UInt)] = for (i <- -12 to 2) yield {
       // (upper limit, approximate value)
-      (fixedPointValue(scala.math.pow(4, i)), fixedPointValue(scala.math.pow(4, i / 2)))
+      (fixedPointValue(scala.math.pow(2, i)), fixedPointValue(scala.math.pow(2, i / 2.0)))
     }
 
     val inputInRange: Bool = io.input.bits.value < segments.last._1
@@ -130,8 +125,7 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
       val in = Flipped(Decoupled(new DividerIO))
       val result = Decoupled(new FixedPoint)
     })
-    // TODO: add me!
-    // assert(!(io.in.valid && io.in.bits.divisor.value === 0.U), "ArithmeticException!")
+    assert(!(io.in.valid && io.in.bits.divisor.value === 0.U), "ArithmeticException!")
 
     // Define states for the state machine
     val waitingForInput :: calculating :: waitingForResultAccept :: Nil = Enum(3)
@@ -210,28 +204,46 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
   commitsCounter := Mux(update, 0.U, commitsCounter) + io.newCommits
 
   // commits in the last interval, used in calculation
-  val commitsUpdate: UInt = RegEnable(commitsCounter, update)
-  val rewardStep: UInt = Cat(0.U((intWidth + 10 - commitsUpdate.getWidth).W), commitsUpdate, 0.U((fracWidth - 10).W))
-
-  val rewardsReg: Vec[FixedPoint] = Reg(Vec(4, new FixedPoint))
-  val niReg: Vec[FixedPoint] = Reg(Vec(4, new FixedPoint))
-  val nTotalReg: FixedPoint = Reg(new FixedPoint)
-  val potentialReg: Vec[FixedPoint] = Reg(Vec(4, new FixedPoint))
-
-  val warmUp :: pendingState :: sendUpdRew :: waitUpdRew :: sendNextArm :: waitNextArm :: updSels :: Nil = Enum(7)
-  val state: UInt = RegInit(warmUp)
-  val warmupRound: UInt = RegInit(0.U(3.W))
-  val finishWarmup: Bool = warmupRound === warmup.U
+  val rewardStep: UInt = Cat(0.U((intWidth + 10 - commitsCounter.getWidth).W), commitsCounter, 0.U((fracWidth - 10).W))
+  val rewardStepReg: UInt = RegEnable(rewardStep, 0.U, update)
 
   // TODO: How many bits are needed here?
   val selectedArm: UInt = RegInit(0.U(2.W))
   val updatingArm: UInt = RegInit(0.U(2.W))
-  val selectedArmReward: FixedPoint = rewardsReg(selectedArm)
+
+  val rewardsReg: Vec[FixedPoint] = RegInit(VecInit(Seq.fill(4)(0.U.asTypeOf(new FixedPoint))))
+  val rewardsWritePtr: UInt = selectedArm
+  val rewardsWriteData: FixedPoint = WireDefault((0.U).asTypeOf(new FixedPoint))
+  dontTouch(rewardsWriteData)
+  val rewardsWriteEnable: Bool = WireDefault(false.B)
+  when (rewardsWriteEnable) {
+    rewardsReg(rewardsWritePtr) := rewardsWriteData
+  }
+
+  val niReg: Vec[FixedPoint] = RegInit(VecInit(Seq.fill(4)(0.U.asTypeOf(new FixedPoint))))
+  val nTotalReg: FixedPoint = RegInit(0.U.asTypeOf(new FixedPoint))
+
+  val potentialReg: Vec[FixedPoint] = RegInit(VecInit(Seq.fill(4)(0.U.asTypeOf(new FixedPoint))))
+  val potentialWritePtr: UInt = updatingArm
+  val potentialWriteData: FixedPoint = WireDefault((0.U).asTypeOf(new FixedPoint))
+  val potentialWriteEnable: Bool = WireDefault(false.B)
+  when (potentialWriteEnable) {
+    potentialReg(potentialWritePtr) := potentialWriteData
+  }
+
+  val (warmUp :: warmUpSendUpdRew :: warmUpWaitUpdRew :: pendingState :: sendUpdRew :: waitUpdRew :: sendNextArm ::
+    waitNextArm :: updSels :: Nil) = Enum(9)
+  val state: UInt = RegInit(warmUp)
+  val warmupRound: UInt = RegInit(0.U(3.W))
+  val finishWarmup: Bool = warmupRound === warmup.U
+
+  val selectedArmReward: FixedPoint = WireDefault(rewardsReg(selectedArm))
+  dontTouch(rewardsReg)
 
   def findMaxPotentialArm(potential: Vec[FixedPoint]): UInt = {
     class findMaxBundle extends Bundle {
       val fp = new FixedPoint
-      val idx: UInt = UInt(potential.size.W)
+      val idx: UInt = UInt((potential.size + 1).W)
     }
     object findMaxBundle {
       def apply(fp: FixedPoint, idx: UInt): findMaxBundle = {
@@ -252,24 +264,51 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
         Mux(leftResult.fp > rightResult.fp, leftResult, rightResult)
       }
     }
-    findMax(0, potential.size).idx
+    findMax(0, potential.size).idx(1, 0)
   }
 
   switch(state) {
     is(warmUp) {
-      when (update) {
-        when(selectedArm =/= 3.U) {
-          // Simply select next arm.
-          selectedArm := selectedArm + 1.U
-        }.otherwise {
-          // Finish a warmup round.
-          when(!finishWarmup) {
-            warmupRound := warmupRound + 1.U
-            selectedArm := 0.U
-          }.otherwise {
-            state := pendingState
-          }
+      when(update) {
+        when(!finishWarmup && selectedArm === 3.U) {
+          warmupRound := warmupRound + 1.U
         }
+        when(warmupRound === 0.U) {
+          // Don't wait for divider.
+          state := warmUp
+          rewardsWriteEnable := true.B
+          rewardsWriteData.value := rewardStep
+          selectedArm := selectedArm + 1.U
+          nTotalReg.value := nTotalReg.value + fixedPointValue(1)
+          niReg(selectedArm).value := niReg(selectedArm).value + fixedPointValue(1)
+        }.elsewhen(!finishWarmup) {
+          // Wait for divider.
+          state := warmUpSendUpdRew
+        }.otherwise { // finish warmup
+          state := pendingState
+        }
+      }
+    }
+    is(warmUpSendUpdRew) {
+      when(divider.io.in.fire) {
+        state := warmUpWaitUpdRew
+      }
+    }
+    is(warmUpWaitUpdRew) {
+      when(divider.io.result.fire) {
+        when(finishWarmup) {
+          state := sendNextArm
+        }.otherwise {
+          state := warmUp
+        }
+        rewardsWriteEnable := true.B
+        rewardsWriteData.value := Mux(divider.io.result.bits.sign,
+          selectedArmReward.value - divider.io.result.bits.value,
+          selectedArmReward.value + divider.io.result.bits.value
+        )
+        selectedArm := selectedArm + 1.U
+        niReg(selectedArm).value := niReg(selectedArm).value + fixedPointValue(1)
+        nTotalReg.value := nTotalReg.value + fixedPointValue(1)
       }
     }
     is(pendingState) {
@@ -285,7 +324,8 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
     }
     is(waitUpdRew) {
       when(divider.io.result.fire) {
-        selectedArmReward.value := Mux(divider.io.result.bits.sign,
+        rewardsWriteEnable := true.B
+        rewardsWriteData.value := Mux(divider.io.result.bits.sign,
           selectedArmReward.value - divider.io.result.bits.value,
           selectedArmReward.value + divider.io.result.bits.value
         )
@@ -300,50 +340,62 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
     }
     is(waitNextArm) {
       when(divider.io.result.fire) {
+        potentialWriteEnable := true.B
+        potentialWriteData.value := rewardsReg(potentialWritePtr).value.asUInt + sqrtTable.io.sqrtResult.value.asUInt
         when(updatingArm === 3.U) {
           state := updSels
-          updatingArm := 0.U
         }.otherwise {
           state := sendNextArm
-          updatingArm := updatingArm + 1.U
         }
+        updatingArm := updatingArm + 1.U
       }
     }
     is(updSels) {
-      when(updatingArm === 3.U) {
-        state := pendingState
-        selectedArm := findMaxPotentialArm(potentialReg)
+      state := pendingState
+      val maxPot = findMaxPotentialArm(potentialReg)
+      // dontTouch(maxPot)
+      selectedArm := maxPot
+      nTotalReg.value := (nTotalReg.value - (nTotalReg.value >> 7.U).asUInt + fixedPointValue(1))
+      for (i <- 0 until 4) {
+        when (i.U === maxPot) {
+          niReg(i).value := niReg(i).value + fixedPointValue(1)
+        }.otherwise {
+          niReg(i).value := niReg(i).value - (niReg(i).value >> 7.U).asUInt
+        }
       }
     }
   }
 
   lnTable.io.input.valid := state === sendNextArm
   lnTable.io.input.bits := nTotalReg
-  sqrtTable.io.input.valid := false.B // TODO: implement me!
+  sqrtTable.io.input.valid := divider.io.result.fire && (state === waitNextArm)
   sqrtTable.io.input.bits := divider.io.result.bits
 
-  divider.io.in.valid := (state === sendUpdRew) || (state === sendNextArm)
+  divider.io.in.valid := (((state === sendUpdRew) || (state === sendNextArm) || (state === warmUpSendUpdRew))
+    && warmupRound =/= 0.U)
   val dividend: FixedPoint = Wire(new FixedPoint)
-  dividend.sign := Mux(state === sendUpdRew,
-    rewardStep < selectedArmReward.value,
+  dividend.sign := Mux((state === sendUpdRew) || (state === warmUpSendUpdRew),
+    rewardStepReg < selectedArmReward.value,
     lnTable.io.logResult.sign
   )
-  dividend.value := Mux(state === sendUpdRew,
-    Mux(dividend.sign, selectedArmReward.value, rewardStep) - Mux(dividend.sign, rewardStep, selectedArmReward.value),
+  dividend.value := Mux((state === sendUpdRew) || (state === warmUpSendUpdRew),
+    Mux(dividend.sign, selectedArmReward.value, rewardStepReg) - Mux(dividend.sign, rewardStepReg, selectedArmReward.value),
     lnTable.io.logResult.value
   )
   divider.io.in.bits.dividend := dividend
-  divider.io.in.bits.divisor := Mux(state === sendUpdRew,
-    nTotalReg,
-    niReg(updatingArm)
-  )
-  divider.io.result.ready := (state === waitUpdRew) || (state === waitNextArm)
+//  divider.io.in.bits.divisor := Mux((state === sendUpdRew) || (state === warmUpSendUpdRew),
+//    niReg(updatingArm),
+//    nTotalReg
+//  )
+  divider.io.in.bits.divisor := niReg(updatingArm)
+  divider.io.result.ready := (state === waitUpdRew) || (state === waitNextArm) || (state === warmUpWaitUpdRew)
 
   // transform arm to gates
 //  for (i <- 0 until 2) {
 //    io.gates(i) := selectedArm(i)
 //  }
-  for (i <- 0 until 2) {
-    io.gates(i) := true.B
-  }
+   for (i <- 0 until 2) {
+     io.gates(i) := true.B
+   }
+  XSPerfHistogram("ftbCtrl_select", selectedArm, true.B, 0, 3, 1)
 }

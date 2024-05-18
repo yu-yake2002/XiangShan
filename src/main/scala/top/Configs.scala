@@ -373,7 +373,6 @@ class UnifiedCacheTestConfig(n: Int = 1) extends Config(
         enableUnifiedFtb = true
       )),
       branchPredictor = ((resp_in: BranchPredictionResp, p: Parameters) => {
-        val ftbCtrl = Module(new UnifiedController()(p))
         val ftb = Module(new UnifiedFtb()(p))
         val ubtb = Module(new FauFTB()(p))
         // val bim = Module(new BIM()(p))
@@ -382,10 +381,7 @@ class UnifiedCacheTestConfig(n: Int = 1) extends Config(
         val ittage = Module(new ITTage()(p))
         val preds = Seq(ubtb, tage, ftb, ittage, ras)
         preds.map(_.io := DontCare)
-
-        ftb.io.prefetchCtrler := ftbCtrl.io.gates(0)
-        ftb.io.generateCtrler := ftbCtrl.io.gates(1)
-        ftbCtrl.io.newCommits := 0.U
+        
         // ubtb.io.resp_in(0)  := resp_in
         // bim.io.resp_in(0)   := ubtb.io.resp
         // btb.io.resp_in(0)   := bim.io.resp
@@ -403,27 +399,25 @@ class UnifiedCacheTestConfig(n: Int = 1) extends Config(
   })
 )
 
-class UnifiedCacheEvalConfig
+class WithUnifiedNKBL2
 (
-  n: Int = 1
-) extends Config(
-  new DefaultConfig(n).alter((site, here, up) => {
-    case XSTileKey => up(XSTileKey).map(p => p.copy(
-      EnableUnifiedCache = true,
-      EnableUnifiedFtb = true,
-      EnableUnifiedTage = false,
-      FtbPfBuf = 8,
-      FtbPfTrigger = 128,
-      RlControllerWarmup = 5,
-      RlControllerCoef = 1,
-      RlControllerGamma = 99,
+  n: Int,
+  ways: Int = 8,
+  inclusive: Boolean = true,
+  banks: Int = 1
+) extends Config((site, here, up) => {
+  case XSTileKey =>
+    require(inclusive, "L2 must be inclusive")
+    val upParams = up(XSTileKey)
+    val l2sets = n * 1024 / banks / ways / 64
+    upParams.map(p => p.copy(
       L2CacheParamsOpt = Some(L2Param(
         name = "L2",
-        ways = 8,
-        sets = 512,
+        ways = ways,
+        sets = l2sets,
         clientCaches = Seq(L1Param(
           "dcache",
-          sets = 2 * p.dcacheParametersOpt.get.nSets / 4,
+          sets = 2 * p.dcacheParametersOpt.get.nSets / banks,
           ways = p.dcacheParametersOpt.get.nWays + 2,
           aliasBitsOpt = p.dcacheParametersOpt.get.aliasBitsOpt,
           vaddrBitsOpt = Some(p.VAddrBits - log2Up(p.dcacheParametersOpt.get.blockBytes))
@@ -432,11 +426,31 @@ class UnifiedCacheEvalConfig
         echoField = Seq(huancun.DirtyField()),
         prefetch = Some(coupledL2.prefetch.PrefetchReceiverParams()),
         enablePerf = !site(DebugOptionsKey).FPGAPlatform,
-        elaboratedTopDown = !site(DebugOptionsKey).FPGAPlatform
+        elaboratedTopDown = !site(DebugOptionsKey).FPGAPlatform,
+        enableUnifiedFtb = true
       )),
-      L2NBanks = 4,
+      L2NBanks = banks
+    ))
+})
+
+class UnifiedCacheEvalConfig
+(
+  n: Int = 1
+) extends Config(
+  new WithNKBL3(16 * 1024, inclusive = false, banks = 4, ways = 16)
+    ++ new WithUnifiedNKBL2(2 * 512, inclusive = true, banks = 4)
+    ++ new WithNKBL1D(64, ways = 4)
+    ++ new BaseConfig(n).alter((site, here, up) => {
+    case XSTileKey => up(XSTileKey).map(_.copy(
+      EnableUnifiedCache = true,
+      EnableUnifiedFtb = true,
+      EnableUnifiedTage = false,
+      FtbPfBuf = 8,
+      FtbPfTrigger = 128,
+      RlControllerWarmup = 5,
+      RlControllerCoef = 1,
+      RlControllerGamma = 99,
       branchPredictor = ((resp_in: BranchPredictionResp, p: Parameters) => {
-        val ftbCtrl = Module(new UnifiedController()(p))
         val ftb = Module(new UnifiedFtb()(p))
         val ubtb = Module(new FauFTB()(p))
         // val bim = Module(new BIM()(p))
@@ -446,9 +460,6 @@ class UnifiedCacheEvalConfig
         val preds = Seq(ubtb, tage, ftb, ittage, ras)
         preds.map(_.io := DontCare)
 
-        ftb.io.prefetchCtrler := ftbCtrl.io.gates(0)
-        ftb.io.generateCtrler := ftbCtrl.io.gates(1)
-        ftbCtrl.io.newCommits := 0.U
         // ubtb.io.resp_in(0)  := resp_in
         // bim.io.resp_in(0)   := ubtb.io.resp
         // btb.io.resp_in(0)   := bim.io.resp

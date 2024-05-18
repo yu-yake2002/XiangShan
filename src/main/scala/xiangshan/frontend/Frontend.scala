@@ -97,6 +97,8 @@ class FrontendImp (outer: Frontend) extends LazyModuleImp(outer)
     port.io.readReq <> unifiedPred.io.readReq
     port.io.readResp <> unifiedPred.io.readResp
     port.io.writeReq <> unifiedPred.io.writeReq
+
+    unifiedPred.io.newCommit := PopCount(io.backend.toFtq.rob_commits.map(_.valid))
   }
 
   // trigger

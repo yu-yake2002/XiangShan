@@ -21,11 +21,12 @@ import chisel3.util._
 import chisel3.util.random.LFSR
 import freechips.rocketchip.diplomacy.{IdRange, LazyModule, LazyModuleImp, TransferSizes}
 import freechips.rocketchip.tilelink._
-import utility.{DelayN, GTimer, HoldUnless, ReplacementPolicy, SRAMTemplate}
+import system.HasSoCParameter
+import utility._
 import utils.XSPerfAccumulate
 import xiangshan._
 import xiangshan.cache.{L1CacheParameters, MemoryOpConstants}
-import xiangshan.frontend.{FTB, FTBEntry, FTBEntryWithTag, FTBMeta, FtbSlot}
+import xiangshan.frontend._
 
 import scala.{Tuple2 => &}
 
@@ -475,7 +476,7 @@ class UnifiedFtbIO(implicit p: Parameters) extends BasePredictorIO {
   val generateCtrler: Bool = Input(Bool())
 }
 
-class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
+class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams with HasSoCParameter{
   override lazy val io = IO(new UnifiedFtbIO)
   dontTouch(io)
 
@@ -528,6 +529,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
         // When triggerHit is true, don't send any requests to filter and cache.
         val triggerHit: Bool = Bool()
+        val needPrefetch: Bool = Bool()
       }
 
       val io = IO(new Bundle {
@@ -560,9 +562,11 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
       val queryResultEntry = Reg(new FTBEntry())
       val queryResultValid = RegInit(false.B)
       val queryResultTriggerHit = Reg(Bool())
+      val queryResultNeedPrefetch = Reg(Bool())
       io.queryResult.entryHit := queryResultValid
       io.queryResult.entry := queryResultEntry
       io.queryResult.triggerHit := queryResultTriggerHit
+      io.queryResult.needPrefetch := queryResultNeedPrefetch
 
       when(io.queryPc.fire) {
         // Wire for parallel matching results
@@ -578,16 +582,20 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
         }
         // Select the matching FIFO entry index
         val matchingFifoIndex = PriorityEncoder(matchingFifoEntries)
-
-        queryResultValid := matchingFifoEntries.reduce(_ || _)
+        val lastHit = matchingResultVec(matchingFifoIndex)((new UnifiedFtbFifoEntry).entryCnt - 1)
+        val entryHit = matchingFifoEntries.reduce(_ || _)
+        queryResultValid := entryHit
         queryResultEntry := matchingFtbEntryVec(matchingFifoIndex)
-        queryResultTriggerHit := fifoEntriesValid.zip(fifoEntries).map{
+        val triggerHit = fifoEntriesValid.zip(fifoEntries).map{
           case (valid, entry) =>
             valid && entry.trigger === io.queryPc.bits(VAddrBits - 1, instOffsetBits + blockOffsetBits)
         }.reduce(_ || _)
+        queryResultTriggerHit := triggerHit
+        queryResultNeedPrefetch := (!entryHit || lastHit) && !triggerHit
       }.otherwise {
         queryResultValid := false.B
       }
+      XSPerfAccumulate("ftb_fifo_read_hits", RegNext(io.queryPc.fire) && queryResultValid)
     }
 
     val fifo = Module(new LoopFifo(bufSize))
@@ -606,10 +614,10 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
 
     io.s1_readHit := s1_pred_rdata.entryHit && !fallThroughErr && io.s1_fire
 
-    val s1_fifoMiss: Bool = !s1_pred_rdata.entryHit && !s1_pred_rdata.triggerHit && s1_req_valid
+    val s1_needPrefetch: Bool = s1_pred_rdata.needPrefetch && s1_req_valid
     val s1_vaddr: UInt = RegNext(io.s0_reqPc.bits(VAddrBits - 1, 1))
     // Look up in the Filter
-    io.s1_filterReq.valid := io.valve && s1_fifoMiss && !io.s1_mainFtbHit
+    io.s1_filterReq.valid := io.valve && s1_needPrefetch && !io.s1_mainFtbHit
     io.s1_filterReq.bits := s1_vaddr
 
     /************* s2 *************/
@@ -679,7 +687,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
     val lastEntryAddr: UInt = RegEnable(io.updatePc(VAddrBits - 1, 1), io.updateFtbEntry.valid && !full && !redundant)
     val lastGroupAddr: UInt = RegEnable(lastEntryAddr, io.cacheReq.fire)
 
-    when(io.updateFtbEntry.valid && !full && !redundant) {
+    when(io.updateFtbEntry.valid && io.updateFtbEntry.bits.valid && !full && !redundant) {
       // fill this entry
       entriesBuf(writePtr) := updateFtbEntryWithTagSet
       // move ptr to next entry
@@ -706,8 +714,8 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   override lazy val s2_ftb_entry_dup = io.s1_fire.map(f => RegEnable(
       Mux(ftbBank.io.read_hits.valid, ftbBank.io.read_resp, pfe.io.s1_readResp), f))
   override lazy val s1_hit: Bool = (ftbBank.io.read_hits.valid || pfe.io.s1_readHit) && io.ctrl.btb_enable
-//  // TODO: override me correctly!
-//  override val writeWay: UInt = ftbBank.io.read_hits.bits
+  dontTouch(s1_hit)
+  assert(!RegNextN((RegNext(io.s0_fire(0)) && s1_hit && !ftbBank.io.read_hits.valid), 300, Some(false.B)))
 
   for (full_pred & s2_ftb_entry & s2_pc & s1_pc & s1_fire <-
          io.out.s2.full_pred zip s2_ftb_entry_dup zip s2_pc_dup zip s1_pc_dup zip io.s1_fire) {
@@ -750,4 +758,8 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams {
   filter.io.keyWrite <> tgg.io.filterWrite
   // to unified cache
   io.writeReq <> tgg.io.cacheReq
+
+  val enbale_bplog = !debugOpts.FPGAPlatform && debugOpts.AlwaysBasicDB
+  val ftb_logger = BPUpdLogger("L2_FTB", enbale_bplog)
+  ftb_logger := DontCare
 }
