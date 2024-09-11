@@ -604,7 +604,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams wi
     /************* s1 *************/
     val s1_req_valid = RegNext(io.s0_reqPc.valid)
     val s1_pred_rdata = HoldUnless(fifo.io.queryResult, s1_req_valid)
-    io.s1_readResp := Mux(io.s1_readHit, s1_pred_rdata.entry, 0.U.asTypeOf(io.s1_readResp))
+    io.s1_readResp := Mux(io.s1_readHit && io.valve, s1_pred_rdata.entry, 0.U.asTypeOf(io.s1_readResp))
 
     /*** Temp fix ***/
     val startLower        = Cat(0.U(1.W),    RegNext(io.s0_reqPc.bits(instOffsetBits+log2Ceil(PredictWidth)-1, instOffsetBits)))
@@ -612,7 +612,9 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams wi
     val fallThroughErr    = startLower >= endLowerwithCarry
 //    val fallThroughErr = false.B
 
-    io.s1_readHit := s1_pred_rdata.entryHit && !fallThroughErr && io.s1_fire
+    io.s1_readHit := s1_pred_rdata.entryHit && !fallThroughErr && io.s1_fire && io.valve
+
+    // assert(!(RegNext(io.s0_reqPc.valid) && io.s1_readHit && !io.s1_mainFtbHit))
 
     val s1_needPrefetch: Bool = s1_pred_rdata.needPrefetch && s1_req_valid
     val s1_vaddr: UInt = RegNext(io.s0_reqPc.bits(VAddrBits - 1, 1))
@@ -714,8 +716,8 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams wi
   override lazy val s2_ftb_entry_dup = io.s1_fire.map(f => RegEnable(
       Mux(ftbBank.io.read_hits.valid, ftbBank.io.read_resp, pfe.io.s1_readResp), f))
   override lazy val s1_hit: Bool = (ftbBank.io.read_hits.valid || pfe.io.s1_readHit) && io.ctrl.btb_enable
-  dontTouch(s1_hit)
-  assert(!RegNextN((RegNext(io.s0_fire(0)) && s1_hit && !ftbBank.io.read_hits.valid), 300, Some(false.B)))
+  // dontTouch(s1_hit)
+  // assert(!RegNextN((RegNext(io.s0_fire(0)) && s1_hit && !ftbBank.io.read_hits.valid), 300, Some(false.B)))
 
   for (full_pred & s2_ftb_entry & s2_pc & s1_pc & s1_fire <-
          io.out.s2.full_pred zip s2_ftb_entry_dup zip s2_pc_dup zip s1_pc_dup zip io.s1_fire) {
@@ -726,6 +728,9 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams wi
       Some(Mux(ftbBank.io.update_hits.valid, ftbBank.io.read_resp, pfe.io.s1_readResp), s1_fire)
     )
   }
+
+  // TODO: Check me!
+  override lazy val u_valid = io.update.valid && (!io.update.bits.old_entry || !u_meta.blockHit.get)
 
   override lazy val update_now = u_valid && u_meta.blockHit.get
   override lazy val update_need_read = u_valid && !u_meta.blockHit.get
@@ -750,7 +755,7 @@ class UnifiedFtb(implicit p: Parameters) extends FTB with HasUnifiedFtbParams wi
   // Additional update logic
   tgg.io.valve := io.generateCtrler
   // tgg.io.updateFtbEntry.valid := DelayN(u_valid && !u_meta.hit, 2)
-  tgg.io.updateFtbEntry.valid := DelayN(u_valid && (!u_meta.blockHit.get), 2)
+  tgg.io.updateFtbEntry.valid := DelayN(u_valid && (!u_meta.blockHit.get || io.update.bits.false_hit), 2)
   tgg.io.updatePc := ftbBank.io.update_pc
   tgg.io.updateFtbEntry.bits := ftb_write.entry
 

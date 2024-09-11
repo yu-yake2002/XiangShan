@@ -101,9 +101,9 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
     io.sqrtResult.sign := false.B
 
     // Segment intervals
-    val segments: IndexedSeq[(UInt, UInt)] = for (i <- -12 to 2) yield {
+    val segments: IndexedSeq[(UInt, UInt)] = for (i <- -24 to 4) yield {
       // (upper limit, approximate value)
-      (fixedPointValue(scala.math.pow(2, i)), fixedPointValue(scala.math.pow(2, i / 2.0)))
+      (fixedPointValue(scala.math.pow(2, i / 2.0)), fixedPointValue(scala.math.pow(2, i / 4.0)))
     }
 
     val inputInRange: Bool = io.input.bits.value < segments.last._1
@@ -358,9 +358,9 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
       nTotalReg.value := (nTotalReg.value - (nTotalReg.value >> 7.U).asUInt + fixedPointValue(1))
       for (i <- 0 until 4) {
         when (i.U === maxPot) {
-          niReg(i).value := niReg(i).value + fixedPointValue(1)
+          niReg(i).value := niReg(i).value - (niReg(selectedArm).value >> 11).asUInt + fixedPointValue(1)
         }.otherwise {
-          niReg(i).value := niReg(i).value - (niReg(i).value >> 7.U).asUInt
+          niReg(i).value := niReg(i).value - (niReg(i).value >> 7.U).asUInt + (fixedPointValue(1) >> 12)
         }
       }
     }
@@ -391,11 +391,11 @@ class UnifiedController(implicit p: Parameters) extends XSModule with UnifiedCon
   divider.io.result.ready := (state === waitUpdRew) || (state === waitNextArm) || (state === warmUpWaitUpdRew)
 
   // transform arm to gates
-//  for (i <- 0 until 2) {
-//    io.gates(i) := selectedArm(i)
-//  }
-   for (i <- 0 until 2) {
-     io.gates(i) := true.B
-   }
+  for (i <- 0 until 2) {
+    io.gates(i) := selectedArm(i)
+  }
+  // for (i <- 0 until 2) {
+  //   io.gates(i) := true.B
+  // }
   XSPerfHistogram("ftbCtrl_select", selectedArm, true.B, 0, 3, 1)
 }
