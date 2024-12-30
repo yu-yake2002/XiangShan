@@ -449,6 +449,24 @@ package object xiangshan {
     def setVlmax(func: UInt)    = func | (1 << setVlmaxBit).U
   }
 
+  object MatrixSETOpType {
+    // TODO: add matrix set
+    def placeholder = "b0000_0000".U
+
+    // TODO: implement me!
+    def isMsettilem (func: UInt) = false.B
+    def isMsettilemi (func: UInt) = false.B
+    def isSetTmmax (func: UInt) = false.B
+    def isMsettilen (func: UInt) = false.B
+    def isMsettileni (func: UInt) = false.B
+    def isSetTnmax (func: UInt) = false.B
+    def isMsettilek (func: UInt) = false.B
+    def isMsettileki (func: UInt) = false.B
+    def isSetTkmax (func: UInt) = false.B
+
+    def isMsettilexi (func: UInt) = false.B
+  }
+
   object BRUOpType {
     // branch
     def beq        = "b000_000".U
@@ -703,26 +721,31 @@ package object xiangshan {
   }
 
   object SelImm {
-    def IMM_X  = "b0111".U
-    def IMM_S  = "b1110".U
-    def IMM_SB = "b0001".U
-    def IMM_U  = "b0010".U
-    def IMM_UJ = "b0011".U
-    def IMM_I  = "b0100".U
-    def IMM_Z  = "b0101".U
-    def INVALID_INSTR = "b0110".U
-    def IMM_B6 = "b1000".U
+    def IMM_X  = "b00111".U
+    def IMM_S  = "b01110".U
+    def IMM_SB = "b00001".U
+    def IMM_U  = "b00010".U
+    def IMM_UJ = "b00011".U
+    def IMM_I  = "b00100".U
+    def IMM_Z  = "b00101".U
+    def INVALID_INSTR = "b00110".U
+    def IMM_B6 = "b01000".U
 
-    def IMM_OPIVIS = "b1001".U
-    def IMM_OPIVIU = "b1010".U
-    def IMM_VSETVLI   = "b1100".U
-    def IMM_VSETIVLI  = "b1101".U
-    def IMM_LUI32 = "b1011".U
-    def IMM_VRORVI = "b1111".U
+    def IMM_OPIVIS = "b01001".U
+    def IMM_OPIVIU = "b01010".U
+    def IMM_VSETVLI   = "b01100".U
+    def IMM_VSETIVLI  = "b01101".U
+    def IMM_LUI32 = "b01011".U
+    def IMM_VRORVI = "b01111".U
 
-    def X      = BitPat("b0000")
+    def IMM_MSET = "b10000".U
+    def IMM_MSETSPI = "b10001".U
+    def IMM_MSETVAL = "b10010".U
+    def IMM_MSETFIELD = "b10011".U
 
-    def apply() = UInt(4.W)
+    def X      = BitPat("b00000")
+
+    def apply() = UInt(5.W)
 
     def mkString(immType: UInt) : String = {
       val strMap = Map(
@@ -740,6 +763,10 @@ package object xiangshan {
         IMM_LUI32.litValue     -> "LUI32",
         IMM_VRORVI.litValue    -> "VRORVI",
         INVALID_INSTR.litValue -> "INVALID",
+        IMM_MSET.litValue      -> "MSET",
+        IMM_MSETSPI.litValue   -> "MSETSPI",
+        IMM_MSETVAL.litValue   -> "MSETVAL",
+        IMM_MSETFIELD.litValue -> "MSETFIELD",
       )
       strMap(immType.litValue)
     }
@@ -759,6 +786,10 @@ package object xiangshan {
         IMM_VSETIVLI.litValue  -> ImmUnion.VSETIVLI,
         IMM_LUI32.litValue     -> ImmUnion.LUI32,
         IMM_VRORVI.litValue    -> ImmUnion.VRORVI,
+        IMM_MSET.litValue      -> ImmUnion.MSET,
+        IMM_MSETSPI.litValue   -> ImmUnion.MSETSPI,
+        IMM_MSETVAL.litValue   -> ImmUnion.MSETVAL,
+        IMM_MSETFIELD.litValue -> ImmUnion.MSETFIELD,
       )
       iuMap(immType.litValue)
     }

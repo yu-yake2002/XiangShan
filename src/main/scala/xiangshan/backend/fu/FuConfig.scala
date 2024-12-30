@@ -412,6 +412,8 @@ object FuConfig {
     immType = Set(SelImm.IMM_VSETVLI, SelImm.IMM_VSETIVLI),
   )
 
+  // TODO: Add Fu for Matrix configs here
+
   val LduCfg: FuConfig = FuConfig (
     name = "ldu",
     fuType = FuType.ldu,

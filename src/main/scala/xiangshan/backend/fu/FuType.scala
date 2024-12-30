@@ -71,6 +71,9 @@ object FuType extends OHEnumeration {
   val vsegldu = addType(name = "vsegldu")
   val vsegstu = addType(name = "vsegstu")
 
+  // matrix
+  val mset = addType(name = "mset")
+
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)
   // dq0 includes int's iq0 and iq1
   // dq1 includes int's iq2 and iq3

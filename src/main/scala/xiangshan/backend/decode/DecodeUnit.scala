@@ -31,6 +31,7 @@ import xiangshan.backend.fu.FuType
 import xiangshan.backend.Bundles.{DecodedInst, DynInst, StaticInst}
 import xiangshan.backend.decode.isa.PseudoInstructions
 import xiangshan.backend.decode.isa.bitfield.{InstVType, OPCODE5Bit, XSInstBitFields}
+import xiangshan.backend.fu.matrix.Bundles.MType
 import xiangshan.backend.fu.vector.Bundles.{VType, Vl}
 import xiangshan.backend.fu.wrapper.CSRToDecode
 import xiangshan.backend.decode.Zimop._
@@ -721,6 +722,50 @@ case class Imm_VRORVI() extends Imm(6){
   }
 }
 
+// Used in msettypei, msettypehi, msettilemi, msettileni, msettileki
+case class Imm_MSET() extends Imm(10){
+  // TODO: check if this is correct
+  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
+
+  override def minBitsFromInstr(instr: UInt): UInt = {
+    instr(24, 15)
+  }
+
+  def getAtx(extedImm: UInt): UInt = {
+    extedImm
+  }
+}
+
+// Used in msettspi, msetdspi
+case class Imm_MSETSPI() extends Imm(5){
+  // TODO: check if this is correct
+  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
+
+  override def minBitsFromInstr(instr: UInt): UInt = {
+    instr(19, 15)
+  }
+}
+
+// Used in msetsew, msetint, munsetint, msetfp, mubsetfp, msetba
+case class Imm_MSETVAL() extends Imm(5){
+  // TODO: check if this is correct
+  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
+
+  override def minBitsFromInstr(instr: UInt): UInt = {
+    instr(24, 20)
+  }
+}
+
+// Used in msetsew, msetint, munsetint, msetfp, mubsetfp, msetba
+case class Imm_MSETFIELD() extends Imm(5){
+  // TODO: check if this is correct
+  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
+
+  override def minBitsFromInstr(instr: UInt): UInt = {
+    instr(19, 15)
+  }
+}
+
 object ImmUnion {
   val I = Imm_I()
   val S = Imm_S()
@@ -735,6 +780,10 @@ object ImmUnion {
   val VSETIVLI = Imm_VSETIVLI()
   val LUI32 = Imm_LUI32()
   val VRORVI = Imm_VRORVI()
+  val MSET = Imm_MSET()
+  val MSETSPI = Imm_MSETSPI()
+  val MSETVAL = Imm_MSETVAL()
+  val MSETFIELD = Imm_MSETFIELD()
 
   // do not add special type lui32 to this, keep ImmUnion max len being 20.
   val imms = Seq(I, S, B, U, J, Z, B6, OPIVIS, OPIVIU, VSETVLI, VSETIVLI, VRORVI)
@@ -752,6 +801,10 @@ object ImmUnion {
     SelImm.IMM_VSETVLI,
     SelImm.IMM_VSETIVLI,
     SelImm.IMM_VRORVI,
+    SelImm.IMM_MSET,
+    SelImm.IMM_MSETSPI,
+    SelImm.IMM_MSETVAL,
+    SelImm.IMM_MSETFIELD,
   ).zip(imms)
   println(s"ImmUnion max len: $maxLen")
 }
@@ -776,6 +829,7 @@ class DecodeUnitEnqIO(implicit p: Parameters) extends XSBundle {
   val ctrlFlow = Input(new StaticInst)
   val vtype = Input(new VType)
   val vstart = Input(Vl())
+  val mtype = Input(new MType)
 }
 
 class DecodeUnitDeqIO(implicit p: Parameters) extends XSBundle {
@@ -812,6 +866,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     SvinvalDecode.table ++
     HypervisorDecode.table ++
     VecDecoder.table ++
+    MatrixDecoder.table ++
     ZicondDecode.table ++
     ZimopDecode.table ++
     ZfaDecode.table
@@ -1097,6 +1152,10 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   // for csrr vl instruction, convert to vsetvl
   val isCsrrVlenb = isCsrr && inst.CSRIDX === CSRs.vlenb.U
   val isCsrrVl    = isCsrr && inst.CSRIDX === CSRs.vl.U
+
+  val isCsrrMlenb  = isCsrr && inst.CSRIDX === CSRs.mlenb.U
+  val isCsrrMrlenb = isCsrr && inst.CSRIDX === CSRs.mrlenb.U
+  val isCsrrMamul  = isCsrr && inst.CSRIDX === CSRs.mamul.U
 
   // decode for SoftPrefetch instructions (prefetch.w / prefetch.r / prefetch.i)
   val isSoftPrefetch = inst.OPCODE === BitPat("b0010011") && inst.FUNCT3 === BitPat("b110") && inst.RD === 0.U

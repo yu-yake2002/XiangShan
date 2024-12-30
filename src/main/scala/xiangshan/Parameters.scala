@@ -63,6 +63,9 @@ case class XSCoreParameters
   HSXLEN: Int = 64,
   HasBitmapCheck: Boolean = false,
   HasBitmapCheckDefault: Boolean = false,
+  MLEN: Int = 64,
+  RLEN: Int = 64,
+  AMUL: Int = 1,
   HasMExtension: Boolean = true,
   HasCExtension: Boolean = true,
   HasHExtension: Boolean = true,
@@ -373,6 +376,10 @@ case class XSCoreParameters
 
   def vlWidth = log2Up(VLEN) + 1
 
+  // TODO: Use correct expression
+  // FIXME: It's just a placeholder
+  def mlWidth = log2Up(VLEN) + 1
+
   /**
    * the minimum element length of vector elements
    */
@@ -591,6 +598,9 @@ trait HasXSParameter {
   def XLEN = coreParams.XLEN
   def VLEN = coreParams.VLEN
   def ELEN = coreParams.ELEN
+  def MLEN = coreParams.MLEN
+  def RLEN = coreParams.RLEN
+  def AMUL = coreParams.AMUL
   def HSXLEN = coreParams.HSXLEN
   val minFLen = 32
   val fLen = 64
