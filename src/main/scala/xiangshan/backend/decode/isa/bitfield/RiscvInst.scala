@@ -130,6 +130,65 @@ trait BitFieldsVec { this: Riscv32BitInst =>
   }
 }
 
+trait BitFieldMatrix { this: Riscv32BitInst =>
+  def IMM_MSET       : UInt = inst(24, 15)
+  def IMM_MSETSPI    : UInt = inst(19, 15)
+  def IMM_MSETVAL    : UInt = inst(24, 20)
+  def IMM_MSETFIELD  : UInt = inst(19, 15)
+  def IM             : UInt  = inst(25)
+  def FUNCT6         : UInt  = inst(31 ,26)
+  def LS             : UInt  = inst(25)
+  def MA             : UInt  = inst(11)
+
+  def isMatrixConfig = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b0000".U && this.FUNCT3(2) === "b1".U
+  }
+
+  def isMatrixStore = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.LS === "b1".U && (this.FUNCT6(5, 2) === "b0000".U && this.FUNCT3(2) === "b0".U
+        || this.FUNCT6(5, 2) === "b1000".U)
+  }
+
+  def isMatrixLoad = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.LS === "b0".U && (this.FUNCT6(5, 2) === "b0000".U && this.FUNCT3(2) === "b0".U
+        || this.FUNCT6(5, 2) === "b1000".U)
+  }
+
+  def isMatrixMove = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b0001".U
+  }
+
+  def isMatrixZmvMove = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b1001".U
+  }
+
+  def isMatrixMul = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b0010".U && this.MA === "b1".U
+  }
+
+  def isMatrixSparseMul = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b1010".U
+  }
+
+  def isMatrixArith = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      (this.FUNCT6(5, 3) === "b001".U || this.FUNCT6(5, 2) === "b0100".U) &&
+      this.MA === "b0".U
+  }
+
+  def isMatrixTypeConvert = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      this.FUNCT6(5, 2) === "b0110".U
+  }
+}
+
 trait BitFieldsRVK { this: Riscv32BitInst =>
   def RNUM          : UInt = inst(23, 20)
 
@@ -152,6 +211,21 @@ class InstVType extends Bundle {
   val vta = Bool()
   val vsew = UInt(3.W)
   val vlmul = UInt(3.W)
+}
+
+class InstMType extends Bundle {
+  val reserved = UInt(3.W)
+  val mba = Bool()
+  val mfp64 = Bool()
+  val mfp32 = UInt(2.W)
+  val mfp16 = UInt(2.W)
+  val mfp8 = UInt(2.W)
+  val mint64 = Bool()
+  val mint32 = Bool()
+  val mint16 = Bool()
+  val mint8 = Bool()
+  val mint4 = Bool()
+  val msew = UInt(3.W)
 }
 
 object OPCODE5Bit {
@@ -194,4 +268,5 @@ object OPCODE5Bit {
 
 object OPCODE7Bit {
   val VECTOR_ARITH = "b1010111".U
+  val MATRIX_INSTS = "b1110111".U
 }

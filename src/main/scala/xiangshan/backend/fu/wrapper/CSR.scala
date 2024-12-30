@@ -35,6 +35,14 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   val setVxsat = csrIn.vpu.set_vxsat
   val vlFromPreg = csrIn.vpu.vl
 
+  val setMtype = csrIn.matrix.set_mtype
+  val setMsat = csrIn.matrix.set_msat
+  val setMsDirty = csrIn.matrix.dirty_ms
+  val setMstart = csrIn.matrix.set_mstart
+  val mtilemFromPreg = csrIn.matrix.mtilem
+  val mtilenFromPreg = csrIn.matrix.mtilen
+  val mtilekFromPreg = csrIn.matrix.mtilek
+
   val flushPipe = Wire(Bool())
   val flush = io.flush.valid
 
@@ -152,6 +160,25 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   csrMod.io.fromRob.commit.vtype.bits.VTA := setVtype.bits(6)
   csrMod.io.fromRob.commit.vtype.bits.VSEW := setVtype.bits(5, 3)
   csrMod.io.fromRob.commit.vtype.bits.VLMUL := setVtype.bits(2, 0)
+
+  csrMod.io.fromRob.commit.mtype.valid := setMtype.valid
+  csrMod.io.fromRob.commit.mtype.bits.MILL := setMtype.bits(XLEN - 1)
+  csrMod.io.fromRob.commit.mtype.bits.MBA := setMtype.bits(15)
+  csrMod.io.fromRob.commit.mtype.bits.mfp64 := setMtype.bits(14)
+  csrMod.io.fromRob.commit.mtype.bits.mfp32 := setMtype.bits(13, 12)
+  csrMod.io.fromRob.commit.mtype.bits.mfp16 := setMtype.bits(11, 10)
+  csrMod.io.fromRob.commit.mtype.bits.mfp8 := setMtype.bits(9, 8)
+  csrMod.io.fromRob.commit.mtype.bits.mint64 := setMtype.bits(7)
+  csrMod.io.fromRob.commit.mtype.bits.mint32 := setMtype.bits(6)
+  csrMod.io.fromRob.commit.mtype.bits.mint16 := setMtype.bits(5)
+  csrMod.io.fromRob.commit.mtype.bits.mint8 := setMtype.bits(4)
+  csrMod.io.fromRob.commit.mtype.bits.mint4 := setMtype.bits(3)
+  csrMod.io.fromRob.commit.mtype.bits.msew := setMtype.bits(2, 0)
+  csrMod.io.fromRob.commit.msDirty := setMsDirty
+  csrMod.io.fromRob.commit.mstart := setMstart
+  csrMod.io.fromRob.commit.mtilem := mtilemFromPreg
+  csrMod.io.fromRob.commit.mtilen := mtilenFromPreg
+  csrMod.io.fromRob.commit.mtilek := mtilekFromPreg
 
   csrMod.io.fromRob.commit.instNum.valid := true.B  // Todo: valid control signal
   csrMod.io.fromRob.commit.instNum.bits  := csrIn.perf.retiredInstr

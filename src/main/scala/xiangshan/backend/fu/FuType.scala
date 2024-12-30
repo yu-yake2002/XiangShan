@@ -71,6 +71,13 @@ object FuType extends OHEnumeration {
   val vsegldu = addType(name = "vsegldu")
   val vsegstu = addType(name = "vsegstu")
 
+  // matrix
+  val msettilexiwi = addType(name = "msettilexiwi") // msettilex read rs write rd
+  val msettilexiwf = addType(name = "msettilexiwf") // msettilex read rs write mtilex
+  val msettilexfwf = addType(name = "msettilexfwf") // msettilex read old mtilex write mtilex
+  val msettypeiwi = addType(name = "msettypeiwi") // msettype read rs write rd
+  val msettypeiwf = addType(name = "msettypeiwf") // msettype read rs write mtype
+
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)
   // dq0 includes int's iq0 and iq1
   // dq1 includes int's iq2 and iq3
@@ -135,6 +142,8 @@ object FuType extends OHEnumeration {
   val scalaNeedFrm = Seq(i2f, fmac, fDivSqrt)
   val vectorNeedFrm = Seq(vfalu, vfma, vfdiv, vfcvt)
 
+  val matrixMSET = Seq(msettilexiwi, msettilexiwf, msettilexfwf)
+
   def X = BitPat.N(num) // Todo: Don't Care
 
   def num = this.values.size
@@ -156,6 +165,8 @@ object FuType extends OHEnumeration {
   def isBrh(fuType: UInt): Bool = FuTypeOrR(fuType, Seq(brh))
 
   def isVset(fuType: UInt): Bool = FuTypeOrR(fuType, vecVSET)
+
+  def isMset(fuType: UInt): Bool = FuTypeOrR(fuType, matrixMSET)
 
   def isJump(fuType: UInt): Bool = FuTypeOrR(fuType, jmp)
 

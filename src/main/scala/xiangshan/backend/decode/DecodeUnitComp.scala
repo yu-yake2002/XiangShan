@@ -31,6 +31,7 @@ import xiangshan.backend.fu.FuType
 import freechips.rocketchip.rocket.Instructions._
 import xiangshan.backend.Bundles.{DecodedInst, StaticInst}
 import xiangshan.backend.decode.isa.bitfield.XSInstBitFields
+import xiangshan.backend.fu.matrix.Bundles.{MSew, MType}
 import xiangshan.backend.fu.vector.Bundles.{VSew, VType, VLmul, Vl}
 import yunsuan.VpermType
 import chisel3.util.experimental.decode.{QMCMinimizer, TruthTable, decoder}
@@ -96,6 +97,7 @@ class DecodeUnitCompIO(implicit p: Parameters) extends XSBundle {
   val redirect = Input(Bool())
   val csrCtrl = Input(new CustomCSRCtrlIO)
   val vtypeBypass = Input(new VType)
+  val mtypeBypass = Input(new MType)
   // When the first inst in decode vector is complex inst, pass it in
   val in = Flipped(DecoupledIO(new DecodeUnitCompInput))
   val out = new DecodeUnitCompOutput

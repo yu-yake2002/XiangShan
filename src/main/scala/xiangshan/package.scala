@@ -449,6 +449,111 @@ package object xiangshan {
     def setVlmax(func: UInt)    = func | (1 << setVlmaxBit).U
   }
 
+  object MatrixSETOpType {
+    def placeholder = "b1100_0000".U
+
+    def isSet (func: UInt) = func(7) === "b0".U
+    def isRead (func: UInt) = func(7) === "b1".U
+
+    def isTileM (func: UInt) = func(3, 0) === "b0000".U
+    def isTileN (func: UInt) = func(3, 0) === "b0001".U
+    def isTileK (func: UInt) = func(3, 0) === "b0010".U
+    def isMType (func: UInt) = func(3, 0) === "b0011".U
+    def isMRd (func: UInt)   = func(3, 0) === "b0100".U
+    // TODO: Sparse and Img2Col
+    
+    def isSetX (func: UInt)         = isSet(func) && func(6, 4) === "b000".U
+    def isSetImm (func: UInt)       = isSet(func) && func(6, 4) === "b001".U
+    def isSetImmL (func: UInt)      = isSet(func) && func(6, 4) === "b010".U
+    def isSetImmH (func: UInt)      = isSet(func) && func(6, 4) === "b011".U
+    def isSetMaxMtilem (func: UInt) = isSet(func) && func(6, 4) === "b100".U
+    def isSetMaxMtilen (func: UInt) = isSet(func) && func(6, 4) === "b101".U
+    def isSetMaxMtilek (func: UInt) = isSet(func) && func(6, 4) === "b110".U
+    def isSetKeep (func: UInt)      = isSet(func) && func(6, 4) === "b111".U
+
+    // msettilex's uop
+    //   case1: rs1!=x0, normal
+    //     uop0: r(rs1), w(mtilex) | x[rs1] -> mtilex
+    def umsettilem_x = "b0_000_0000".U
+    def umsettilen_x = "b0_000_0001".U
+    def umsettilek_x = "b0_000_0010".U
+    //     uop1: r(rs1), w(rd)     | x[rs1] -> x[rd]
+    def umsetrd_xx    = "b0_000_0100".U
+    //   case2: rs1==x0, rd!=x0, set mtilex to max, set rd to max
+    //     uop0: w(mconfig)        | mtilexmax -> mconfig
+    def umsetmtilem_mtilemmax = "b0_100_0000".U
+    def umsetmtilen_mtilenmax = "b0_101_0001".U
+    def umsetmtilek_mtilekmax = "b0_110_0010".U
+    //     uop1: w(rd)             | mtilexmax -> x[rd]
+    def umsetrd_mtilemmax = "b0_100_0100".U
+    def umsetrd_mtilenmax = "b0_101_0100".U
+    def umsetrd_mtilekmax = "b0_110_0100".U
+    //   case3: rs1==x0, rd==x0, keep mtilex
+    def umsettilem_vv = "b0_000_0000".U // TODO: Implement me!
+
+    // msettilexi's uop
+    //   case1: rs1!=x0, normal
+    //     uop0: w(mtilex)         | imm -> mconfig
+    def umsettilem_i = "b0_001_0000".U
+    def umsettilen_i = "b0_001_0001".U
+    def umsettilek_i = "b0_001_0010".U
+    //     uop1: w(rd)             | imm -> x[rd]
+    def umsetrd_i    = "b0_001_0100".U
+    //   case2: rs1==x0, rd!=x0, set mtilex to max, set rd to max
+    //     uop0: w(mconfig)        | mtilexmax -> mconfig
+    // def umsetmtilem_mtilemmax = "b0_100_0000".U
+    // def umsetmtilen_mtilenmax = "b0_101_0001".U
+    // def umsetmtilek_mtilekmax = "b0_110_0010".U
+    //     uop1: w(rd)             | mtilexmax -> x[rd]
+    // def umsetrd_mtilemmax    = "b0_100_0100".U
+    // def umsetrd_mtilenmax    = "b0_101_0100".U
+    // def umsetrd_mtilekmax    = "b0_110_0100".U
+    //   case3: rs1==x0, rd==x0, keep mtilex
+    //     uop0: r(mconfig), w(mconfig) | ld_mconfig.mtilex, imm -> mconfig
+    def umsettilem_keep_i = "b0_000_0000".U // TODO: Implement me!
+
+    // read mtilex
+    def csrrmtilem    = "b1_000_0000".U
+    def csrrmtilen    = "b1_000_0001".U
+    def csrrmtilek    = "b1_000_0010".U
+
+    // msettype's uop
+    //   uop0: r(mtype), w(mtype) | imm -> mtype
+    def umsettype_xx  = "b0_000_0011".U
+    //   uop1: r(mtype), w(rd)    | imm -> x[rd]
+    // TODO: 
+    
+    // msettype{h}i's uop
+    def umsettypel_xi = "b0_010_0011".U
+    def umsettypeh_xi = "b0_011_0011".U
+    // TODO: mset's uop
+    
+    def isMsettilem (func: UInt)  = isSetX(func)         && isTileM(func)
+    def isMsettilemi (func: UInt) = isSetImm(func)       && isTileM(func)
+    def isMsetTilemMax (func: UInt)   = isSetMaxMtilem(func) && isTileM(func)
+    def isMsettilen (func: UInt)  = isSetX(func)         && isTileN(func)
+    def isMsettileni (func: UInt) = isSetImm(func)       && isTileN(func)
+    def isMsetTilenMax (func: UInt)   = isSetMaxMtilen(func) && isTileN(func)
+    def isMsettilek (func: UInt)  = isSetX(func)         && isTileK(func)
+    def isMsettileki (func: UInt) = isSetImm(func)       && isTileK(func)
+    def isMsetTilekMax (func: UInt)   = isSetMaxMtilek(func) && isTileK(func)
+
+    def isMsettilexi (func: UInt) = isSetImm(func) && (isTileM(func) || isTileN(func) || isTileK(func))
+    def isMsettilex (func: UInt)  = isSetX(func) && (isTileM(func) || isTileN(func) || isTileK(func))
+    def isMsetMtilexmax (func: UInt) = isSet(func) && (isSetMaxMtilem(func) || isSetMaxMtilen(func) || isSetMaxMtilek(func))
+
+    def isMsetMtilem (func: UInt)  = isSet(func)  && isTileM(func)
+    def isMsetMtilen (func: UInt)  = isSet(func)  && isTileN(func)
+    def isMsetMtilek (func: UInt)  = isSet(func)  && isTileK(func)
+    def isMsetMtilex (func: UInt)  = isSet(func)  && (isTileM(func) || isTileN(func) || isTileK(func))
+    def isMreadMtilem (func: UInt) = isRead(func) && isTileM(func)
+    def isMreadMtilen (func: UInt) = isRead(func) && isTileN(func)
+    def isMreadMtilek (func: UInt) = isRead(func) && isTileK(func)
+    def isMreadMtilex (func: UInt) = isRead(func) && (isTileM(func) || isTileN(func) || isTileK(func))
+
+    def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
+  }
+
   object BRUOpType {
     // branch
     def beq        = "b000_000".U
@@ -703,26 +808,31 @@ package object xiangshan {
   }
 
   object SelImm {
-    def IMM_X  = "b0111".U
-    def IMM_S  = "b1110".U
-    def IMM_SB = "b0001".U
-    def IMM_U  = "b0010".U
-    def IMM_UJ = "b0011".U
-    def IMM_I  = "b0100".U
-    def IMM_Z  = "b0101".U
-    def INVALID_INSTR = "b0110".U
-    def IMM_B6 = "b1000".U
+    def IMM_X  = "b00111".U
+    def IMM_S  = "b01110".U
+    def IMM_SB = "b00001".U
+    def IMM_U  = "b00010".U
+    def IMM_UJ = "b00011".U
+    def IMM_I  = "b00100".U
+    def IMM_Z  = "b00101".U
+    def INVALID_INSTR = "b00110".U
+    def IMM_B6 = "b01000".U
 
-    def IMM_OPIVIS = "b1001".U
-    def IMM_OPIVIU = "b1010".U
-    def IMM_VSETVLI   = "b1100".U
-    def IMM_VSETIVLI  = "b1101".U
-    def IMM_LUI32 = "b1011".U
-    def IMM_VRORVI = "b1111".U
+    def IMM_OPIVIS = "b01001".U
+    def IMM_OPIVIU = "b01010".U
+    def IMM_VSETVLI   = "b01100".U
+    def IMM_VSETIVLI  = "b01101".U
+    def IMM_LUI32 = "b01011".U
+    def IMM_VRORVI = "b01111".U
 
-    def X      = BitPat("b0000")
+    def IMM_MSET = "b10000".U
+    def IMM_MSETSPI = "b10001".U
+    def IMM_MSETVAL = "b10010".U
+    def IMM_MSETFIELD = "b10011".U
 
-    def apply() = UInt(4.W)
+    def X      = BitPat("b00000")
+
+    def apply() = UInt(5.W)
 
     def mkString(immType: UInt) : String = {
       val strMap = Map(
@@ -740,6 +850,10 @@ package object xiangshan {
         IMM_LUI32.litValue     -> "LUI32",
         IMM_VRORVI.litValue    -> "VRORVI",
         INVALID_INSTR.litValue -> "INVALID",
+        IMM_MSET.litValue      -> "MSET",
+        IMM_MSETSPI.litValue   -> "MSETSPI",
+        IMM_MSETVAL.litValue   -> "MSETVAL",
+        IMM_MSETFIELD.litValue -> "MSETFIELD",
       )
       strMap(immType.litValue)
     }
@@ -759,6 +873,10 @@ package object xiangshan {
         IMM_VSETIVLI.litValue  -> ImmUnion.VSETIVLI,
         IMM_LUI32.litValue     -> ImmUnion.LUI32,
         IMM_VRORVI.litValue    -> ImmUnion.VRORVI,
+        IMM_MSET.litValue      -> ImmUnion.MSET,
+        IMM_MSETSPI.litValue   -> ImmUnion.MSETSPI,
+        IMM_MSETVAL.litValue   -> ImmUnion.MSETVAL,
+        IMM_MSETFIELD.litValue -> ImmUnion.MSETFIELD,
       )
       iuMap(immType.litValue)
     }

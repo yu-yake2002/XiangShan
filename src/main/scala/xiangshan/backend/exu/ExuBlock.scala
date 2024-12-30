@@ -10,6 +10,7 @@ import xiangshan.backend.issue.SchdBlockParams
 import xiangshan.{HasXSParameter, Redirect, XSBundle}
 import utility._
 import xiangshan.backend.fu.FuConfig.{AluCfg, BrhCfg}
+import xiangshan.backend.fu.matrix.Bundles.MType
 import xiangshan.backend.fu.vector.Bundles.{VType, Vxrm}
 import xiangshan.backend.fu.fpu.Bundles.Frm
 import xiangshan.backend.fu.wrapper.{CSRInput, CSRToDecode}
@@ -85,4 +86,6 @@ class ExuBlockIO(implicit p: Parameters, params: SchdBlockParams) extends XSBund
   val vtype = Option.when(params.writeVConfig)((Valid(new VType)))
   val vlIsZero = Option.when(params.writeVConfig)(Output(Bool()))
   val vlIsVlmax = Option.when(params.writeVConfig)(Output(Bool()))
+
+  val mtype = Option.when(params.writeMType)((Valid(new MType)))
 }

@@ -10,6 +10,7 @@ import xiangshan.backend.Bundles.VPUCtrlSignals
 import xiangshan.backend.rob.RobPtr
 import xiangshan.frontend.{FtqPtr, PreDecodeInfo}
 import xiangshan.backend.datapath.DataConfig._
+import xiangshan.backend.fu.matrix.Bundles.MType
 import xiangshan.backend.fu.vector.Bundles.Vxsat
 import xiangshan.ExceptionNO.illegalInstr
 import xiangshan.backend.fu.vector.Bundles.VType
@@ -101,6 +102,10 @@ class FuncUnitIO(cfg: FuConfig)(implicit p: Parameters) extends XSBundle {
   val vlIsZero = OptionWrapper(cfg.writeVlRf, Output(Bool()))
   val vlIsVlmax = OptionWrapper(cfg.writeVlRf, Output(Bool()))
   val instrAddrTransType = Option.when(cfg.isJmp || cfg.isBrh)(Input(new AddrTransType))
+  val mtype = OptionWrapper(cfg.writeMType, (Valid(new MType)))
+  val mtilex = OptionWrapper(cfg.writeMtilexRf, (Valid(UInt(XLEN.W))))
+  val mtilexIsZero = OptionWrapper(cfg.writeMtilexRf, Output(Bool()))
+  val mtilexIsMtilexmax = OptionWrapper(cfg.writeMtilexRf, Output(Bool()))
 }
 
 abstract class FuncUnit(val cfg: FuConfig)(implicit p: Parameters) extends XSModule with HasCriticalErrors {

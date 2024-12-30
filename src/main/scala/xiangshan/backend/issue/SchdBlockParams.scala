@@ -95,6 +95,8 @@ case class SchdBlockParams(
   
   def writeVType: Boolean = issueBlockParams.map(_.writeVType).reduce(_ || _)
 
+  def writeMType: Boolean = issueBlockParams.map(_.writeMType).reduce(_ || _)
+
   def numRedirect: Int = issueBlockParams.map(_.numRedirect).sum
 
   def pregIdxWidth: Int = log2Up(numPregs)

@@ -7,6 +7,7 @@ import xiangshan._
 import xiangshan.backend.fu.vector.Bundles.{VType, VsetVType}
 import xiangshan.backend.decode.isa.bitfield.{InstVType, Riscv32BitInst, XSInstBitFields}
 import xiangshan.backend.fu.VsetModule
+import xiangshan.backend.fu.matrix.Bundles.MsetMType
 
 /**
  * IO of VTypeGen
