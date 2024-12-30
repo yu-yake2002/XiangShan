@@ -8,6 +8,7 @@ import xiangshan.backend.fu.NewCSR.CSRDefines.{CSRROField => RO, CSRRWField => R
 import xiangshan.backend.fu.NewCSR.CSRFunc._
 import xiangshan.backend.fu.fpu.Bundles.Fflags
 import xiangshan.backend.fu.vector.Bundles.{Vl, Vstart, Vxsat}
+import xiangshan.backend.fu.matrix.Bundles.{Msat, Mstart, Mtilex}
 import xiangshan.frontend.BPUCtrl
 import xiangshan.mem.prefetch.PrefetchCtrl
 import chisel3.experimental.noPrefix
@@ -168,6 +169,13 @@ object CSRBundles {
     val vtype   = ValidIO(new CSRVTypeBundle)
     val vl      = Vl()
     val vstart  = ValidIO(Vstart())
+
+    val msDirty = Bool()
+    val mtype   = ValidIO(new CSRMTypeBundle)
+    val mtilem  = Mtilex()
+    val mtilen  = Mtilex()
+    val mtilek  = Mtilex()
+    val mstart  = ValidIO(Mstart())
   }
 
   class CSRCustomState(implicit p: Parameters) extends Bundle {

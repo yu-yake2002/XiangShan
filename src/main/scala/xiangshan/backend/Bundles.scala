@@ -114,6 +114,7 @@ object Bundles {
     val uopIdx          = UopIdx()
     val uopSplitType    = UopSplitType()
     val isVset          = Bool()
+    val isMset          = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -213,6 +214,7 @@ object Bundles {
     val isDropAmocasSta = Bool()
     val uopIdx          = UopIdx()
     val isVset          = Bool()
+    val isMset          = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -946,9 +948,9 @@ object Bundles {
     val pdest = UInt(PhyRegIdxWidth.W)
   }
 
-  class MemExuInput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuInput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
-    val src = if (isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
+    val src = if (isMatrix || isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
     val iqIdx = UInt(log2Up(MemIQSizeMax).W)
     val isFirstIssue = Bool()
     val flowNum      = OptionWrapper(isVector, NumLsElem())
@@ -959,6 +961,10 @@ object Bundles {
     def src_vs3 = src(2)
     def src_mask = if (isVector) src(3) else 0.U
     def src_vl = if (isVector) src(4) else 0.U
+    
+    def src_mtype  = if (isMatrix) src(3) else 0.U
+    def src_mtilex = if (isMatrix) src(4) else 0.U
+    def src_mtype_mask = if (isMatrix) src(4) else 0.U
   }
 
   class MemExuOutput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {

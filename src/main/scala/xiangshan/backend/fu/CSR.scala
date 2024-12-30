@@ -56,6 +56,19 @@ class VpuCsrIO(implicit p: Parameters) extends XSBundle {
   val dirty_vs = Output(Bool())
 }
 
+class MatrixCsrIO(implicit p: Parameters) extends XSBundle {
+  val mstart = Input(UInt(XLEN.W))
+
+  val mtilem = Output(UInt(XLEN.W))
+  val mtilen = Output(UInt(XLEN.W))
+  val mtilek = Output(UInt(XLEN.W))
+  
+  val set_mstart = Output(Valid(UInt(XLEN.W)))
+  val set_mtype = Output(Valid(UInt(XLEN.W)))
+  val set_msat = Output(Valid(UInt(1.W)))
+
+  val dirty_ms = Output(Bool())
+}
 
 class PerfCounterIO(implicit p: Parameters) extends XSBundle {
   val perfEventsFrontend  = Vec(numCSRPCntFrontend, new PerfEvent)
@@ -93,6 +106,8 @@ class CSRFileIO(implicit p: Parameters) extends XSBundle {
   val fpu = Flipped(new FpuCsrIO)
   // to VPU
   val vpu = Flipped(new VpuCsrIO)
+  // to Matrix
+  val matrix = Flipped(new MatrixCsrIO)
   // from rob
   val exception = Flipped(ValidIO(new ExceptionInfo))
   val robDeqPtr = Input(new RobPtr)
@@ -130,6 +145,23 @@ class VtypeStruct(implicit p: Parameters) extends XSBundle {
   val vsew = UInt(3.W)
   val vlmul = UInt(3.W)
 }
+
+class MtypeStruct(implicit p: Parameters) extends XSBundle {
+  val mill = UInt(1.W)
+  val reserved = UInt((XLEN - 17).W)
+  val mba = UInt(1.W)
+  val mfp64 = UInt(1.W)
+  val mfp32 = UInt(2.W)
+  val mfp16 = UInt(2.W)
+  val mfp8 = UInt(2.W)
+  val mint64 = UInt(1.W)
+  val mint32 = UInt(1.W)
+  val mint16 = UInt(1.W)
+  val mint8 = UInt(1.W)
+  val mint4 = UInt(1.W)
+  val msew = UInt(3.W)
+}
+
 /*
 class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   with HasCSRConst

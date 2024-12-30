@@ -48,6 +48,14 @@ object CSRConfig {
   // log2Up(128 + 1), hold 0~128
   final val VlWidth = 8
 
+  // Matrix extension
+  // TODO: use XSParams to configure them
+  final val MLEN = 128
+  final val RLEN = 128
+  final val AMUL = 1
+
+  final val MlWidth = 8
+
   final val PAddrWidth = 48
 
   final val AddrWidthInPage = 12
@@ -179,6 +187,16 @@ class NewCSR(implicit val p: Parameters) extends Module
         val vtype = UInt(XLEN.W)
         val vlenb = UInt(XLEN.W)
         val off = Bool()
+      }
+      val matrixState = new Bundle {
+        val mtype = UInt(XLEN.W)
+        val mtilem = UInt(XLEN.W)
+        val mtilen = UInt(XLEN.W)
+        val mtilek = UInt(XLEN.W)
+        val mlenb = UInt(XLEN.W)
+        val mrlenb = UInt(XLEN.W)
+        val mamul = UInt(XLEN.W)
+        val mcsr = UInt(XLEN.W)
       }
       // debug
       val debugMode = Bool()
@@ -607,6 +625,12 @@ class NewCSR(implicit val p: Parameters) extends Module
         m.robCommit.vtype   := RegNextWithEnable(io.fromRob.commit.vtype)
         m.robCommit.vl      := RegNext          (io.fromRob.commit.vl)
         m.robCommit.vstart  := RegNextWithEnable(io.fromRob.commit.vstart)
+        m.robCommit.mtype   := RegNextWithEnable(io.fromRob.commit.mtype)
+        m.robCommit.mstart  := RegNextWithEnable(io.fromRob.commit.mstart)
+        m.robCommit.msDirty := GatedValidRegNext(io.fromRob.commit.msDirty)
+        m.robCommit.mtilem  := RegNext          (io.fromRob.commit.mtilem)
+        m.robCommit.mtilen  := RegNext          (io.fromRob.commit.mtilen)
+        m.robCommit.mtilek  := RegNext          (io.fromRob.commit.mtilek)
         m.writeFCSR         := writeFpLegal
         m.writeVCSR         := writeVecLegal
         m.isVirtMode        := V.asUInt.asBool
@@ -1141,6 +1165,14 @@ class NewCSR(implicit val p: Parameters) extends Module
   io.status.vecState.vtype := vtype.rdata.asUInt // Todo: check correct
   io.status.vecState.vlenb := vlenb.rdata.asUInt
   io.status.vecState.off := mstatus.regOut.VS === ContextStatus.Off
+  io.status.matrixState.mtype := mtype.rdata.asUInt
+  io.status.matrixState.mtilem := mtilem.rdata.asUInt
+  io.status.matrixState.mtilen := mtilen.rdata.asUInt
+  io.status.matrixState.mtilek := mtilek.rdata.asUInt
+  io.status.matrixState.mlenb := mlenb.rdata.asUInt
+  io.status.matrixState.mrlenb := mrlenb.rdata.asUInt
+  io.status.matrixState.mamul := mamul.rdata.asUInt
+  io.status.matrixState.mcsr := mcsr.rdata.asUInt
   io.status.interrupt := intrMod.io.out.interruptVec.valid
   io.status.wfiEvent := debugIntr || (mie.rdata.asUInt & mip.rdata.asUInt).orR || nmip.asUInt.orR
   io.status.debugMode := debugMode
@@ -1613,6 +1645,18 @@ class NewCSR(implicit val p: Parameters) extends Module
     diffHCSRState.vstval      := vstval.rdata.asUInt
     diffHCSRState.vsatp       := vsatp.rdata.asUInt
     diffHCSRState.vsscratch   := vsscratch.rdata.asUInt
+
+    val diffMatrixCSRState = DifftestModule(new DiffMatrixCSRState)
+    diffMatrixCSRState.coreid := hartId
+    diffMatrixCSRState.mtype := mtype.rdata.asUInt
+    diffMatrixCSRState.mtilem := mtilem.rdata.asUInt
+    diffMatrixCSRState.mtilen := mtilen.rdata.asUInt
+    diffMatrixCSRState.mtilek := mtilek.rdata.asUInt
+    diffMatrixCSRState.mlenb := mlenb.rdata.asUInt
+    diffMatrixCSRState.mrlenb := mrlenb.rdata.asUInt
+    diffMatrixCSRState.mamul := mamul.rdata.asUInt
+    diffMatrixCSRState.mstart := mstart.rdata.asUInt
+    diffMatrixCSRState.mcsr := mcsr.rdata.asUInt
 
     val platformIRPMeipChange = !platformIRP.MEIP &&  RegNext(platformIRP.MEIP) || platformIRP.MEIP && !RegNext(platformIRP.MEIP)
     val platformIRPMtipChange = !platformIRP.MTIP &&  RegNext(platformIRP.MTIP) || platformIRP.MTIP && !RegNext(platformIRP.MTIP)

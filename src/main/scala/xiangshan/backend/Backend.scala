@@ -41,6 +41,7 @@ import xiangshan.backend.datapath.DataConfig._
 import xiangshan.backend.datapath._
 import xiangshan.backend.dispatch.CoreDispatchTopDownIO
 import xiangshan.backend.exu.ExuBlock
+import xiangshan.backend.fu.matrix.Bundles.{MType}
 import xiangshan.backend.fu.vector.Bundles.{VConfig, VType}
 import xiangshan.backend.fu.{FenceIO, FenceToSbuffer, FuConfig, FuType, PerfCounterIO}
 import xiangshan.backend.fu.NewCSR.PFEvent
@@ -596,6 +597,16 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   val hasVsetvl = ctrlBlock.io.robio.commitVType.hasVsetvl
   val vtype = VType.toVtypeStruct(Mux(hasVsetvl, vsetvlVType, commitVType.bits)).asUInt
 
+  val fromIntExuMsetMType = intExuBlock.io.mtype.getOrElse(0.U.asTypeOf((Valid(new MType))))
+  val fromMfExuMsetMType = vfExuBlock.io.mtype.getOrElse(0.U.asTypeOf((Valid(new MType))))
+  val fromMsetMType = Mux(fromIntExuMsetMType.valid, fromIntExuMsetMType.bits, fromMfExuMsetMType.bits)
+  val msetMType = RegEnable(fromMsetMType, 0.U.asTypeOf(new MType), fromIntExuMsetMType.valid || fromMfExuMsetMType.valid)
+  ctrlBlock.io.toDecode.msetMType := msetMType
+  
+  val commitMType = ctrlBlock.io.robio.commitMType.mtype
+  val hasMsettx = ctrlBlock.io.robio.commitMType.hasMsettx
+  val mtype = MType.toMtypeStruct((Mux(hasMsettx, msetMType, commitMType.bits))).asUInt
+
   // csr not store the value of vl, so when using difftest we assign the value of vl to debugVl
   val debugVl_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)
   val debugVl_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
@@ -610,6 +621,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   csrio.vpu.set_vtype.bits := ZeroExt(vtype, XLEN)
   csrio.vpu.vl := ZeroExt(debugVl_s1, XLEN)
   csrio.vpu.dirty_vs := ctrlBlock.io.robio.csr.dirty_vs
+  csrio.matrix <> DontCare
+  csrio.matrix.set_mtype.valid := commitMType.valid
+  csrio.matrix.set_mtype.bits := ZeroExt(mtype, XLEN)
+  ctrlBlock.io.toDecode.mstart := csrio.matrix.mstart
   csrio.exception := ctrlBlock.io.robio.exception
   csrio.robDeqPtr := ctrlBlock.io.robio.robDeqPtr
   csrio.memExceptionVAddr := io.mem.exceptionAddr.vaddr
