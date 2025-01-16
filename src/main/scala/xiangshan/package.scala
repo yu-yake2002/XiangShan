@@ -473,54 +473,60 @@ package object xiangshan {
 
     // msettilex's uop
     //   case1: rs1!=x0, normal
-    //     uop0: r(rs1,rs2), w(mconfig) | x[rs1], x[rs2] -> mconfig
-    def umsettilem_xx = "b0_000_0000".U
-    def umsettilen_xx = "b0_000_0001".U
-    def umsettilek_xx = "b0_000_0010".U
-    //     uop1: r(rs1,rs2), w(rd)      | x[rs1], x[rs2] -> x[rd]
+    //     uop0: r(rs1), w(mtilex) | x[rs1] -> mtilex
+    def umsettilem_x = "b0_000_0000".U
+    def umsettilen_x = "b0_000_0001".U
+    def umsettilek_x = "b0_000_0010".U
+    //     uop1: r(rs1), w(rd)     | x[rs1] -> x[rd]
     def umsetrd_xx    = "b0_000_0100".U
     //   case2: rs1==x0, rd!=x0, set mtilex to max, set rd to max
-    //     uop0: r(rs2), w(mconfig)     | mtilexmax, imm -> mconfig
-    def umsettilem_mtilemmax_x = "b0_100_0000".U
-    def umsettilen_mtilenmax_x = "b0_101_0001".U
-    def umsettilek_mtilekmax_x = "b0_110_0010".U
-    //     uop1: r(rs2), w(rd)          | mtilexmax, imm -> x[rd]
-    def umsetrd_mtilemmax_x = "b0_100_0100".U
-    def umsetrd_mtilenmax_x = "b0_101_0100".U
-    def umsetrd_mtilekmax_x = "b0_110_0100".U
+    //     uop0: w(mconfig)        | mtilexmax -> mconfig
+    def umsetmtilem_mtilemmax = "b0_100_0000".U
+    def umsetmtilen_mtilenmax = "b0_101_0001".U
+    def umsetmtilek_mtilekmax = "b0_110_0010".U
+    //     uop1: w(rd)             | mtilexmax -> x[rd]
+    def umsetrd_mtilemmax = "b0_100_0100".U
+    def umsetrd_mtilenmax = "b0_101_0100".U
+    def umsetrd_mtilekmax = "b0_110_0100".U
     //   case3: rs1==x0, rd==x0, keep mtilex
     def umsettilem_vv = "b0_000_0000".U // TODO: Implement me!
 
     // msettilexi's uop
     //   case1: rs1!=x0, normal
-    //     uop0: r(rs1), w(mconfig)     | x[rs1], imm     -> mconfig
-    def umsettilem_xi = "b0_000_0000".U
-    def umsettilen_xi = "b0_000_0001".U
-    def umsettilek_xi = "b0_000_0010".U
-    //     uop1: r(rs1), w(rd)          | x[rs1], imm     -> x[rd]
-    def umsetrd_xi    = "b0_000_0100".U
+    //     uop0: w(mtilex)         | imm -> mconfig
+    def umsettilem_i = "b0_001_0000".U
+    def umsettilen_i = "b0_001_0001".U
+    def umsettilek_i = "b0_001_0010".U
+    //     uop1: w(rd)             | imm -> x[rd]
+    def umsetrd_i    = "b0_001_0100".U
     //   case2: rs1==x0, rd!=x0, set mtilex to max, set rd to max
-    //     uop0: w(mconfig)             | mtilexmax, imm  -> mconfig
-    def umsettilem_mtilemmax_i = "b0_100_0000".U
-    def umsettilen_mtilenmax_i = "b0_101_0001".U
-    def umsettilek_mtilekmax_i = "b0_110_0010".U
-    //     uop1: w(rd)                  | mtilexmax, imm  -> x[rd]
-    def umsetrd_mtilemmax_i    = "b0_100_0100".U
-    def umsetrd_mtilenmax_i    = "b0_101_0100".U
-    def umsetrd_mtilekmax_i    = "b0_110_0100".U
+    //     uop0: w(mconfig)        | mtilexmax -> mconfig
+    // def umsetmtilem_mtilemmax = "b0_100_0000".U
+    // def umsetmtilen_mtilenmax = "b0_101_0001".U
+    // def umsetmtilek_mtilekmax = "b0_110_0010".U
+    //     uop1: w(rd)             | mtilexmax -> x[rd]
+    // def umsetrd_mtilemmax    = "b0_100_0100".U
+    // def umsetrd_mtilenmax    = "b0_101_0100".U
+    // def umsetrd_mtilekmax    = "b0_110_0100".U
     //   case3: rs1==x0, rd==x0, keep mtilex
     //     uop0: r(mconfig), w(mconfig) | ld_mconfig.mtilex, imm -> mconfig
     def umsettilem_keep_i = "b0_000_0000".U // TODO: Implement me!
 
+    // read mtilex
     def csrrmtilem    = "b1_000_0000".U
     def csrrmtilen    = "b1_000_0001".U
     def csrrmtilek    = "b1_000_0010".U
 
+    // msettype's uop
+    //   uop0: r(mtype), w(mtype) | imm -> mtype
+    def umsettype_xx  = "b0_000_0011".U
+    //   uop1: r(mtype), w(rd)    | imm -> x[rd]
+    // TODO: 
+    
+    // msettype{h}i's uop
     def umsettypel_xi = "b0_010_0011".U
     def umsettypeh_xi = "b0_011_0011".U
-    def umsettype_xx  = "b0_000_0011".U
-
-    // TODO: implement me!
+    // TODO: mset's uop
     
     def isMsettilem (func: UInt)  = isSetX(func)         && isTileM(func)
     def isMsettilemi (func: UInt) = isSetImm(func)       && isTileM(func)
@@ -544,6 +550,8 @@ package object xiangshan {
     def isMreadMtilen (func: UInt) = isRead(func) && isTileN(func)
     def isMreadMtilek (func: UInt) = isRead(func) && isTileK(func)
     def isMreadMtilex (func: UInt) = isRead(func) && (isTileM(func) || isTileN(func) || isTileK(func))
+
+    def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
   }
 
   object BRUOpType {

@@ -4,7 +4,7 @@ import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import xiangshan._
-import xiangshan.backend.fu.MsetModule
+import xiangshan.backend.fu.MsetMtilexModule
 import xiangshan.backend.fu.matrix.Bundles.{MType, MsetMType}
 import xiangshan.backend.decode.isa.bitfield.{InstMType, Riscv32BitInst, XSInstBitFields}
 
@@ -18,7 +18,7 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
     val msetmlMType = Input(new MType)
     val commitMType = new Bundle {
       val mtype = Flipped(Valid(new MType))
-      val hasMsetml = Input(Bool())
+      val hasMsetmtilex = Input(Bool())
     }
   })
   private val instValidVec = io.insts.map(_.valid)
@@ -56,15 +56,15 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
   private val instMType: InstMType = new InstMType() // placeholder
   private val mtypei: MsetMType = MsetMType.fromInstMType(instMType)
 
-  private val msetModule = Module(new MsetModule)
-  msetModule.io.in.atx := 0.U
-  msetModule.io.in.mtype := mtypei
-  msetModule.io.in.func := MatrixSETOpType.placeholder
+  private val msetMtilexModule = Module(new MsetMtilexModule)
+  msetMtilexModule.io.in.atx := 0.U
+  msetMtilexModule.io.in.mtype := mtypei
+  msetMtilexModule.io.in.func := MatrixSETOpType.placeholder
 
-  // FIXME: sometimes, outval is not mtype but mtilex
-  private val mtypeNew = msetModule.io.out.outval.asTypeOf(new MType)
+  // FIXME:
+  // private val mtypeNew = msetModule.io.out.outval.asTypeOf(new MType)
 
-  when(io.commitMType.hasMsetml) {
+  when(io.commitMType.hasMsetmtilex) {
     mtypeArchNext := io.msetmlMType
   }.elsewhen(io.commitMType.mtype.valid) {
     mtypeArchNext := io.commitMType.mtype.bits
@@ -72,7 +72,7 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
 
   private val inHasMset = isMsetVec.asUInt.orR
 
-  when(io.commitMType.hasMsetml) {
+  when(io.commitMType.hasMsetmtilex) {
     // when vsetvl instruction commit, also update vtypeSpec, because vsetvl flush pipe
     mtypeSpecNext := io.msetmlMType
   }.elsewhen(io.walkMType.valid) {

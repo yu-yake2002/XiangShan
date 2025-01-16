@@ -7,15 +7,15 @@ import xiangshan.{MatrixSETOpType, CSROpType}
 import xiangshan.backend.decode.{Imm_MSET, Imm_VSETIVLI, Imm_VSETVLI}
 import xiangshan.backend.decode.isa.bitfield.InstMType
 import xiangshan.backend.fu.matrix.Bundles.MsetMType
-import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit, MsetModule, MtypeStruct}
+import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit, MsetMtilexModule, MsetMtypeModule, MtypeStruct}
 import xiangshan.backend.fu.matrix.Bundles.MConfig
 import xiangshan.backend.fu.matrix.Bundles.MType
 
-class MSetMtileBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
+class MSetMtilexBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   protected val in = io.in.bits
   protected val out = io.out.bits
 
-  protected val msetModule = Module(new MsetModule)
+  protected val msetModule = Module(new MsetMtilexModule)
 
   protected val flushed = io.in.bits.ctrl.robIdx.needFlush(io.flush)
 
@@ -33,7 +33,7 @@ class MSetMtileBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit
 }
 
 /**
-  * Wrapper of MsetModule
+  * Wrapper of MsetMtilexModule
   * This fu is uop of mset which reads two int regs and writes one int regs.<br>
   * uop: <br/>
   * [[MatrixSETOpType.umsetrd_xi]], <br/>
@@ -43,15 +43,15 @@ class MSetMtileBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit
   * @param cfg [[FuConfig]]
   * @param p [[Parameters]]
   */
-class MSetRiWi(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cfg) {
+class MSetMtilexRiWi(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
   msetModule.io.in.atx := atx
   msetModule.io.in.mtype := oldMtype
 
-  out.res.data := msetModule.io.out.outval
+  out.res.data := msetModule.io.out.mtilex
 }
 
 /**
-  * Wrapper of VsetModule
+  * Wrapper of MsetMtilexModule
   * This fu is uop of vset which reads two int regs and writes one vf regs.<br>
   * uop: <br/>
   * [[MatrixSETOpType.umsetmtilem_xi]], <br/>
@@ -60,32 +60,32 @@ class MSetRiWi(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cfg)
   * [[MatrixSETOpType.umsetmtilen_xx]], <br/>
   * [[MatrixSETOpType.umsetmtilek_xi]], <br/>
   * [[MatrixSETOpType.umsetmtilek_xx]], <br/>
-  * [[MatrixSETOpType.umsettilem_mtilemmax_i]], <br/>
-  * [[MatrixSETOpType.umsettilem_mtilemmax_x]], <br/>
-  * [[MatrixSETOpType.umsettilen_mtilenmax_i]], <br/>
-  * [[MatrixSETOpType.umsettilen_mtilenmax_x]], <br/>
-  * [[MatrixSETOpType.umsettilek_mtilekmax_i]], <br/>
-  * [[MatrixSETOpType.umsettilek_mtilekmax_x]], <br/>
+  * [[MatrixSETOpType.umsetmtilem_mtilemmax_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilem_mtilemmax_x]], <br/>
+  * [[MatrixSETOpType.umsetmtilen_mtilenmax_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilen_mtilenmax_x]], <br/>
+  * [[MatrixSETOpType.umsetmtilek_mtilekmax_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilek_mtilekmax_x]], <br/>
   * @param cfg [[FuConfig]]
   * @param p [[Parameters]]
   */
-class MSetRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cfg) {
+class MSetMtilexRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
   msetModule.io.in.atx := atx
   msetModule.io.in.mtype := oldMtype
-  val mtilex = msetModule.io.out.outval
+  val mtilex = msetModule.io.out.mtilex
   val tilexmax = msetModule.io.out.txmax
   val isMsettilex = MatrixSETOpType.isMsettilex(in.ctrl.fuOpType)
 
   out.res.data := mtilex
 
-  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.outval
+  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.mtilex
   if (cfg.writeMtilexRf) io.mtilex.get.valid := io.out.valid && isMsettilex
   if (cfg.writeMtilexRf) io.mtilexIsZero.get := io.out.valid && mtilex === 0.U
   if (cfg.writeMtilexRf) io.mtilexIsMtilexmax.get := io.out.valid && mtilex === tilexmax
 }
 
 /**
-  * Wrapper of MsetModule
+  * Wrapper of MsetMtilexModule
   * This fu is uop of mset which reads two int regs and writes one vf regs.<br>
   * uop: <br/>
   * [[MatrixSETOpType.uvsetvcfg_vv]], <br/>
@@ -93,12 +93,12 @@ class MSetRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cfg
   * @param cfg [[FuConfig]]
   * @param p [[Parameters]]
   */
-class MSetRvfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cfg) {
+class MSetMtilexRvfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
   val oldMtilex = in.data.src(4)
   msetModule.io.in.atx := oldMtilex
   msetModule.io.in.mtype := oldMtype
 
-  val mtilex = msetModule.io.out.outval
+  val mtilex = msetModule.io.out.mtilex
   val txmax = msetModule.io.out.txmax
   val isMsettilex = MatrixSETOpType.isMsettilex(in.ctrl.fuOpType)
   val isMreadMtilex = MatrixSETOpType.isMreadMtilex(in.ctrl.fuOpType)
@@ -106,8 +106,27 @@ class MSetRvfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtileBase(cf
   // Select output 
   out.res.data := Mux(isMreadMtilex, oldMtilex, mtilex)
 
-  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.outval
+  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.mtilex
   if (cfg.writeMtilexRf) io.mtilex.get.valid := io.out.valid && isMsettilex
   if (cfg.writeMtilexRf) io.mtilexIsZero.get := io.out.valid && !isMreadMtilex && mtilex === 0.U
   if (cfg.writeMtilexRf) io.mtilexIsMtilexmax.get := io.out.valid && !isMreadMtilex && mtilex === txmax
+}
+
+class MSetMtypeBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
+  protected val in = io.in.bits
+  protected val out = io.out.bits
+
+  protected val msetMtypeModule = Module(new MsetMtypeModule)
+
+  protected val flushed = io.in.bits.ctrl.robIdx.needFlush(io.flush)
+
+  protected val newMtypeImm = Imm_MSET().getAtx(in.data.src(1))
+  protected val newMtype = Mux(MatrixSETOpType.isMsetMtypeFromImm(in.ctrl.fuOpType), newMtypeImm, in.data.src(0))
+  
+  msetMtypeModule.io.in.newmtype := newMtype
+  msetMtypeModule.io.in.oldmtype := in.data.src(3).asTypeOf(MType())
+  msetMtypeModule.io.in.mask     := in.data.src(4)
+  connect0LatencyCtrlSingal
+  io.out.valid := io.in.valid
+  io.in.ready := io.out.ready
 }

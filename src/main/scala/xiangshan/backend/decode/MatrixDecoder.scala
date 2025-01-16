@@ -49,12 +49,12 @@ object MatrixDecoder extends DecodeConstants {
     MSETTYPEI  -> MSETTYPEINST(mtypei = T, fuOp = MatrixSETOpType.umsettypel_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
     
     // Set tilem/n/k
-    MSETTILEM  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilem_xx, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILEMI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilem_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
-    MSETTILEN  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilen_xx, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILENI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilen_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
-    MSETTILEK  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilek_xx, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILEKI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilek_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEM  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilem_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILEMI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilem_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEN  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilen_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILENI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilen_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEK  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilek_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILEKI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilek_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
     
     // TODO: Sparse config
     // MSETTSP    -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),

@@ -6,7 +6,7 @@ import chisel3.util._
 import xiangshan._
 import xiangshan.backend.fu.matrix.Bundles._
 
-class MsetModuleIO(implicit p: Parameters) extends XSBundle {
+class MsetMtilexModuleIO(implicit p: Parameters) extends XSBundle {
   // TODO: use a correct width
   // 'mlWidth' is just a placeholder
   private val mlWidth = p(XSCoreParamsKey).mlWidth
@@ -23,25 +23,23 @@ class MsetModuleIO(implicit p: Parameters) extends XSBundle {
   })
 
   val out = Output(new Bundle {
-    val outval  : UInt = UInt(XLEN.W)
+    val mtilex  : UInt = UInt(XLEN.W)
     val txmax   : UInt = UInt(mlWidth.W)
   })
 }
 
-class MsetModule(implicit p: Parameters) extends XSModule {
-  val io = IO(new MsetModuleIO)
+class MsetMtilexModule(implicit p: Parameters) extends XSModule {
+  val io = IO(new MsetMtilexModuleIO)
 
   private val atx   = io.in.atx
   private val func  = io.in.func
   private val mtype = io.in.mtype
 
-  private val outMtype  : MType = MType()
-  private val outMtilex : UInt  = Mtilex()
+  private val outMtilex = io.out.mtilex
 
   private val isMsetMtilem = MatrixSETOpType.isMsetMtilem(func)
   private val isMsetMtilen = MatrixSETOpType.isMsetMtilen(func)
   private val isMsetMtilek = MatrixSETOpType.isMsetMtilek(func)
-  private val isMsetMtilex = MatrixSETOpType.isMsetMtilex(func)
 
   private val isMsetMtilexmax = MatrixSETOpType.isMsetMtilexmax(func)
 
@@ -60,8 +58,8 @@ class MsetModule(implicit p: Parameters) extends XSModule {
   println(s"[MsetModule] log2Amul: $log2Amul")
   println(s"[MsetModule] mlWidth: $mlWidth")
 
+  // Calculate the maximum tilex
   private val log2Msew = msew(MSew.width - 1, 0) +& "b011".U
-
   private val log2Tmmax: UInt = log2Mlen.U(3.W) - log2Rlen.U(3.W)
   private val log2Tnmax_0: UInt = log2Mlen.U(3.W) - log2Rlen.U(3.W)
   private val log2Tnmax_1: UInt = log2Rlen.U(3.W) - log2Msew
@@ -89,6 +87,37 @@ class MsetModule(implicit p: Parameters) extends XSModule {
   private val illegal = sewIllegal | reservedIllegal | mtype.illegal
 
   outMtilex := Mux(illegal, 0.U, mtilex)
+  io.out.txmax := tilexMax
+}
+
+class MsetMtypeModuleIO(implicit p: Parameters) extends XSBundle {
+  val in = Input(new Bundle {
+    val oldmtype : MsetMType = MsetMType()
+    val newmtype : MsetMType = MsetMType()
+    val mask : UInt = UInt(XLEN.W)
+  })
+
+  val out = Output(new Bundle {
+    val mtype : MType = MType()
+  })
+}
+
+class MsetMtypeModule(implicit p: Parameters) extends XSModule {
+  val io = IO(new MsetMtypeModuleIO)
+
+  private val mtype = ((io.in.newmtype.asUInt & io.in.mask) |
+                       (io.in.oldmtype.asUInt & ~io.in.mask)).asTypeOf(MsetMType())
+  
+  private val outMtype = io.out.mtype
+
+  private val msew : UInt = mtype.msew
+
+  // Check illegal cases
+  private val log2Msew = msew(MSew.width - 1, 0) +& "b011".U
+  private val log2MsewMax = log2Up(ELEN).U
+  private val sewIllegal = MSew.isReserved(msew) || (log2Msew > log2MsewMax)
+  private val reservedIllegal = mtype.reserved.orR
+  private val illegal = sewIllegal | reservedIllegal | mtype.illegal
 
   outMtype.illegal := illegal
   outMtype.mba     := Mux(illegal, 0.U, mtype.mba)
@@ -102,7 +131,4 @@ class MsetModule(implicit p: Parameters) extends XSModule {
   outMtype.mint8   := Mux(illegal, 0.U, mtype.mint8)
   outMtype.mint4   := Mux(illegal, 0.U, mtype.mint4)
   outMtype.msew    := Mux(illegal, 0.U, mtype.msew)
-
-  io.out.outval := Mux(isMsetMtilex, outMtilex, outMtype.asUInt)
-  io.out.txmax := tilexMax
 }

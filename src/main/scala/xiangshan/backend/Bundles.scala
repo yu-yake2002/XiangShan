@@ -962,6 +962,7 @@ object Bundles {
     
     def src_mtype  = if (isMatrix) src(3) else 0.U
     def src_mtilex = if (isMatrix) src(4) else 0.U
+    def src_mtype_mask = if (isMatrix) src(4) else 0.U
   }
 
   class MemExuOutput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
