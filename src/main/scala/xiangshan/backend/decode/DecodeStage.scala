@@ -82,6 +82,7 @@ class DecodeStageIO(implicit p: Parameters) extends XSBundle {
   val vsetvlVType = Input(VType())
   val vstart = Input(Vl())
   val msetmlMType = Input(MType())
+  val mstart = Input(Vl()) // FIXME: don't use Vl here
 
   val toCSR = new Bundle {
     val trapInstInfo = ValidIO(new TrapInstInfo)
@@ -183,7 +184,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
   mtypeGen.io.walkToArchMType := io.fromRob.walkToArchMType
   mtypeGen.io.commitMType := io.fromRob.commitMType
   mtypeGen.io.walkMType := io.fromRob.walkMType
-  mtypeGen.io.msetmlMType := io.msetmlMType
+  mtypeGen.io.msetmlMType := io.msetMType
 
   //Comp 1
   decoderComp.io.redirect := io.redirect

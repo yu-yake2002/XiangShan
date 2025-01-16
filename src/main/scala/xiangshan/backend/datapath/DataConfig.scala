@@ -15,10 +15,14 @@ object DataConfig {
   case class IntData() extends DataConfig("int", 64)
   case class FpData() extends DataConfig("fp", 64)
   case class VecData() extends DataConfig("vec", 128)
+  // case class MatrixData() extends DataConfig("matrix", 128)
   case class ImmData(len: Int) extends DataConfig("int", len)
   case class VAddrData()(implicit p: Parameters) extends DataConfig("vaddr", 48 + 2) // Todo: associate it with the width of vaddr
   case class V0Data() extends DataConfig("v0", 128)
   case class VlData() extends DataConfig("vl", log2Up(VecData().dataWidth) + 1 ) // 8
+
+  // TODO: implement MtxData
+  case class MtxData() extends DataConfig("mtx", log2Up(VecData().dataWidth) + 1 ) // 8
   case class FakeIntData() extends DataConfig("fakeint", 64)
   case class NoData() extends DataConfig("nodata", 0)
 

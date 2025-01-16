@@ -39,6 +39,9 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   val setMsat = csrIn.matrix.set_msat
   val setMsDirty = csrIn.matrix.dirty_ms
   val setMstart = csrIn.matrix.set_mstart
+  val mtilemFromPreg = csrIn.matrix.mtilem
+  val mtilenFromPreg = csrIn.matrix.mtilen
+  val mtilekFromPreg = csrIn.matrix.mtilek
 
   val flushPipe = Wire(Bool())
   val flush = io.flush.valid
@@ -171,10 +174,11 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   csrMod.io.fromRob.commit.mtype.bits.mint8 := setMtype.bits(4)
   csrMod.io.fromRob.commit.mtype.bits.mint4 := setMtype.bits(3)
   csrMod.io.fromRob.commit.mtype.bits.msew := setMtype.bits(2, 0)
-  csrMod.io.fromRob.commit.msat.valid := setMsat.valid
-  csrMod.io.fromRob.commit.msat.bits := setMsat.bits
   csrMod.io.fromRob.commit.msDirty := setMsDirty
   csrMod.io.fromRob.commit.mstart := setMstart
+  csrMod.io.fromRob.commit.mtilem := mtilemFromPreg
+  csrMod.io.fromRob.commit.mtilen := mtilenFromPreg
+  csrMod.io.fromRob.commit.mtilek := mtilekFromPreg
 
   csrMod.io.fromRob.commit.instNum.valid := true.B  // Todo: valid control signal
   csrMod.io.fromRob.commit.instNum.bits  := csrIn.perf.retiredInstr

@@ -162,23 +162,7 @@ object Bundles {
   
   object Msat extends NamedUInt(1)
 
-  object Mtilem {
-    def apply()(implicit p: Parameters): UInt = UInt(width.W)
-
-    // TODO: use a correct width
-    // The mlwidth is just a placeholder
-    def width(implicit p: Parameters) = p(XSCoreParamsKey).mlWidth
-  }
-
-  object Mtilen {
-    def apply()(implicit p: Parameters): UInt = UInt(width.W)
-
-    // TODO: use a correct width
-    // The mlwidth is just a placeholder
-    def width(implicit p: Parameters) = p(XSCoreParamsKey).mlWidth
-  }
-
-  object Mtilek {
+  object Mtilex {
     def apply()(implicit p: Parameters): UInt = UInt(width.W)
 
     // TODO: use a correct width
@@ -188,9 +172,9 @@ object Bundles {
 
   class MConfig(implicit p: Parameters) extends Bundle {
     val mtype = new MType
-    val tilem = Mtilem()
-    val tilen = Mtilen()
-    val tilek = Mtilek()
+    val tilem = Mtilex()
+    val tilen = Mtilex()
+    val tilek = Mtilex()
   }
   
   object MConfig {

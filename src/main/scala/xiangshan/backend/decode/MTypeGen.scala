@@ -57,13 +57,12 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
   private val mtypei: MsetMType = MsetMType.fromInstMType(instMType)
 
   private val msetModule = Module(new MsetModule)
-  msetModule.io.in.atm := 0.U
-  msetModule.io.in.atn := 0.U
-  msetModule.io.in.atk := 0.U
+  msetModule.io.in.atx := 0.U
   msetModule.io.in.mtype := mtypei
   msetModule.io.in.func := MatrixSETOpType.placeholder
 
-  private val mtypeNew = msetModule.io.out.mconfig.mtype
+  // FIXME: sometimes, outval is not mtype but mtilex
+  private val mtypeNew = msetModule.io.out.outval.asTypeOf(new MType)
 
   when(io.commitMType.hasMsetml) {
     mtypeArchNext := io.msetmlMType

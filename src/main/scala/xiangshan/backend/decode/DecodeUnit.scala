@@ -997,6 +997,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   decodedInst.commitType := Cat(isLs | isVls, (isStore && !isAMO) | isVStore | isBranch)
 
   decodedInst.isVset := FuType.isVset(decodedInst.fuType)
+  decodedInst.isMset := FuType.isMset(decodedInst.fuType)
 
   private val needReverseInsts = Seq(VRSUB_VI, VRSUB_VX, VFRDIV_VF, VFRSUB_VF, VFMV_F_S)
   private val vextInsts = Seq(VZEXT_VF2, VZEXT_VF4, VZEXT_VF8, VSEXT_VF2, VSEXT_VF4, VSEXT_VF8)
@@ -1153,9 +1154,13 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   val isCsrrVlenb = isCsrr && inst.CSRIDX === CSRs.vlenb.U
   val isCsrrVl    = isCsrr && inst.CSRIDX === CSRs.vl.U
 
+  // The same as above, but for mlenb, mrlenb, mamul, mtilem, mtilen, mtilek
   val isCsrrMlenb  = isCsrr && inst.CSRIDX === CSRs.mlenb.U
   val isCsrrMrlenb = isCsrr && inst.CSRIDX === CSRs.mrlenb.U
   val isCsrrMamul  = isCsrr && inst.CSRIDX === CSRs.mamul.U
+  val isCsrrMtilem = isCsrr && inst.CSRIDX === CSRs.mtilem.U
+  val isCsrrMtilen = isCsrr && inst.CSRIDX === CSRs.mtilen.U
+  val isCsrrMtilek = isCsrr && inst.CSRIDX === CSRs.mtilek.U
 
   // decode for SoftPrefetch instructions (prefetch.w / prefetch.r / prefetch.i)
   val isSoftPrefetch = inst.OPCODE === BitPat("b0010011") && inst.FUNCT3 === BitPat("b110") && inst.RD === 0.U
@@ -1221,11 +1226,18 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   io.deq.decodedInst.imm := MuxCase(decodedInst.imm, Seq(
     isCsrrVlenb -> (VLEN / 8).U,
     isZimop     -> 0.U,
+    // TODO: add imm for mlenb, mrlenb, mamul
   ))
 
   io.deq.decodedInst.fuOpType := MuxCase(decodedInst.fuOpType, Seq(
     isCsrrVl    -> VSETOpType.csrrvl,
     isCsrrVlenb -> ALUOpType.add,
+    isCsrrMtilem -> MatrixSETOpType.csrrmtilem,
+    isCsrrMtilen -> MatrixSETOpType.csrrmtilen,
+    isCsrrMtilek -> MatrixSETOpType.csrrmtilek,
+    isCsrrMlenb -> ALUOpType.add,
+    isCsrrMrlenb -> ALUOpType.add,
+    isCsrrMamul -> ALUOpType.add,
     isFLI       -> Cat(1.U, inst.FMT, inst.RS1),
     (isPreW || isPreR || isPreI) -> Mux1H(Seq(
       isPreW -> LSUOpType.prefetch_w,

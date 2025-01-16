@@ -55,6 +55,7 @@ case class FuConfig (
   writeVecRf    : Boolean = false,
   writeV0Rf     : Boolean = false,
   writeVlRf     : Boolean = false,
+  writeMtilexRf : Boolean = false,
   writeFakeIntRf: Boolean = false,
   writeFflags   : Boolean = false,
   writeVxsat    : Boolean = false,
@@ -71,6 +72,7 @@ case class FuConfig (
   needSrcFrm    : Boolean = false,
   needSrcVxrm   : Boolean = false,
   writeVType    : Boolean = false,
+  writeMType    : Boolean = false,
   immType       : Set[UInt] = Set(),
   // vector
   vconfigWakeUp : Boolean = false,
