@@ -78,6 +78,10 @@ object FuType extends OHEnumeration {
   val msettypeiwi = addType(name = "msettypeiwi") // msettype read rs write rd
   val msettypeiwf = addType(name = "msettypeiwf") // msettype read rs write mtype
 
+  // matrix ls
+  val mldu = addType(name = "mldu")
+  val mstu = addType(name = "mstu")
+
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)
   // dq0 includes int's iq0 and iq1
   // dq1 includes int's iq2 and iq3

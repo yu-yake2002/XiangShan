@@ -29,18 +29,19 @@ import xiangshan.backend.decode.{Imm, ImmUnion}
 
 package object xiangshan {
   object SrcType {
-    def imm = "b0000".U
-    def pc  = "b0000".U
-    def xp  = "b0001".U
-    def fp  = "b0010".U
-    def vp  = "b0100".U
-    def v0  = "b1000".U
-    def no  = "b0000".U // this src read no reg but cannot be Any value
+    def imm = "b00000".U
+    def pc  = "b00000".U
+    def xp  = "b00001".U
+    def fp  = "b00010".U
+    def vp  = "b00100".U
+    def v0  = "b01000".U
+    def mp  = "b10000".U
+    def no  = "b00000".U // this src read no reg but cannot be Any value
 
     // alias
     def reg = this.xp
     def DC  = imm // Don't Care
-    def X   = BitPat("b0000")
+    def X   = BitPat("b00000")
 
     def isPc(srcType: UInt) = srcType===pc
     def isImm(srcType: UInt) = srcType===imm
@@ -49,10 +50,11 @@ package object xiangshan {
     def isFp(srcType: UInt) = srcType(1)
     def isVp(srcType: UInt) = srcType(2)
     def isV0(srcType: UInt) = srcType(3)
+    def isMp(srcType: UInt) = srcType(4)
     def isPcOrImm(srcType: UInt) = isPc(srcType) || isImm(srcType)
     def isNotReg(srcType: UInt): Bool = !srcType.orR
     def isVfp(srcType: UInt) = isVp(srcType) || isFp(srcType)
-    def apply() = UInt(4.W)
+    def apply() = UInt(5.W)
   }
 
   object SrcState {
@@ -552,6 +554,42 @@ package object xiangshan {
     def isMreadMtilex (func: UInt) = isRead(func) && (isTileM(func) || isTileN(func) || isTileK(func))
 
     def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
+  }
+
+  object MlduType {
+    // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
+    // matrix type [1:0]
+    // 0 0 0 0 1 : output matrix, C
+    // 0 0 0 1 0 : left matrix, A
+    // 0 0 1 0 0 : right matrix, B
+    // 0 1 0 0 0 : tile matrix without considering the size
+    // 1 0 0 0 0 : accumulation matrix without considering the size
+    def mlae   = "b00001_0_000".U
+    def mlate  = "b00001_1_000".U
+    def mlbe   = "b00010_0_000".U
+    def mlbte  = "b00010_1_000".U
+    def mlce   = "b00100_0_000".U
+    def mlcte  = "b00100_1_000".U
+    def mltre  = "b01000_0_000".U
+    def mlacce = "b10000_0_000".U
+  }
+
+  object MstuType {
+    // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
+    // matrix type [1:0]
+    // 0 0 0 0 1 : output matrix, C
+    // 0 0 0 1 0 : left matrix, A
+    // 0 0 1 0 0 : right matrix, B
+    // 0 1 0 0 0 : tile matrix without considering the size
+    // 1 0 0 0 0 : accumulation matrix without considering the size
+    def msae   = "b00001_0_000".U
+    def msate  = "b00001_1_000".U
+    def msbe   = "b00010_0_000".U
+    def msbte  = "b00010_1_000".U
+    def msce   = "b00100_0_000".U
+    def mscte  = "b00100_1_000".U
+    def mstre  = "b01000_0_000".U
+    def msacce = "b10000_0_000".U
   }
 
   object BRUOpType {
