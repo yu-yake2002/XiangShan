@@ -5,7 +5,8 @@ import chisel3.util._
 import freechips.rocketchip.rocket.Instructions._
 import freechips.rocketchip.util.uintToBitPat
 import xiangshan.backend.fu.FuType
-import xiangshan.{SrcType, MatrixSETOpType, UopSplitType, SelImm}
+import xiangshan.{SrcType, MatrixSETOpType, UopSplitType, SelImm, MlduType, MstuType}
+import freechips.rocketchip.amba.ahb.AHBParameters.transBits
 
 // Set a specific field in mtype
 case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
@@ -35,6 +36,28 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
     val src2 = SrcType.imm
     XSDecode(src1, src2, SrcType.X, FuType.msettilexiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
+  }
+}
+
+case class MLD(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
+  def generate(): List[BitPat] = {
+    val fu = FuType.mldu
+    val src1 = SrcType.xp
+    val src2 = SrcType.xp
+    val src3 = SrcType.mp
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_X, UopSplitType.X,
+      xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
+  }
+}
+
+case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
+  def generate(): List[BitPat] = {
+    val fu = FuType.mstu
+    val src1 = SrcType.xp
+    val src2 = SrcType.xp
+    val src3 = SrcType.mp
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.X,
+      xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
 
@@ -69,5 +92,140 @@ object MatrixDecoder extends DecodeConstants {
     // MSETPADVAL -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
   )
 
-  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset
+  val mls: Array[(BitPat, XSDecodeBase)] = Array(
+    // Load left matrix, A
+    MLAE8_M -> MLD(MlduType.mlae),
+    MLAE16_M -> MLD(MlduType.mlae),
+    MLAE32_M -> MLD(MlduType.mlae),
+    MLAE64_M -> MLD(MlduType.mlae),
+    // Load right matrix, B
+    MLBE8_M -> MLD(MlduType.mlbe),
+    MLBE16_M -> MLD(MlduType.mlbe),
+    MLBE32_M -> MLD(MlduType.mlbe),
+    MLBE64_M -> MLD(MlduType.mlbe),
+    // Load output matrix, C
+    MLCE8_M -> MLD(MlduType.mlce),
+    MLCE16_M -> MLD(MlduType.mlce),
+    MLCE32_M -> MLD(MlduType.mlce),
+    MLCE64_M -> MLD(MlduType.mlce),
+    // Load a whole tile matrix from memory without considering the size
+    MLTRE8_M -> MLD(MlduType.mltre),
+    MLTRE16_M -> MLD(MlduType.mltre),
+    MLTRE32_M -> MLD(MlduType.mltre),
+    MLTRE64_M -> MLD(MlduType.mltre),
+    // Load transposed left matrix, A
+    MLATE8_M -> MLD(MlduType.mlate, transposed = true),
+    MLATE16_M -> MLD(MlduType.mlate, transposed = true),
+    MLATE32_M -> MLD(MlduType.mlate, transposed = true),
+    MLATE64_M -> MLD(MlduType.mlate, transposed = true),
+    // Load transposed right matrix, B
+    MLBTE8_M -> MLD(MlduType.mlbte, transposed = true),
+    MLBTE16_M -> MLD(MlduType.mlbte, transposed = true),
+    MLBTE32_M -> MLD(MlduType.mlbte, transposed = true),
+    MLBTE64_M -> MLD(MlduType.mlbte, transposed = true),
+    // Load transposed output matrix, C
+    MLCTE8_M -> MLD(MlduType.mlcte, transposed = true),
+    MLCTE16_M -> MLD(MlduType.mlcte, transposed = true),
+    MLCTE32_M -> MLD(MlduType.mlcte, transposed = true),
+    MLCTE64_M -> MLD(MlduType.mlcte, transposed = true),
+    // Load a whole accumulation matrix from memory without considering the size
+    MLACCE8_M -> MLD(MlduType.mlacce),
+    MLACCE16_M -> MLD(MlduType.mlacce),
+    MLACCE32_M -> MLD(MlduType.mlacce),
+    MLACCE64_M -> MLD(MlduType.mlacce),
+    // Store left matrix, A
+    MSAE8_M -> MST(MstuType.msae),
+    MSAE16_M -> MST(MstuType.msae),
+    MSAE32_M -> MST(MstuType.msae),
+    MSAE64_M -> MST(MstuType.msae),
+    // Store right matrix, B
+    MSBE8_M -> MST(MstuType.msbe),
+    MSBE16_M -> MST(MstuType.msbe),
+    MSBE32_M -> MST(MstuType.msbe),
+    MSBE64_M -> MST(MstuType.msbe),
+    // Store output matrix, C
+    MSCE8_M -> MST(MstuType.msce),
+    MSCE16_M -> MST(MstuType.msce),
+    MSCE32_M -> MST(MstuType.msce),
+    MSCE64_M -> MST(MstuType.msce),
+    // Store a whole tile matrix to memory without considering the size
+    MSTRE8_M -> MST(MstuType.mstre),
+    MSTRE16_M -> MST(MstuType.mstre),
+    MSTRE32_M -> MST(MstuType.mstre),
+    MSTRE64_M -> MST(MstuType.mstre),
+    // Store transposed left matrix, A
+    MSATE8_M -> MST(MstuType.msate, transposed = true),
+    MSATE16_M -> MST(MstuType.msate, transposed = true),
+    MSATE32_M -> MST(MstuType.msate, transposed = true),
+    MSATE64_M -> MST(MstuType.msate, transposed = true),
+    // Store transposed right matrix, B
+    MSBTE8_M -> MST(MstuType.msbte, transposed = true),
+    MSBTE16_M -> MST(MstuType.msbte, transposed = true),
+    MSBTE32_M -> MST(MstuType.msbte, transposed = true),
+    MSBTE64_M -> MST(MstuType.msbte, transposed = true),
+    // Store transposed output matrix, C
+    MSCTE8_M -> MST(MstuType.mscte, transposed = true),
+    MSCTE16_M -> MST(MstuType.mscte, transposed = true),
+    MSCTE32_M -> MST(MstuType.mscte, transposed = true),
+    MSCTE64_M -> MST(MstuType.mscte, transposed = true),
+    // Store a whole accumulation matrix to memory without considering the size
+    MSACCE8_M -> MST(MstuType.msacce),
+    MSACCE16_M -> MST(MstuType.msacce),
+    MSACCE32_M -> MST(MstuType.msacce),
+    MSACCE64_M -> MST(MstuType.msacce),
+    // TODO: Zmv: Matrix for Vector operations
+    // MLAE8_V -> MLD(),
+    // MLAE16_V -> MLD(),
+    // MLAE32_V -> MLD(),
+    // MLAE64_V -> MLD(),
+    // MLBE8_V -> MLD(),
+    // MLBE16_V -> MLD(),
+    // MLBE32_V -> MLD(),
+    // MLBE64_V -> MLD(),
+    // MLCE8_V -> MLD(),
+    // MLCE16_V -> MLD(),
+    // MLCE32_V -> MLD(),
+    // MLCE64_V -> MLD(),
+    // MSAE8_V -> MST(),
+    // MSAE16_V -> MST(),
+    // MSAE32_V -> MST(),
+    // MSAE64_V -> MST(),
+    // MSBE8_V -> MST(),
+    // MSBE16_V -> MST(),
+    // MSBE32_V -> MST(),
+    // MSBE64_V -> MST(),
+    // MSCE8_V -> MST(),
+    // MSCE16_V -> MST(),
+    // MSCE32_V -> MST(),
+    // MSCE64_V -> MST(),
+
+    // TODO: Zmi2c: Im2col Extension
+    // MLUFAE8_M -> MLD(),
+    // MLUFAE16_M -> MLD(),
+    // MLUFAE32_M -> MLD(),
+    // MLUFAE64_M -> MLD(),
+    // MLUFBE8_M -> MLD(),
+    // MLUFBE16_M -> MLD(),
+    // MLUFBE32_M -> MLD(),
+    // MLUFBE64_M -> MLD(),
+    // MLUFCE8_M -> MLD(),
+    // MLUFCE16_M -> MLD(),
+    // MLUFCE32_M -> MLD(),
+    // MLUFCE64_M -> MLD(),
+    // TODO: Zmc2i: Col2im Extension
+    // MSFDAE8_M -> MST(),
+    // MSFDAE16_M -> MST(),
+    // MSFDAE32_M -> MST(),
+    // MSFDAE64_M -> MST(),
+    // MSFDBE8_M -> MST(),
+    // MSFDBE16_M -> MST(),
+    // MSFDBE32_M -> MST(),
+    // MSFDBE64_M -> MST(),
+    // MSFDCE8_M -> MST(),
+    // MSFDCE16_M -> MST(),
+    // MSFDCE32_M -> MST(),
+    // MSFDCE64_M -> MST(),
+  )
+
+  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls
 }
