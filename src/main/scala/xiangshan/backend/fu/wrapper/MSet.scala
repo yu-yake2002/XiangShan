@@ -36,8 +36,8 @@ class MSetMtilexBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUni
   * Wrapper of MsetMtilexModule
   * This fu is uop of mset which reads two int regs and writes one int regs.<br>
   * uop: <br/>
-  * [[MatrixSETOpType.umsetrd_xi]], <br/>
-  * [[MatrixSETOpType.umsetrd_xx]], <br/>
+  * [[MatrixSETOpType.umsetrd_i]], <br/>
+  * [[MatrixSETOpType.umsetrd_x]], <br/>
   * [[MatrixSETOpType.umsetrd_vlmax_i]], <br/>
   * [[MatrixSETOpType.umsetrd_vlmax_x]], <br/>
   * @param cfg [[FuConfig]]
@@ -54,12 +54,12 @@ class MSetMtilexRiWi(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBa
   * Wrapper of MsetMtilexModule
   * This fu is uop of vset which reads two int regs and writes one vf regs.<br>
   * uop: <br/>
-  * [[MatrixSETOpType.umsetmtilem_xi]], <br/>
-  * [[MatrixSETOpType.umsetmtilem_xx]], <br/>
-  * [[MatrixSETOpType.umsetmtilen_xi]], <br/>
-  * [[MatrixSETOpType.umsetmtilen_xx]], <br/>
-  * [[MatrixSETOpType.umsetmtilek_xi]], <br/>
-  * [[MatrixSETOpType.umsetmtilek_xx]], <br/>
+  * [[MatrixSETOpType.umsetmtilem_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilem_x]], <br/>
+  * [[MatrixSETOpType.umsetmtilen_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilen_x]], <br/>
+  * [[MatrixSETOpType.umsetmtilek_i]], <br/>
+  * [[MatrixSETOpType.umsetmtilek_x]], <br/>
   * [[MatrixSETOpType.umsetmtilem_mtilemmax_i]], <br/>
   * [[MatrixSETOpType.umsetmtilem_mtilemmax_x]], <br/>
   * [[MatrixSETOpType.umsetmtilen_mtilenmax_i]], <br/>
