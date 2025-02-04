@@ -80,6 +80,10 @@ case class IssueBlockParams(
 
   def numVlSrc: Int = exuBlockParams.map(_.numVlSrc).max
 
+  def numMatrixSrc: Int = exuBlockParams.map(_.numMatrixSrc).max
+
+  def numMfSrc: Int = exuBlockParams.map(_.numMfSrc).max
+
   def numRegSrc: Int = exuBlockParams.map(_.numRegSrc).max
 
   def numSrc: Int = exuBlockParams.map(_.numSrc).max
@@ -95,6 +99,8 @@ case class IssueBlockParams(
   def readV0Rf: Boolean = numV0Src > 0
 
   def readVlRf: Boolean = numVlSrc > 0
+
+  def readMatrixRf: Boolean = numMatrixSrc > 0
 
   def writeIntRf: Boolean = exuBlockParams.map(_.writeIntRf).reduce(_ || _)
 
@@ -198,6 +204,10 @@ case class IssueBlockParams(
 
   def VstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vstu)).sum
 
+  def MlduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mldu)).sum
+
+  def MstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mstu)).sum
+
   def VseglduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vsegldu)).sum
 
   def VsegstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vsegstu)).sum
@@ -287,6 +297,8 @@ case class IssueBlockParams(
   def needWakeupFromV0WBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readV0Rf).groupBy(x => x.getV0WBPort.getOrElse(V0WB(port = -1)).port).filter(_._1 != -1)
 
   def needWakeupFromVlWBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readVlRf).groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
+
+  def needWakeupFromMfWBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readMatrixRf).groupBy(x => x.getMfWBPort.getOrElse(MfWB(port = -1)).port).filter(_._1 != -1)
 
   def hasWakeupFromMem: Boolean = backendParam.allExuParams.filter(x => wakeUpInExuSources.map(_.name).contains(x.name)).map(_.isMemExeUnit).fold(false)(_ | _)
 

@@ -600,12 +600,12 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   val fromIntExuMsetMType = intExuBlock.io.mtype.getOrElse(0.U.asTypeOf((Valid(new MType))))
   val fromMfExuMsetMType = vfExuBlock.io.mtype.getOrElse(0.U.asTypeOf((Valid(new MType))))
   val fromMsetMType = Mux(fromIntExuMsetMType.valid, fromIntExuMsetMType.bits, fromMfExuMsetMType.bits)
-  val msetMType = RegEnable(fromMsetMType, 0.U.asTypeOf(new MType), fromIntExuMsetMType.valid || fromMfExuMsetMType.valid)
-  ctrlBlock.io.toDecode.msetMType := msetMType
+  val msettypeMType = RegEnable(fromMsetMType, 0.U.asTypeOf(new MType), fromIntExuMsetMType.valid || fromMfExuMsetMType.valid)
+  ctrlBlock.io.toDecode.msettypeMType := msettypeMType
   
   val commitMType = ctrlBlock.io.robio.commitMType.mtype
-  val hasMsettx = ctrlBlock.io.robio.commitMType.hasMsettx
-  val mtype = MType.toMtypeStruct((Mux(hasMsettx, msetMType, commitMType.bits))).asUInt
+  val hasMsettype = ctrlBlock.io.robio.commitMType.hasMsettype
+  val mtype = MType.toMtypeStruct((Mux(hasMsettype, msettypeMType, commitMType.bits))).asUInt
 
   // csr not store the value of vl, so when using difftest we assign the value of vl to debugVl
   val debugVl_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)

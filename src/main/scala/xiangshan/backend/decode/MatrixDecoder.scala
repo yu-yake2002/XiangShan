@@ -7,6 +7,7 @@ import freechips.rocketchip.util.uintToBitPat
 import xiangshan.backend.fu.FuType
 import xiangshan.{SrcType, MatrixSETOpType, UopSplitType, SelImm, MlduType, MstuType}
 import freechips.rocketchip.amba.ahb.AHBParameters.transBits
+import xiangshan.MmulType
 
 // Set a specific field in mtype
 case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
@@ -14,7 +15,7 @@ case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm
     val src1 = SrcType.imm
     val src2 = SrcType.imm
     // TODO: MSETINST could be implemented as MSETTYPEINST with a mask
-    XSDecode(src1, src2, SrcType.X, FuType.msettypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -24,7 +25,7 @@ case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, block
   def generate(): List[BitPat] = {
     val src1 = if (mtypei) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msettypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -34,7 +35,7 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
   def generate(): List[BitPat] = {
     val src1 = if (txi) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msettilexiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtilexiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -57,6 +58,16 @@ case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
     val src2 = SrcType.xp
     val src3 = SrcType.mp
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.X,
+      xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
+  }
+}
+
+case class MMUL(fuOp: BitPat) extends XSDecodeBase {
+  def generate(): List[BitPat] = {
+    val fu = FuType.mmul
+    val src1 = SrcType.xp
+    val src2 = SrcType.xp
+    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -225,6 +236,78 @@ object MatrixDecoder extends DecodeConstants {
     // MSFDCE16_M -> MST(),
     // MSFDCE32_M -> MST(),
     // MSFDCE64_M -> MST(),
+  )
+
+  val mmve: Array[(BitPat, XSDecodeBase)] = Array(
+  )
+
+  val mmul: Array[(BitPat, XSDecodeBase)] = Array(
+    MMAU_MM -> MMUL(MmulType.placeholder),
+    MMAU_H_MM -> MMUL(MmulType.placeholder),
+    MMAU_W_MM -> MMUL(MmulType.placeholder),
+    MMAU_DW_MM -> MMUL(MmulType.placeholder),
+    MSMAU_MM -> MMUL(MmulType.placeholder),
+    MSMAU_H_MM -> MMUL(MmulType.placeholder),
+    MSMAU_W_MM -> MMUL(MmulType.placeholder),
+    MSMAU_DW_MM -> MMUL(MmulType.placeholder),
+    MMA_MM -> MMUL(MmulType.placeholder),
+    MMA_H_MM -> MMUL(MmulType.placeholder),
+    MMA_W_MM -> MMUL(MmulType.placeholder),
+    MMA_DW_MM -> MMUL(MmulType.placeholder),
+    MSMA_MM -> MMUL(MmulType.placeholder),
+    MSMA_H_MM -> MMUL(MmulType.placeholder),
+    MSMA_W_MM -> MMUL(MmulType.placeholder),
+    MSMA_DW_MM -> MMUL(MmulType.placeholder),
+    MFMA_MM -> MMUL(MmulType.placeholder),
+    MFMA_HF_MM -> MMUL(MmulType.placeholder),
+    MFMA_F_MM -> MMUL(MmulType.placeholder),
+    MFMA_D_MM -> MMUL(MmulType.placeholder),
+    MWMAU_MM -> MMUL(MmulType.placeholder),
+    MWMAU_H_MM -> MMUL(MmulType.placeholder),
+    MWMAU_W_MM -> MMUL(MmulType.placeholder),
+    MSWMAU_MM -> MMUL(MmulType.placeholder),
+    MSWMAU_H_MM -> MMUL(MmulType.placeholder),
+    MSWMAU_W_MM -> MMUL(MmulType.placeholder),
+    MWMA_MM -> MMUL(MmulType.placeholder),
+    MWMA_H_MM -> MMUL(MmulType.placeholder),
+    MWMA_W_MM -> MMUL(MmulType.placeholder),
+    MSWMA_MM -> MMUL(MmulType.placeholder),
+    MSWMA_H_MM -> MMUL(MmulType.placeholder),
+    MSWMA_W_MM -> MMUL(MmulType.placeholder),
+    MFWMA_MM -> MMUL(MmulType.placeholder),
+    MFWMA_CF_MM -> MMUL(MmulType.placeholder),
+    MFWMA_HF_MM -> MMUL(MmulType.placeholder),
+    MFWMA_F_MM -> MMUL(MmulType.placeholder),
+    MQMAU_MM -> MMUL(MmulType.placeholder),
+    MQMAU_B_MM -> MMUL(MmulType.placeholder),
+    MSQMAU_MM -> MMUL(MmulType.placeholder),
+    MSQMAU_B_MM -> MMUL(MmulType.placeholder),
+    MQMA_MM -> MMUL(MmulType.placeholder),
+    MQMA_B_MM -> MMUL(MmulType.placeholder),
+    MSQMA_MM -> MMUL(MmulType.placeholder),
+    MSQMA_B_MM -> MMUL(MmulType.placeholder),
+    MFQMA_MM -> MMUL(MmulType.placeholder),
+    MFQMA_CF_MM -> MMUL(MmulType.placeholder),
+    MOMAU_MM -> MMUL(MmulType.placeholder),
+    MOMAU_HB_MM -> MMUL(MmulType.placeholder),
+    MSOMAU_MM -> MMUL(MmulType.placeholder),
+    MSOMAU_HB_MM -> MMUL(MmulType.placeholder),
+    MOMA_MM -> MMUL(MmulType.placeholder),
+    MOMA_HB_MM -> MMUL(MmulType.placeholder),
+    MSOMA_MM -> MMUL(MmulType.placeholder),
+    MSOMA_HB_MM -> MMUL(MmulType.placeholder),
+  )
+
+  val msparsemul: Array[(BitPat, XSDecodeBase)] = Array(
+  )
+
+  val marith: Array[(BitPat, XSDecodeBase)] = Array(
+  )
+
+  val mlogic: Array[(BitPat, XSDecodeBase)] = Array(
+  )
+
+  val mcvt: Array[(BitPat, XSDecodeBase)] = Array(
   )
 
   override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls

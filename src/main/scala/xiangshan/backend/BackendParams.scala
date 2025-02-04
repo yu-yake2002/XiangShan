@@ -105,6 +105,8 @@ case class BackendParams(
   def HyuCnt = allSchdParams.map(_.HyuCnt).sum
   def VlduCnt = allSchdParams.map(_.VlduCnt).sum
   def VstuCnt = allSchdParams.map(_.VstuCnt).sum
+  def MlduCnt = allSchdParams.map(_.MlduCnt).sum
+  def MstuCnt = allSchdParams.map(_.MstuCnt).sum
   def LsExuCnt = StaCnt + LduCnt + HyuCnt
   val LdExuCnt = LduCnt + HyuCnt
   val StaExuCnt = StaCnt + HyuCnt
@@ -378,6 +380,7 @@ case class BackendParams(
   def getVfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVfWBPort.getOrElse(VfWB(port = -1)).port).filter(_._1 != -1)
   def getV0WBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getV0WBPort.getOrElse(V0WB(port = -1)).port).filter(_._1 != -1)
   def getVlWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
+  def getMfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMfWBPort.getOrElse(MfWB(port = -1)).port).filter(_._1 != -1)
 
   private def isContinuous(portIndices: Seq[Int]): Boolean = {
     val portIndicesSet = portIndices.toSet

@@ -70,6 +70,18 @@ object Bundles {
 
     def initMtype()(implicit p: Parameters) : MType = {
       val res = Wire(MType())
+      res.illegal := false.B
+      res.mba := false.B
+      res.mfp64 := false.B
+      res.mfp32 := 0.U
+      res.mfp16 := 0.U
+      res.mfp8 := 0.U
+      res.mint64 := false.B
+      res.mint32 := false.B
+      res.mint16 := false.B
+      res.mint8 := false.B
+      res.mint4 := false.B
+      res.msew := MSew.e8
       res
     }
 

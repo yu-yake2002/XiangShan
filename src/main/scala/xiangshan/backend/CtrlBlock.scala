@@ -397,6 +397,10 @@ class CtrlBlockImp(
   decode.io.fromRob.walkToArchVType := rob.io.toDecode.walkToArchVType
   decode.io.fromRob.commitVType := rob.io.toDecode.commitVType
   decode.io.fromRob.walkVType := rob.io.toDecode.walkVType
+  decode.io.fromRob.isResumeMType := rob.io.toDecode.isResumeMType
+  decode.io.fromRob.walkToArchMType := rob.io.toDecode.walkToArchMType
+  decode.io.fromRob.commitMType := rob.io.toDecode.commitMType
+  decode.io.fromRob.walkMType := rob.io.toDecode.walkMType
 
   decode.io.redirect := s1_s3_redirect.valid || s2_s4_pendingRedirectValid
 
@@ -832,7 +836,7 @@ class CtrlBlockImp(
   // rob to backend
   io.robio.commitMType := rob.io.toDecode.commitMType
   // exu block to decode
-  decode.io.msetMType := io.toDecode.msetMType
+  decode.io.msettypeMType := io.toDecode.msettypeMType
   // backend to decode
   decode.io.mstart := io.toDecode.mstart
   // backend to rob
@@ -955,7 +959,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
 
     val commitMType = new Bundle {
       val mtype = Output(ValidIO(MType()))
-      val hasMsettx = Output(Bool())
+      val hasMsettype = Output(Bool())
     }
 
     // store event difftest information
@@ -968,7 +972,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
   val toDecode = new Bundle {
     val vsetvlVType = Input(VType())
     val vstart = Input(Vl())
-    val msetMType = Input(MType())
+    val msettypeMType = Input(MType())
     val mstart = Input(Vl()) // FIXME: don't use Vl here
   }
 
