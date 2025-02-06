@@ -46,6 +46,7 @@ class ExuBlockImp(
     exu.io.vlIsZero.foreach(exuio => io.vlIsZero.get := exuio)
     exu.io.vlIsVlmax.foreach(exuio => io.vlIsVlmax.get := exuio)
     exu.io.vtype.foreach(exuio => io.vtype.get := exuio)
+    exu.io.mtype.foreach(exuio => io.mtype.get := exuio)
     exu.io.in <> input
     output <> exu.io.out
     io.csrToDecode.foreach(toDecode => exu.io.csrToDecode.foreach(exuOut => toDecode := exuOut))
