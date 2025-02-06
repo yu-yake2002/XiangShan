@@ -73,6 +73,16 @@ case class MfPregParams(
   val isFake: Boolean = false
 }
 
+case class MtilexPregParams(
+  numEntries: Int,
+  numRead   : Option[Int],
+  numWrite  : Option[Int],
+) extends PregParams {
+
+  val dataCfg: DataConfig = MtilexData()
+  val isFake: Boolean = false
+}
+
 case class NoPregParams() extends PregParams {
   val numEntries: Int = 0
   val numRead   : Option[Int] = None

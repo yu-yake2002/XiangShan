@@ -36,6 +36,7 @@ import xiangshan.backend.datapath.DataSource
 import xiangshan.backend.datapath.WbConfig.VfWB
 import xiangshan.backend.fu.FuType.FuTypeOrR
 import xiangshan.backend.regcache.{RCTagTableReadPort, RegCacheTagTable}
+import xiangshan.SrcType
 import xiangshan.mem.MemCoreTopDownIO
 import xiangshan.mem.mdp._
 import xiangshan.mem.{HasVLSUParameters, _}
@@ -111,10 +112,12 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val wbPregsVec = Vec(backendParams.numPregWb(VecData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsV0 = Vec(backendParams.numPregWb(V0Data()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsVl = Vec(backendParams.numPregWb(VlData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
+    val wbPregsMtilex = Vec(backendParams.numPregWb(MtilexData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wakeUpAll = new Bundle {
       val wakeUpInt: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.intSchdParams.get.genIQWakeUpOutValidBundle)
       val wakeUpFp: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.fpSchdParams.get.genIQWakeUpOutValidBundle)
       val wakeUpVec: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.vfSchdParams.get.genIQWakeUpOutValidBundle)
+      val wakeUpMf: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.mfSchdParams.get.genIQWakeUpOutValidBundle)
       val wakeUpMem: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.memSchdParams.get.genIQWakeUpOutValidBundle)
     }
     val og0Cancel = Input(ExuVec())
@@ -169,8 +172,8 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
   val renameWidth = io.fromRename.size
   val issueQueueCount = io.IQValidNumVec
   val issueQueueNum = allIssueParams.size
-  // int fp vec v0 vl
-  val numRegType = 5
+  // int fp vec v0 vl mtilex
+  val numRegType = 6
   val idxRegTypeInt = allFuConfigs.map(x => {
     x.srcData.map(xx => {
       xx.zipWithIndex.filter(y => IntRegSrcDataSet.contains(y._1)).map(_._2)
@@ -196,11 +199,17 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
       xx.zipWithIndex.filter(y => VlRegSrcDataSet.contains(y._1)).map(_._2)
     }).flatten
   }).flatten.toSet.toSeq.sorted
+  val idxRegTypeMtilex = allFuConfigs.map(x => {
+    x.srcData.map(xx => {
+      xx.zipWithIndex.filter(y => MtilexRegSrcDataSet.contains(y._1)).map(_._2)
+    }).flatten
+  }).flatten.toSet.toSeq.sorted
   println(s"[NewDispatch] idxRegTypeInt: $idxRegTypeInt")
   println(s"[NewDispatch] idxRegTypeFp: $idxRegTypeFp")
   println(s"[NewDispatch] idxRegTypeVec: $idxRegTypeVec")
   println(s"[NewDispatch] idxRegTypeV0: $idxRegTypeV0")
   println(s"[NewDispatch] idxRegTypeVl: $idxRegTypeVl")
+  println(s"[NewDispatch] idxRegTypeMtilex: $idxRegTypeMtilex")
   val numRegSrc: Int = issueBlockParams.map(_.exuBlockParams.map(
     x => if (x.hasStdFu) x.numRegSrc + 1 else x.numRegSrc
   ).max).max
@@ -220,9 +229,13 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
   val numRegSrcVl: Int = issueBlockParams.map(_.exuBlockParams.map(
     x => x.numVlSrc
   ).max).max
+  val numRegSrcMtilex: Int = issueBlockParams.map(_.exuBlockParams.map(
+    x => x.numMtilexSrc
+  ).max).max
 
   println(s"[Dispatch2Iq] numRegSrc: ${numRegSrc}, numRegSrcInt: ${numRegSrcInt}, numRegSrcFp: ${numRegSrcFp}, " +
-    s"numRegSrcVf: ${numRegSrcVf}, numRegSrcV0: ${numRegSrcV0}, numRegSrcVl: ${numRegSrcVl}")
+          s"numRegSrcVf: ${numRegSrcVf}, numRegSrcV0: ${numRegSrcV0}, numRegSrcVl: ${numRegSrcVl}, " +
+          s"numRegSrcMtilex: ${numRegSrcMtilex}")
 
   // RegCacheTagTable Module
   val rcTagTable = Module(new RegCacheTagTable(numRegSrcInt * renameWidth))
@@ -233,15 +246,17 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
   val v0BusyTable = Module(new BusyTable(numRegSrcV0 * renameWidth, backendParams.numPregWb(V0Data()), V0PhyRegs, V0WB()))
   val vlBusyTable = Module(new VlBusyTable(numRegSrcVl * renameWidth, backendParams.numPregWb(VlData()), VlPhyRegs, VlWB()))
   vlBusyTable.io_vl_Wb.vlWriteBackInfo := io.vlWriteBackInfo
-  val busyTables = Seq(intBusyTable, fpBusyTable, vecBusyTable, v0BusyTable, vlBusyTable)
-  val wbPregs = Seq(io.wbPregsInt, io.wbPregsFp, io.wbPregsVec, io.wbPregsV0, io.wbPregsVl)
-  val idxRegType = Seq(idxRegTypeInt, idxRegTypeFp, idxRegTypeVec, idxRegTypeV0, idxRegTypeVl)
+  val mtilexBusyTable = Module(new BusyTable(numRegSrcMtilex * renameWidth, backendParams.numPregWb(MtilexData()), MtilexPhyRegs, MtilexWB()))
+  val busyTables = Seq(intBusyTable, fpBusyTable, vecBusyTable, v0BusyTable, vlBusyTable, mtilexBusyTable)
+  val wbPregs = Seq(io.wbPregsInt, io.wbPregsFp, io.wbPregsVec, io.wbPregsV0, io.wbPregsVl, io.wbPregsMtilex)
+  val idxRegType = Seq(idxRegTypeInt, idxRegTypeFp, idxRegTypeVec, idxRegTypeV0, idxRegTypeVl, idxRegTypeMtilex)
   val allocPregsValid = Wire(Vec(busyTables.size, Vec(RenameWidth, Bool())))
   allocPregsValid(0) := VecInit(fromRename.map(x => x.valid && x.bits.rfWen && !x.bits.eliminatedMove))
   allocPregsValid(1) := VecInit(fromRename.map(x => x.valid && x.bits.fpWen))
   allocPregsValid(2) := VecInit(fromRename.map(x => x.valid && x.bits.vecWen))
   allocPregsValid(3) := VecInit(fromRename.map(x => x.valid && x.bits.v0Wen))
   allocPregsValid(4) := VecInit(fromRename.map(x => x.valid && x.bits.vlWen))
+  allocPregsValid(5) := VecInit(fromRename.map(x => x.valid && x.bits.mtilexWen))
   val allocPregs = Wire(Vec(busyTables.size, Vec(RenameWidth, ValidIO(UInt(PhyRegIdxWidth.W)))))
   allocPregs.zip(allocPregsValid).map(x =>{
     x._1.zip(x._2).zipWithIndex.map{case ((sink, source), i) => {
@@ -299,7 +314,8 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
             case 1 => SrcType.isFp(fromRename(i).bits.srcType(j))
             case 2 => SrcType.isVp(fromRename(i).bits.srcType(j))
             case 3 => SrcType.isV0(fromRename(i).bits.srcType(j))
-            case 4 => true.B
+            case 4 => SrcType.isMp(fromRename(i).bits.srcType(j))
+            case 5 => true.B
           }
           allSrcState(i)(j)(k) := readEn && busyTables(k).io.read(readidx).resp || SrcType.isImm(fromRename(i).bits.srcType(j))
         }
@@ -475,7 +491,8 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
         val thisSrcHasVec = allFuThisIQ.map(x => {x.srcData.map(xx => {if (j < xx.size) VecRegSrcDataSet.contains(xx(j)) else false}).reduce(_ || _)}).reduce(_ || _)
         val thisSrcHasV0  = allFuThisIQ.map(x => {x.srcData.map(xx => {if (j < xx.size) V0RegSrcDataSet.contains(xx(j))  else false}).reduce(_ || _)}).reduce(_ || _)
         val thisSrcHasVl  = allFuThisIQ.map(x => {x.srcData.map(xx => {if (j < xx.size) VlRegSrcDataSet.contains(xx(j))  else false}).reduce(_ || _)}).reduce(_ || _)
-        val selSrcState = Seq(thisSrcHasInt || maskForStd, thisSrcHasFp || maskForStd, thisSrcHasVec, thisSrcHasV0, thisSrcHasVl)
+        val thisSrcHasMtilex  = allFuThisIQ.map(x => {x.srcData.map(xx => {if (j < xx.size) MtilexRegSrcDataSet.contains(xx(j))  else false}).reduce(_ || _)}).reduce(_ || _)
+        val selSrcState = Seq(thisSrcHasInt || maskForStd, thisSrcHasFp || maskForStd, thisSrcHasVec, thisSrcHasV0, thisSrcHasVl, thisSrcHasMtilex)
         IQSelUop(temp).bits.srcState(j) := PriorityMux(oh, allSrcState)(j).zip(selSrcState).filter(_._2 == true).map(_._1).foldLeft(false.B)(_ || _).asUInt
       }
       temp = temp + 1

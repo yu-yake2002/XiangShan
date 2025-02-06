@@ -83,6 +83,7 @@ case class FuConfig (
   def needVecWen: Boolean = writeVecRf
   def needV0Wen:  Boolean = writeV0Rf
   def needVlWen:  Boolean = writeVlRf
+  def needMtilexWen: Boolean = writeMtilexRf
   var vconfigIdx = -1
   var maskSrcIdx = -1
   if (vconfigWakeUp) {
@@ -102,8 +103,8 @@ case class FuConfig (
   def numVfSrc  : Int = srcData.map(_.count(x => VecRegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numV0Src  : Int = srcData.map(_.count(x => V0RegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numVlSrc  : Int = srcData.map(_.count(x => VlRegSrcDataSet.contains(x))).fold(0)(_ max _)
-  def numMatrixSrc: Int = srcData.map(_.count(x => x == MatrixRegSrcDataSet.contains(x))).fold(0)(_ max _)
-  def numMfSrc  : Int = srcData.map(_.count(x => x == MatrixRegSrcDataSet.contains(x))).fold(0)(_ max _)
+  def numMtilexSrc: Int = srcData.map(_.count(x => MtilexRegSrcDataSet.contains(x))).fold(0)(_ max _)
+  // def numMfSrc  : Int = srcData.map(_.count(x => MatrixRegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numRegSrc : Int = srcData.map(_.count(x => RegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numSrc    : Int = srcData.map(_.length).fold(0)(_ max _)
 
@@ -426,7 +427,10 @@ object FuConfig {
     fuType = FuType.msetmtilexiwi,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWi(cfg)(p).suggestName("MSetMtilexRiWi")),
     srcData = Seq(
-      Seq(IntData(), IntData(), IntData(), IntData()),
+      // src(0): atx
+      // src(1): atxImm
+      // src(2): old mtype
+      Seq(IntData(), IntData(), IntData())
     ),
     piped = true,
     writeIntRf = true,
@@ -439,9 +443,13 @@ object FuConfig {
     fuType = FuType.msetmtilexiwf,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWmf(cfg)(p).suggestName("MSetMtilexRiWmf")),
     srcData = Seq(
-      Seq(IntData(), IntData(), IntData(), IntData()),
+      // src(0): atx
+      // src(1): atxImm
+      // src(2): old mtype
+      Seq(IntData(), IntData(), IntData())
     ),
     piped = true,
+    writeMtilexRf = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -449,11 +457,17 @@ object FuConfig {
   val MSetMtilexRmfWmfCfg: FuConfig = FuConfig(
     name = "msetmtilexrmfwmf",
     fuType = FuType.msetmtilexfwf,
-    fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRvfWmf")),
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRmfWmf")),
     srcData = Seq(
-      Seq(IntData(), IntData(), IntData(), IntData()),
+      // src(0): atx
+      // src(1): atxImm
+      // src(2): old mtype
+      // src(3): old mtilex
+      Seq(IntData(), IntData(), IntData(), MtilexData()),
     ),
     piped = true,
+    writeIntRf = true,
+    writeMtilexRf = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -467,6 +481,7 @@ object FuConfig {
     ),
     piped = true,
     writeIntRf = true,
+    writeMType = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -479,6 +494,8 @@ object FuConfig {
       Seq(IntData(), IntData(), IntData(), IntData()),
     ),
     piped = true,
+    writeIntRf = true,
+    writeMType = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -523,7 +540,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new Std(cfg)(p).suggestName("Std")),
     srcData = Seq(
       Seq(IntData()),
-      Seq(FpData()),
+      Seq(IntData()),
     ),
     piped = true,
     latency = CertainLatency(0)
@@ -534,6 +551,7 @@ object FuConfig {
     fuType = FuType.mldu,
     fuGen = null,
     srcData = Seq(
+      Seq(IntData()),
       Seq(IntData()),
     ),
     piped = false, // Todo: check it
@@ -939,7 +957,8 @@ object FuConfig {
     JmpCfg, BrhCfg, I2fCfg, I2vCfg, F2vCfg, CsrCfg, AluCfg, MulCfg, DivCfg, FenceCfg, BkuCfg, VSetRvfWvfCfg, VSetRiWvfCfg, VSetRiWiCfg,
     LduCfg, StaCfg, StdCfg, MouCfg, MoudCfg, VialuCfg, VipuCfg, VlduCfg, VstuCfg, VseglduSeg, VsegstuCfg,
     FaluCfg, FmacCfg, FcvtCfg, FdivCfg,
-    VfaluCfg, VfmaCfg, VfcvtCfg, HyldaCfg, HystaCfg
+    VfaluCfg, VfmaCfg, VfcvtCfg, HyldaCfg, HystaCfg,
+    MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg
   )
 
   def VecArithFuConfigs = Seq(

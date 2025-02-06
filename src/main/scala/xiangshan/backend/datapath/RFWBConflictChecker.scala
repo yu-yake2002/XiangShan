@@ -220,3 +220,11 @@ class VlRFWBCollideChecker(
 ) extends RFWBCollideCheckerBase(RFWBCollideCheckerParams(backendParams.getAllWbCfgs, backendParams.vlPregParams)) {
   override protected def portRange: Range = 0 to backendParams.getWbPortIndices(VlData()).max
 }
+
+class MtilexRFWBCollideChecker(
+  backendParams: BackendParams
+)(implicit
+  p:Parameters
+) extends RFWBCollideCheckerBase(RFWBCollideCheckerParams(backendParams.getAllWbCfgs, backendParams.mtilexPregParams)) {
+  override protected def portRange: Range = 0 to backendParams.getWbPortIndices(MtilexData()).max
+}

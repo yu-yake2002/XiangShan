@@ -409,6 +409,10 @@ class Entries(implicit p: Parameters, params: IssueBlockParams) extends XSModule
     in.vlFromIntIsVlmax         := io.vlFromIntIsVlmax
     in.vlFromVfIsZero           := io.vlFromVfIsZero
     in.vlFromVfIsVlmax          := io.vlFromVfIsVlmax
+    in.mtilexFromIntIsZero      := io.mtilexFromIntIsZero
+    in.mtilexFromIntIsMtilexmax := io.mtilexFromIntIsMtilexmax
+    in.mtilexFromMfIsZero       := io.mtilexFromMfIsZero
+    in.mtilexFromMfIsMtilexmax  := io.mtilexFromMfIsMtilexmax
     in.og0Cancel                := io.og0Cancel
     in.og1Cancel                := io.og1Cancel
     in.ldCancel                 := io.ldCancel
@@ -540,6 +544,10 @@ class EntriesIO(implicit p: Parameters, params: IssueBlockParams) extends XSBund
   val vlFromIntIsVlmax    = Input(Bool())
   val vlFromVfIsZero      = Input(Bool())
   val vlFromVfIsVlmax     = Input(Bool())
+  val mtilexFromIntIsZero = Input(Bool())
+  val mtilexFromIntIsMtilexmax = Input(Bool())
+  val mtilexFromMfIsZero  = Input(Bool())
+  val mtilexFromMfIsMtilexmax = Input(Bool())
   val og0Cancel           = Input(ExuVec())
   val og1Cancel           = Input(ExuVec())
   val ldCancel            = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))

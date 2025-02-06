@@ -14,7 +14,7 @@ import xiangshan.backend.Bundles._
 import xiangshan.backend.decode.ImmUnion
 import xiangshan.backend.datapath.DataConfig._
 import xiangshan.backend.datapath.RdConfig._
-import xiangshan.backend.issue.{FpScheduler, ImmExtractor, IntScheduler, MemScheduler, VfScheduler}
+import xiangshan.backend.issue.{FpScheduler, ImmExtractor, IntScheduler, MemScheduler, VfScheduler, MfScheduler}
 import xiangshan.backend.issue.EntryBundles._
 import xiangshan.backend.regfile._
 import xiangshan.backend.regcache._
@@ -34,6 +34,7 @@ class DataPath(params: BackendParams)(implicit p: Parameters) extends LazyModule
   println(s"[DataPath]   Vf R(${params.getRfReadSize(VecData())}), W(${params.getRfWriteSize(VecData())}) ")
   println(s"[DataPath]   V0 R(${params.getRfReadSize(V0Data())}), W(${params.getRfWriteSize(V0Data())}) ")
   println(s"[DataPath]   Vl R(${params.getRfReadSize(VlData())}), W(${params.getRfWriteSize(VlData())}) ")
+  println(s"[DataPath]   Mtilex R(${params.getRfReadSize(MtilexData())}), W(${params.getRfWriteSize(MtilexData())}) ")
 }
 
 class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params: BackendParams)
@@ -46,16 +47,17 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val (fromMemIQ, toMemIQ, toMemExu) = (io.fromMemIQ, io.toMemIQ, io.toMemExu)
   private val (fromVfIQ,  toVfIQ,  toVfExu ) = (io.fromVfIQ,  io.toVfIQ,  io.toVecExu)
   private val (fromVecExcp, toVecExcp)       = (io.fromVecExcpMod, io.toVecExcpMod)
+  private val (fromMfIQ,  toMfIQ,  toMfExu)  = (io.fromMfIQ,  io.toMfIQ,  io.toMfExu)
 
-  println(s"[DataPath] IntIQ(${fromIntIQ.size}), FpIQ(${fromFpIQ.size}), VecIQ(${fromVfIQ.size}), MemIQ(${fromMemIQ.size})")
-  println(s"[DataPath] IntExu(${fromIntIQ.map(_.size).sum}), FpExu(${fromFpIQ.map(_.size).sum}), VecExu(${fromVfIQ.map(_.size).sum}), MemExu(${fromMemIQ.map(_.size).sum})")
+  println(s"[DataPath] IntIQ(${fromIntIQ.size}), FpIQ(${fromFpIQ.size}), VecIQ(${fromVfIQ.size}), MatrixIQ(${fromMfIQ.size}), MemIQ(${fromMemIQ.size})")
+  println(s"[DataPath] IntExu(${fromIntIQ.map(_.size).sum}), FpExu(${fromFpIQ.map(_.size).sum}), VecExu(${fromVfIQ.map(_.size).sum}), MatrixExu(${fromMfIQ.map(_.size).sum}), MemExu(${fromMemIQ.map(_.size).sum})")
 
   // just refences for convience
-  private val fromIQ: Seq[MixedVec[DecoupledIO[IssueQueueIssueBundle]]] = (fromIntIQ ++ fromFpIQ ++ fromVfIQ ++ fromMemIQ).toSeq
+  private val fromIQ: Seq[MixedVec[DecoupledIO[IssueQueueIssueBundle]]] = (fromIntIQ ++ fromFpIQ ++ fromVfIQ ++ fromMfIQ ++ fromMemIQ).toSeq
 
-  private val toIQs = toIntIQ ++ toFpIQ ++ toVfIQ ++ toMemIQ
+  private val toIQs = toIntIQ ++ toFpIQ ++ toVfIQ ++ toMfIQ ++ toMemIQ
 
-  private val toExu: Seq[MixedVec[DecoupledIO[ExuInput]]] = (toIntExu ++ toFpExu ++ toVfExu ++ toMemExu).toSeq
+  private val toExu: Seq[MixedVec[DecoupledIO[ExuInput]]] = (toIntExu ++ toFpExu ++ toVfExu ++ toMfExu ++ toMemExu).toSeq
 
   private val fromFlattenIQ: Seq[DecoupledIO[IssueQueueIssueBundle]] = fromIQ.flatten
 
@@ -66,12 +68,14 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val vfWbBusyArbiter = Module(new VfRFWBCollideChecker(backendParams))
   private val v0WbBusyArbiter = Module(new V0RFWBCollideChecker(backendParams))
   private val vlWbBusyArbiter = Module(new VlRFWBCollideChecker(backendParams))
+  private val mtilexWbBusyArbiter = Module(new MtilexRFWBCollideChecker(backendParams))
 
   private val intRFReadArbiter = Module(new IntRFReadArbiter(backendParams))
   private val fpRFReadArbiter = Module(new FpRFReadArbiter(backendParams))
   private val vfRFReadArbiter = Module(new VfRFReadArbiter(backendParams))
   private val v0RFReadArbiter = Module(new V0RFReadArbiter(backendParams))
   private val vlRFReadArbiter = Module(new VlRFReadArbiter(backendParams))
+  private val mtilexRFReadArbiter = Module(new MtilexRFReadArbiter(backendParams))
 
   private val og0FailedVec2: MixedVec[Vec[Bool]] = Wire(MixedVec(fromIQ.map(x => Vec(x.size, Bool())).toSeq))
   private val og1FailedVec2: MixedVec[Vec[Bool]] = Wire(MixedVec(fromIQ.map(x => Vec(x.size, Bool())).toSeq))
@@ -82,33 +86,40 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val vfRdArbWinner: Seq2[MixedVec[Bool]] = vfRFReadArbiter.io.in.map(_.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq).toSeq
   private val v0RdArbWinner: Seq2[MixedVec[Bool]] = v0RFReadArbiter.io.in.map(_.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq).toSeq
   private val vlRdArbWinner: Seq2[MixedVec[Bool]] = vlRFReadArbiter.io.in.map(_.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq).toSeq
+  private val mtilexRdArbWinner: Seq2[MixedVec[Bool]] = mtilexRFReadArbiter.io.in.map(_.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq).toSeq
 
   private val intWbNotBlock: Seq[MixedVec[Bool]] = intWbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
   private val fpWbNotBlock: Seq[MixedVec[Bool]] = fpWbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
   private val vfWbNotBlock: Seq[MixedVec[Bool]] = vfWbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
   private val v0WbNotBlock: Seq[MixedVec[Bool]] = v0WbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
   private val vlWbNotBlock: Seq[MixedVec[Bool]] = vlWbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
+  private val mtilexWbNotBlock: Seq[MixedVec[Bool]] = mtilexWbBusyArbiter.io.in.map(x => MixedVecInit(x.map(_.ready).toSeq)).toSeq
 
   private val intRdNotBlock: Seq2[Bool] = intRdArbWinner.map(_.map(_.asUInt.andR))
   private val fpRdNotBlock: Seq2[Bool] = fpRdArbWinner.map(_.map(_.asUInt.andR))
   private val vfRdNotBlock: Seq2[Bool] = vfRdArbWinner.map(_.map(_.asUInt.andR))
   private val v0RdNotBlock: Seq2[Bool] = v0RdArbWinner.map(_.map(_.asUInt.andR))
   private val vlRdNotBlock: Seq2[Bool] = vlRdArbWinner.map(_.map(_.asUInt.andR))
+  private val mtilexRdNotBlock: Seq2[Bool] = mtilexRdArbWinner.map(_.map(_.asUInt.andR))
 
   private val intRFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
   private val fpRFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
   private val vfRFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
   private val v0RFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
   private val vlRFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
+  private val mtilexRFReadReq: Seq3[ValidIO[RfReadPortWithConfig]] = fromIQ.map(x => x.map(xx => xx.bits.getRfReadValidBundle(xx.valid)).toSeq).toSeq
 
   private val allDataSources: Seq[Seq[Vec[DataSource]]] = fromIQ.map(x => x.map(xx => xx.bits.common.dataSources).toSeq)
   private val allNumRegSrcs: Seq[Seq[Int]] = fromIQ.map(x => x.map(xx => xx.bits.exuParams.numRegSrc).toSeq)
 
+  println(s"[DataPath] intRFReadArbiter.io.in: ${intRFReadArbiter.io.in}")
   intRFReadArbiter.io.in.zip(intRFReadReq).zipWithIndex.foreach { case ((arbInSeq2, inRFReadReqSeq2), iqIdx) =>
     arbInSeq2.zip(inRFReadReqSeq2).zipWithIndex.foreach { case ((arbInSeq, inRFReadReqSeq), exuIdx) =>
       val srcIndices: Seq[Int] = fromIQ(iqIdx)(exuIdx).bits.exuParams.getRfReadSrcIdx(IntData())
       for (srcIdx <- 0 until fromIQ(iqIdx)(exuIdx).bits.exuParams.numRegSrc) {
         if (srcIndices.contains(srcIdx) && inRFReadReqSeq.isDefinedAt(srcIdx)) {
+          println(s"iqIdx: $iqIdx, exuIdx: $exuIdx, srcIdx: $srcIdx")
+          println(s"arbInSeq: ${arbInSeq}")
           arbInSeq(srcIdx).valid := inRFReadReqSeq(srcIdx).valid && allDataSources(iqIdx)(exuIdx)(srcIdx).readReg
           arbInSeq(srcIdx).bits.addr := inRFReadReqSeq(srcIdx).bits.addr
         } else {
@@ -118,6 +129,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
       }
     }
   }
+
   fpRFReadArbiter.io.in.zip(fpRFReadReq).zipWithIndex.foreach { case ((arbInSeq2, inRFReadReqSeq2), iqIdx) =>
     arbInSeq2.zip(inRFReadReqSeq2).zipWithIndex.foreach { case ((arbInSeq, inRFReadReqSeq), exuIdx) =>
       val srcIndices: Seq[Int] = FpRegSrcDataSet.flatMap(data => fromIQ(iqIdx)(exuIdx).bits.exuParams.getRfReadSrcIdx(data)).toSeq.sorted
@@ -178,11 +190,27 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     }
   }
 
+  mtilexRFReadArbiter.io.in.zip(mtilexRFReadReq).zipWithIndex.foreach { case ((arbInSeq2, inRFReadReqSeq2), iqIdx) =>
+    arbInSeq2.zip(inRFReadReqSeq2).zipWithIndex.foreach { case ((arbInSeq, inRFReadReqSeq), exuIdx) =>
+      val srcIndices: Seq[Int] = MtilexRegSrcDataSet.flatMap(data => fromIQ(iqIdx)(exuIdx).bits.exuParams.getRfReadSrcIdx(data)).toSeq.sorted
+      for (srcIdx <- 0 until fromIQ(iqIdx)(exuIdx).bits.exuParams.numRegSrc) {
+        if (srcIndices.contains(srcIdx) && inRFReadReqSeq.isDefinedAt(srcIdx)) {
+          arbInSeq(srcIdx).valid := inRFReadReqSeq(srcIdx).valid && allDataSources(iqIdx)(exuIdx)(srcIdx).readReg
+          arbInSeq(srcIdx).bits.addr := inRFReadReqSeq(srcIdx).bits.addr
+        } else {
+          arbInSeq(srcIdx).valid := false.B
+          arbInSeq(srcIdx).bits.addr := 0.U
+        }
+      }
+    }
+  }
+
   private val intRFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.rfWen.getOrElse(false.B)).toSeq).toSeq
   private val fpRFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.fpWen.getOrElse(false.B)).toSeq).toSeq
   private val vfRFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.vecWen.getOrElse(false.B)).toSeq).toSeq
   private val v0RFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.v0Wen.getOrElse(false.B)).toSeq).toSeq
   private val vlRFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.vlWen.getOrElse(false.B)).toSeq).toSeq
+  private val mtilexRFWriteReq: Seq2[Bool] = fromIQ.map(x => x.map(xx => xx.valid && xx.bits.common.mtilexWen.getOrElse(false.B)).toSeq).toSeq
 
   intWbBusyArbiter.io.in.zip(intRFWriteReq).foreach { case (arbInSeq, inRFWriteReqSeq) =>
     arbInSeq.zip(inRFWriteReqSeq).foreach { case (arbIn, inRFWriteReq) =>
@@ -214,9 +242,16 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     }
   }
 
+  mtilexWbBusyArbiter.io.in.zip(mtilexRFWriteReq).foreach { case (arbInSeq, inRFWriteReqSeq) =>
+    arbInSeq.zip(inRFWriteReqSeq).foreach { case (arbIn, inRFWriteReq) =>
+      arbIn.valid := inRFWriteReq
+    }
+  }
+
   private val intSchdParams = params.schdParams(IntScheduler())
   private val fpSchdParams = params.schdParams(FpScheduler())
   private val vfSchdParams = params.schdParams(VfScheduler())
+  private val mfSchdParams = params.schdParams(MfScheduler())
   private val memSchdParams = params.schdParams(MemScheduler())
 
   private val schdParams = params.allSchdParams
@@ -258,6 +293,12 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val vlRfWaddr = Wire(Vec(io.fromVlWb.length, UInt(log2Up(VlPhyRegs).W)))
   private val vlRfWdata = Wire(Vec(io.fromVlWb.length, UInt(VlData().dataWidth.W)))
 
+  private val mtilexRfRaddr = Wire(Vec(params.numPregRd(MtilexData()), UInt(log2Up(MtilexPhyRegs).W)))
+  private val mtilexRfRdata = Wire(Vec(params.numPregRd(MtilexData()), UInt(MtilexData().dataWidth.W)))
+  private val mtilexRfWen = Wire(Vec(io.fromMtilexWb.length, Bool()))
+  private val mtilexRfWaddr = Wire(Vec(io.fromMtilexWb.length, UInt(log2Up(MtilexPhyRegs).W)))
+  private val mtilexRfWdata = Wire(Vec(io.fromMtilexWb.length, UInt(MtilexData().dataWidth.W)))
+
   val pcReadFtqPtrFormIQ = (fromIntIQ ++ fromMemIQ).flatten.filter(x => x.bits.exuParams.needPc)
   assert(pcReadFtqPtrFormIQ.size == pcReadFtqPtr.size, s"pcReadFtqPtrFormIQ.size ${pcReadFtqPtrFormIQ.size} not equal pcReadFtqPtr.size ${pcReadFtqPtr.size}")
   pcReadValid.zip(pcReadFtqPtrFormIQ.map(_.valid)).map(x => x._1 := x._2)
@@ -277,6 +318,8 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     OptionWrapper(backendParams.basicDebugEn, (Wire(Vec(1, UInt(log2Up(V0PhyRegs).W))), Wire(Vec(1, UInt(V0Data().dataWidth.W)))))
   private val vlDiffRead: Option[(Vec[UInt], Vec[UInt])] =
     OptionWrapper(backendParams.basicDebugEn, (Wire(Vec(1, UInt(log2Up(VlPhyRegs).W))), Wire(Vec(1, UInt(VlData().dataWidth.W)))))
+  private val mtilexDiffRead: Option[(Vec[UInt], Vec[UInt])] =
+    OptionWrapper(backendParams.basicDebugEn, (Wire(Vec(3, UInt(log2Up(MtilexPhyRegs).W))), Wire(Vec(3, UInt(MtilexData().dataWidth.W)))))
 
   private val fpDiffReadData: Option[Vec[UInt]] =
     OptionWrapper(backendParams.basicDebugEn, Wire(Vec(32, UInt(XLEN.W))))
@@ -284,7 +327,8 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     OptionWrapper(backendParams.basicDebugEn, Wire(Vec(64, UInt(64.W)))) // v0 = Cat(Vec(1), Vec(0))
   private val vlDiffReadData: Option[UInt] =
     OptionWrapper(backendParams.basicDebugEn, Wire(UInt(VlData().dataWidth.W)))
-
+  private val mtilexDiffReadData: Option[UInt] =
+    OptionWrapper(backendParams.basicDebugEn, Wire(UInt(MtilexData().dataWidth.W)))
 
   fpDiffReadData.foreach(_ := fpDiffRead
     .get._2
@@ -304,9 +348,12 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   vlDiffReadData.foreach(_ := vlDiffRead
     .get._2(0)
   )
+  mtilexDiffReadData.foreach(_ := mtilexDiffRead
+    .get._2(0)
+  )
 
   io.diffVl.foreach(_ := vlDiffReadData.get)
-  io.diffMtx.foreach(_ := 0.U)
+  io.diffMtilex.foreach(_ := mtilexDiffReadData.get)
 
   IntRegFileSplit("IntRegFile", intSchdParams.numPregs, splitNum = 4, intRfRaddr, intRfRdata, intRfWen, intRfWaddr, intRfWdata,
     bankNum = 1,
@@ -331,6 +378,12 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     isVlRegfile = true,
     debugReadAddr = vlDiffRead.map(_._1),
     debugReadData = vlDiffRead.map(_._2)
+  )
+  FpRegFile("MtilexRegFile", MtilexPhyRegs, mtilexRfRaddr, mtilexRfRdata, mtilexRfWen, mtilexRfWaddr, mtilexRfWdata,
+    bankNum = 1,
+    isMtilexRegfile = true,
+    debugReadAddr = mtilexDiffRead.map(_._1),
+    debugReadData = mtilexDiffRead.map(_._2)
   )
 
   intRfWaddr := io.fromIntWb.map(x => RegEnable(x.addr, x.wen)).toSeq
@@ -425,6 +478,16 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
       vlRfRaddr(portIdx) := 0.U
   }
 
+  mtilexRfWaddr := io.fromMtilexWb.map(x => RegEnable(x.addr, x.wen)).toSeq
+  mtilexRfWdata := io.fromMtilexWb.map(x => RegEnable(x.data, x.wen)).toSeq
+  mtilexRfWen := io.fromMtilexWb.map(x => RegNext(x.wen)).toSeq
+
+  for (portIdx <- mtilexRfRaddr.indices) {
+    if (mtilexRFReadArbiter.io.out.isDefinedAt(portIdx))
+      mtilexRfRaddr(portIdx) := mtilexRFReadArbiter.io.out(portIdx).bits.addr
+    else
+      mtilexRfRaddr(portIdx) := 0.U
+  }
 
   intDiffRead.foreach { case (addr, _) =>
     addr := io.diffIntRat.get
@@ -444,12 +507,17 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     addr := io.diffVlRat.get
   }
 
+  mtilexDiffRead.foreach { case (addr, _) =>
+    addr := io.diffMtilexRat.get
+  }
+
   println(s"[DataPath] " +
     s"has intDiffRead: ${intDiffRead.nonEmpty}, " +
     s"has fpDiffRead: ${fpDiffRead.nonEmpty}, " +
     s"has vecDiffRead: ${vfDiffRead.nonEmpty}, " +
     s"has v0DiffRead: ${v0DiffRead.nonEmpty}, " +
-    s"has vlDiffRead: ${vlDiffRead.nonEmpty}")
+    s"has vlDiffRead: ${vlDiffRead.nonEmpty}" +
+    s"has mtilexDiffRead: ${mtilexDiffRead.nonEmpty}")
 
   // regcache
   private val regCache = Module(new RegCache())
@@ -519,6 +587,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   val s1_vfPregRData: MixedVec[MixedVec[Vec[UInt]]] = Wire(MixedVec(toExu.map(x => MixedVec(x.map(_.bits.src.cloneType).toSeq))))
   val s1_v0PregRData: MixedVec[MixedVec[Vec[UInt]]] = Wire(MixedVec(toExu.map(x => MixedVec(x.map(_.bits.src.cloneType).toSeq))))
   val s1_vlPregRData: MixedVec[MixedVec[Vec[UInt]]] = Wire(MixedVec(toExu.map(x => MixedVec(x.map(_.bits.src.cloneType).toSeq))))
+  val s1_mtilexPregRData: MixedVec[MixedVec[Vec[UInt]]] = Wire(MixedVec(toExu.map(x => MixedVec(x.map(_.bits.src.cloneType).toSeq))))
 
   val rfrPortConfigs = schdParams.map(_.issueBlockParams).flatten.map(_.exuBlockParams.map(_.rfrPortConfigs))
 
@@ -569,6 +638,16 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
         iuRdata.zip(iuCfg)
           .filter { case (_, cfg) => cfg.count(_.isInstanceOf[VlRD]) > 0 }
           .foreach { case (sink, cfg) => sink := vlRfRdata(cfg.find(_.isInstanceOf[VlRD]).get.port) }
+      }
+  }
+
+  println(s"[DataPath] s1_mtilexPregRData.flatten.flatten.size: ${s1_mtilexPregRData.flatten.flatten.size}, mtilexRfRdata.size: ${mtilexRfRdata.size}")
+  s1_mtilexPregRData.foreach(_.foreach(_.foreach(_ := 0.U)))
+  s1_mtilexPregRData.zip(rfrPortConfigs).foreach{ case(iqRdata, iqCfg) =>
+      iqRdata.zip(iqCfg).foreach{ case(iuRdata, iuCfg) =>
+        iuRdata.zip(iuCfg)
+          .filter { case (_, cfg) => cfg.count(_.isInstanceOf[MtilexRD]) > 0 }
+          .foreach { case (sink, cfg) => sink := mtilexRfRdata(cfg.find(_.isInstanceOf[MtilexRD]).get.port) }
       }
   }
 
@@ -894,6 +973,7 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
   private val intSchdParams = params.schdParams(IntScheduler())
   private val fpSchdParams = params.schdParams(FpScheduler())
   private val vfSchdParams = params.schdParams(VfScheduler())
+  private val mfSchdParams = params.schdParams(MfScheduler())
   private val memSchdParams = params.schdParams(MemScheduler())
   // bundles
   val hartId = Input(UInt(8.W))
@@ -908,10 +988,12 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
   val fromFpIQ: MixedVec[MixedVec[DecoupledIO[IssueQueueIssueBundle]]] =
     Flipped(MixedVec(fpSchdParams.issueBlockParams.map(_.genIssueDecoupledBundle)))
 
+  val fromVfIQ = Flipped(MixedVec(vfSchdParams.issueBlockParams.map(_.genIssueDecoupledBundle)))
+
+  val fromMfIQ = Flipped(MixedVec(mfSchdParams.issueBlockParams.map(_.genIssueDecoupledBundle)))
+
   val fromMemIQ: MixedVec[MixedVec[DecoupledIO[IssueQueueIssueBundle]]] =
     Flipped(MixedVec(memSchdParams.issueBlockParams.map(_.genIssueDecoupledBundle)))
-
-  val fromVfIQ = Flipped(MixedVec(vfSchdParams.issueBlockParams.map(_.genIssueDecoupledBundle)))
 
   val fromVecExcpMod = Input(new ExcpModToVprf(maxMergeNumPerCycle * 2, maxMergeNumPerCycle))
 
@@ -919,9 +1001,11 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
 
   val toFpIQ = MixedVec(fpSchdParams.issueBlockParams.map(_.genOGRespBundle))
 
-  val toMemIQ = MixedVec(memSchdParams.issueBlockParams.map(_.genOGRespBundle))
-
   val toVfIQ = MixedVec(vfSchdParams.issueBlockParams.map(_.genOGRespBundle))
+
+  val toMfIQ = MixedVec(mfSchdParams.issueBlockParams.map(_.genOGRespBundle))
+  
+  val toMemIQ = MixedVec(memSchdParams.issueBlockParams.map(_.genOGRespBundle))
 
   val toVecExcpMod = Output(new VprfToExcpMod(maxMergeNumPerCycle * 2))
 
@@ -937,6 +1021,8 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
 
   val toVecExu: MixedVec[MixedVec[DecoupledIO[ExuInput]]] = MixedVec(vfSchdParams.genExuInputBundle)
 
+  val toMfExu: MixedVec[MixedVec[DecoupledIO[ExuInput]]] = MixedVec(mfSchdParams.genExuInputBundle)
+
   val toMemExu: MixedVec[MixedVec[DecoupledIO[ExuInput]]] = memSchdParams.genExuInputBundle
 
   val og1ImmInfo: Vec[ImmInfo] = Output(Vec(params.allExuParams.size, new ImmInfo))
@@ -951,6 +1037,8 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
 
   val fromVlWb: MixedVec[RfWritePortWithConfig] = MixedVec(params.genVlWriteBackBundle)
 
+  val fromMtilexWb: MixedVec[RfWritePortWithConfig] = MixedVec(params.genMtilexWriteBackBundle)
+
   val fromPcTargetMem = Flipped(new PcToDataPathIO(params))
 
   val fromBypassNetwork: Vec[RCWritePort] = Vec(params.getIntExuRCWriteSize + params.getMemExuRCWriteSize, 
@@ -958,7 +1046,7 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
   )
 
   val toBypassNetworkRCData: MixedVec[MixedVec[Vec[UInt]]] = MixedVec(
-    Seq(intSchdParams, fpSchdParams, vfSchdParams, memSchdParams).map(schd => schd.issueBlockParams.map(iq => 
+    Seq(intSchdParams, fpSchdParams, vfSchdParams, mfSchdParams, memSchdParams).map(schd => schd.issueBlockParams.map(iq => 
       MixedVec(iq.exuBlockParams.map(exu => Output(Vec(exu.numRegSrc, UInt(exu.srcDataBitsMax.W)))))
     )).flatten
   )
@@ -973,7 +1061,8 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
   val diffV0Rat  = if (params.basicDebugEn) Some(Input(Vec(1, UInt(log2Up(V0PhyRegs).W)))) else None
   val diffVlRat  = if (params.basicDebugEn) Some(Input(Vec(1, UInt(log2Up(VlPhyRegs).W)))) else None
   val diffVl     = if (params.basicDebugEn) Some(Output(UInt(VlData().dataWidth.W))) else None
-  val diffMtx    = if (params.basicDebugEn) Some(Output(UInt(MtxData().dataWidth.W))) else None
+  val diffMtilexRat = if (params.basicDebugEn) Some(Input(Vec(3, UInt(log2Up(MtilexPhyRegs).W)))) else None
+  val diffMtilex = if (params.basicDebugEn) Some(Output(UInt(MtilexData().dataWidth.W))) else None
 
   val topDownInfo = new TopDownInfo
 }
