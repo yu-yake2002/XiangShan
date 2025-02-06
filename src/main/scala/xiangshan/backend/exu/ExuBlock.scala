@@ -45,7 +45,10 @@ class ExuBlockImp(
     exu.io.vxrm.foreach(exuio => io.vxrm.get <> exuio)
     exu.io.vlIsZero.foreach(exuio => io.vlIsZero.get := exuio)
     exu.io.vlIsVlmax.foreach(exuio => io.vlIsVlmax.get := exuio)
+    exu.io.mtilexIsZero.foreach(exuio => io.mtilexIsZero.get := exuio)
+    exu.io.mtilexIsMtilexmax.foreach(exuio => io.mtilexIsMtilexmax.get := exuio)
     exu.io.vtype.foreach(exuio => io.vtype.get := exuio)
+    exu.io.mtype.foreach(exuio => io.mtype.get := exuio)
     exu.io.in <> input
     output <> exu.io.out
     io.csrToDecode.foreach(toDecode => exu.io.csrToDecode.foreach(exuOut => toDecode := exuOut))
@@ -86,6 +89,8 @@ class ExuBlockIO(implicit p: Parameters, params: SchdBlockParams) extends XSBund
   val vtype = Option.when(params.writeVConfig)((Valid(new VType)))
   val vlIsZero = Option.when(params.writeVConfig)(Output(Bool()))
   val vlIsVlmax = Option.when(params.writeVConfig)(Output(Bool()))
+  val mtilexIsZero = Option.when(params.writeMtilex)(Output(Bool()))
+  val mtilexIsMtilexmax = Option.when(params.writeMtilex)(Output(Bool()))
 
   val mtype = Option.when(params.writeMType)((Valid(new MType)))
 }

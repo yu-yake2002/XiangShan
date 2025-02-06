@@ -87,6 +87,8 @@ case class SchdBlockParams(
 
   def numWriteVfRf: Int = issueBlockParams.map(_.numWriteVfRf).sum
 
+  def numWriteMtilexRf: Int = issueBlockParams.map(_.numWriteMtilexRf).sum
+
   def numNoDataWB: Int = issueBlockParams.map(_.numNoDataWB).sum
 
   def needOg2Resp: Boolean = isVfSchd || isMemSchd && issueBlockParams.map(_.needOg2Resp).reduce(_ || _)
@@ -98,6 +100,8 @@ case class SchdBlockParams(
   def writeVConfig: Boolean = issueBlockParams.map(_.writeVConfig).reduce(_ || _)
   
   def writeVType: Boolean = issueBlockParams.map(_.writeVType).reduce(_ || _)
+
+  def writeMtilex: Boolean = issueBlockParams.map(_.writeMtilexRf).reduce(_ || _)
 
   def writeMType: Boolean = issueBlockParams.map(_.writeMType).reduce(_ || _)
 
@@ -225,8 +229,8 @@ case class SchdBlockParams(
     MixedVec(backendParam.getVlWBExeGroup.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq)
   }
 
-  def genMfWBWakeUpSinkValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueWBWakeUpBundle]] = {
-    MixedVec(backendParam.getMfWBExeGroup.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq)
+  def genMtilexWBWakeUpSinkValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueWBWakeUpBundle]] = {
+    MixedVec(backendParam.getMtilexWBExeGroup.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq)
   }
 
   // cfgs(issueIdx)(exuIdx)(set of exu's wb)

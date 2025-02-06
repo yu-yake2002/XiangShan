@@ -100,6 +100,7 @@ object Bundles {
     val vecWen          = Bool()
     val v0Wen           = Bool()
     val vlWen           = Bool()
+    val mtilexWen       = Bool()
     val isXSTrap        = Bool()
     val waitForward     = Bool() // no speculate execution
     val blockBackward   = Bool()
@@ -201,6 +202,7 @@ object Bundles {
     val vecWen          = Bool()
     val v0Wen           = Bool()
     val vlWen           = Bool()
+    val mtilexWen       = Bool()
     val isXSTrap        = Bool()
     val waitForward     = Bool() // no speculate execution
     val blockBackward   = Bool()
@@ -299,7 +301,7 @@ object Bundles {
       this
     }
 
-    def needWriteRf: Bool = rfWen || fpWen || vecWen || v0Wen || vlWen
+    def needWriteRf: Bool = rfWen || fpWen || vecWen || v0Wen || vlWen || mtilexWen
   }
 
   trait BundleSource {
@@ -318,6 +320,7 @@ object Bundles {
     val vecWen = Bool()
     val v0Wen = Bool()
     val vlWen = Bool()
+    val mtilexWen = Bool()
     val pdest = UInt(pregIdxWidth.W)
 
     /**
@@ -348,6 +351,13 @@ object Bundles {
         SrcType.isVp(srcType) && this.vlWen
       ) && valid
     }
+    def wakeUpMtilex(successor: (UInt, UInt), valid: Bool): Bool = {
+      val (thatPsrc, srcType) = successor
+      val pdestMatch = pdest === thatPsrc
+      pdestMatch && (
+        SrcType.isMp(srcType) && this.mtilexWen
+      ) && valid
+    }
     def wakeUpFromIQ(successor: Seq[(UInt, UInt)]): Seq[Bool] = {
       successor.map { case (thatPsrc, srcType) =>
         val pdestMatch = pdest === thatPsrc
@@ -370,6 +380,13 @@ object Bundles {
       val pdestMatch = pdest === thatPsrc
       pdestMatch && (
         SrcType.isVp(srcType) && this.vlWen
+      )
+    }
+    def wakeUpMtilexFromIQ(successor: (UInt, UInt)): Bool = {
+      val (thatPsrc, srcType) = successor
+      val pdestMatch = pdest === thatPsrc
+      pdestMatch && (
+        SrcType.isMp(srcType) && this.mtilexWen
       )
     }
 
@@ -407,6 +424,7 @@ object Bundles {
     val vecWenCopy = OptionWrapper(copyWakeupOut && params.needVecWen, Vec(copyNum, Bool()))
     val v0WenCopy = OptionWrapper(copyWakeupOut && params.needV0Wen, Vec(copyNum, Bool()))
     val vlWenCopy = OptionWrapper(copyWakeupOut && params.needVlWen, Vec(copyNum, Bool()))
+    val mtilexWenCopy = OptionWrapper(copyWakeupOut && params.needMtilexWen, Vec(copyNum, Bool()))
     val loadDependencyCopy = OptionWrapper(copyWakeupOut && params.isIQWakeUpSink, Vec(copyNum, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W))))
 
     def fromExuInput(exuInput: ExuInput): Unit = {
@@ -415,6 +433,7 @@ object Bundles {
       this.vecWen := exuInput.vecWen.getOrElse(false.B)
       this.v0Wen := exuInput.v0Wen.getOrElse(false.B)
       this.vlWen := exuInput.vlWen.getOrElse(false.B)
+      this.mtilexWen := exuInput.mtilexWen.getOrElse(false.B)
       this.pdest := exuInput.pdest
     }
   }
@@ -564,6 +583,21 @@ object Bundles {
       res.msew    := this.sepcMsew
       res
     }
+
+    def connectMType(source: MType): Unit = {
+      this.mill   := source.illegal
+      this.mba    := source.mba
+      this.mfp64  := source.mfp64
+      this.mfp32  := source.mfp32
+      this.mfp16  := source.mfp16
+      this.mfp8   := source.mfp8
+      this.mint64 := source.mint64
+      this.mint32 := source.mint32
+      this.mint16 := source.mint16
+      this.mint8  := source.mint8
+      this.mint4  := source.mint4
+      this.msew   := source.msew
+    }
   }
 
   class NeedFrmBundle(implicit p: Parameters) extends XSBundle {
@@ -615,22 +649,26 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
+    private val mtilexCertainLat = params.mtilexLatencyCertain
     private val intLat = params.intLatencyValMax
     private val fpLat = params.fpLatencyValMax
     private val vfLat = params.vfLatencyValMax
     private val v0Lat = params.v0LatencyValMax
     private val vlLat = params.vlLatencyValMax
+    private val mtilexLat = params.mtilexLatencyValMax
 
     val intWbBusyTable = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpWbBusyTable = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfWbBusyTable = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0WbBusyTable = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlWbBusyTable = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
+    val mtilexWbBusyTable = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
     val intDeqRespSet = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpDeqRespSet = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfDeqRespSet = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0DeqRespSet = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlDeqRespSet = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
+    val mtilexDeqRespSet = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
   }
 
   class WbFuBusyTableReadBundle(val params: ExeUnitParams)(implicit p: Parameters) extends XSBundle {
@@ -639,17 +677,20 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
+    private val mtilexCertainLat = params.mtilexLatencyCertain
     private val intLat = params.intLatencyValMax
     private val fpLat = params.fpLatencyValMax
     private val vfLat = params.vfLatencyValMax
     private val v0Lat = params.v0LatencyValMax
     private val vlLat = params.vlLatencyValMax
+    private val mtilexLat = params.mtilexLatencyValMax
 
     val intWbBusyTable = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpWbBusyTable = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfWbBusyTable = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0WbBusyTable = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlWbBusyTable = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
+    val mtilexWbBusyTable = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
   }
 
   class WbConflictBundle(val params: ExeUnitParams)(implicit p: Parameters) extends XSBundle {
@@ -658,12 +699,14 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
+    private val mtilexCertainLat = params.mtilexLatencyCertain
 
     val intConflict = OptionWrapper(intCertainLat, Bool())
     val fpConflict = OptionWrapper(fpCertainLat, Bool())
     val vfConflict = OptionWrapper(vfCertainLat, Bool())
     val v0Conflict = OptionWrapper(v0CertainLat, Bool())
     val vlConflict = OptionWrapper(vlCertainLat, Bool())
+    val mtilexConflict = OptionWrapper(mtilexCertainLat, Bool())
   }
 
   class ImmInfo extends Bundle {
@@ -688,6 +731,7 @@ object Bundles {
     val vecWenCopy = OptionWrapper(copyWakeupOut && params.needVecWen, Vec(copyNum, Bool()))
     val v0WenCopy  = OptionWrapper(copyWakeupOut && params.needV0Wen, Vec(copyNum, Bool()))
     val vlWenCopy  = OptionWrapper(copyWakeupOut && params.needVlWen, Vec(copyNum, Bool()))
+    val mtilexWenCopy = OptionWrapper(copyWakeupOut && params.needMtilexWen, Vec(copyNum, Bool()))
     val loadDependencyCopy = OptionWrapper(copyWakeupOut && params.isIQWakeUpSink, Vec(copyNum, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W))))
     val pdest         = UInt(params.wbPregIdxWidth.W)
     val rfWen         = if (params.needIntWen)    Some(Bool())                        else None
@@ -695,6 +739,7 @@ object Bundles {
     val vecWen        = if (params.needVecWen)    Some(Bool())                        else None
     val v0Wen         = if (params.needV0Wen)     Some(Bool())                        else None
     val vlWen         = if (params.needVlWen)     Some(Bool())                        else None
+    val mtilexWen     = if (params.needMtilexWen) Some(Bool())                        else None
     val fpu           = if (params.writeFflags)   Some(new FPUCtrlSignals)            else None
     val vpu           = if (params.needVPUCtrl)   Some(new VPUCtrlSignals)            else None
     val mpu           = if (params.needMPUCtrl)   Some(new MPUCtrlSignals)            else None
@@ -746,6 +791,7 @@ object Bundles {
       this.vecWen        .foreach(_ := source.common.vecWen.get)
       this.v0Wen         .foreach(_ := source.common.v0Wen.get)
       this.vlWen         .foreach(_ := source.common.vlWen.get)
+      this.mtilexWen     .foreach(_ := source.common.mtilexWen.get)
       this.fpu           .foreach(_ := source.common.fpu.get)
       this.vpu           .foreach(_ := source.common.vpu.get)
       this.mpu           .foreach(_ := source.common.mpu.get)
@@ -783,6 +829,7 @@ object Bundles {
     val vecWen       = if (params.needVecWen)   Some(Bool())                  else None
     val v0Wen        = if (params.needV0Wen)    Some(Bool())                  else None
     val vlWen        = if (params.needVlWen)    Some(Bool())                  else None
+    val mtilexWen    = if (params.needMtilexWen) Some(Bool())                  else None
     val redirect     = if (params.hasRedirect)  Some(ValidIO(new Redirect))   else None
     val fflags       = if (params.writeFflags)  Some(UInt(5.W))               else None
     val wflags       = if (params.writeFflags)  Some(Bool())                  else None
@@ -821,6 +868,7 @@ object Bundles {
     val vecWen = Bool()
     val v0Wen = Bool()
     val vlWen = Bool()
+    val mtilexWen = Bool()
     val pdest = UInt(params.pregIdxWidth(backendParams).W)
     val data = UInt(params.dataWidth.W)
     val robIdx = new RobPtr()(p)
@@ -837,12 +885,13 @@ object Bundles {
     this.wakeupSource = s"WB(${params.toString})"
 
     def fromExuOutput(source: ExuOutput, wbType: String) = {
-      val typeMap = Map("int" -> 0, "fp" -> 1, "vf" -> 2, "v0" -> 3, "vl" -> 4)
+      val typeMap = Map("int" -> 0, "fp" -> 1, "vf" -> 2, "v0" -> 3, "vl" -> 4, "mtilex" -> 5)
       this.rfWen  := source.intWen.getOrElse(false.B)
       this.fpWen  := source.fpWen.getOrElse(false.B)
       this.vecWen := source.vecWen.getOrElse(false.B)
       this.v0Wen  := source.v0Wen.getOrElse(false.B)
       this.vlWen  := source.vlWen.getOrElse(false.B)
+      this.mtilexWen := source.mtilexWen.getOrElse(false.B)
       this.pdest  := source.pdest
       this.data   := source.data(source.params.wbIndex(typeMap(wbType)))
       this.robIdx := source.robIdx
@@ -867,6 +916,7 @@ object Bundles {
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
       rfWrite.vlWen := false.B
+      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -880,6 +930,7 @@ object Bundles {
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
       rfWrite.vlWen := false.B
+      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -893,6 +944,7 @@ object Bundles {
       rfWrite.vecWen := this.vecWen
       rfWrite.v0Wen := false.B
       rfWrite.vlWen := false.B
+      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -906,6 +958,7 @@ object Bundles {
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := this.v0Wen
       rfWrite.vlWen := false.B
+      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -919,6 +972,21 @@ object Bundles {
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
       rfWrite.vlWen := this.vlWen
+      rfWrite.mtilexWen := false.B
+      rfWrite
+    }
+
+    def asMtilexRfWriteBundle(fire: Bool): RfWritePortWithConfig = {
+      val rfWrite = Wire(Output(new RfWritePortWithConfig(this.params.dataCfg, backendParams.getPregParams(MtilexData()).addrWidth)))
+      rfWrite.wen := this.mtilexWen && fire
+      rfWrite.addr := this.pdest
+      rfWrite.data := this.data
+      rfWrite.intWen := false.B
+      rfWrite.fpWen := false.B
+      rfWrite.vecWen := false.B
+      rfWrite.v0Wen := false.B
+      rfWrite.vlWen := false.B
+      rfWrite.mtilexWen := this.mtilexWen
       rfWrite
     }
   }
@@ -1014,12 +1082,13 @@ object Bundles {
     val vecWen = Bool()
     val v0Wen = Bool()
     val vlWen = Bool()
+    val mtilexWen = Bool()
     val pdest = UInt(PhyRegIdxWidth.W)
   }
 
-  class MemExuInput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuInput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
-    val src = if (isMatrix || isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
+    val src = if (isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
     val iqIdx = UInt(log2Up(MemIQSizeMax).W)
     val isFirstIssue = Bool()
     val flowNum      = OptionWrapper(isVector, NumLsElem())
@@ -1030,10 +1099,6 @@ object Bundles {
     def src_vs3 = src(2)
     def src_mask = if (isVector) src(3) else 0.U
     def src_vl = if (isVector) src(4) else 0.U
-    
-    def src_mtype  = if (isMatrix) src(3) else 0.U
-    def src_mtilex = if (isMatrix) src(4) else 0.U
-    def src_mtype_mask = if (isMatrix) src(4) else 0.U
   }
 
   class MemExuOutput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {

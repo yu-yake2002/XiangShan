@@ -922,6 +922,8 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   // init v0Wen vlWen
   decodedInst.v0Wen := false.B
   decodedInst.vlWen := false.B
+  // init mtilexWen
+  decodedInst.mtilexWen := false.B
 
   private val isCboClean = CBO_CLEAN === io.enq.ctrlFlow.instr
   private val isCboFlush = CBO_FLUSH === io.enq.ctrlFlow.instr

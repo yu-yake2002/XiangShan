@@ -80,9 +80,9 @@ case class IssueBlockParams(
 
   def numVlSrc: Int = exuBlockParams.map(_.numVlSrc).max
 
-  def numMatrixSrc: Int = exuBlockParams.map(_.numMatrixSrc).max
+  def numMtilexSrc: Int = exuBlockParams.map(_.numMtilexSrc).max
 
-  def numMfSrc: Int = exuBlockParams.map(_.numMfSrc).max
+  // def numMfSrc: Int = exuBlockParams.map(_.numMfSrc).max
 
   def numRegSrc: Int = exuBlockParams.map(_.numRegSrc).max
 
@@ -100,7 +100,7 @@ case class IssueBlockParams(
 
   def readVlRf: Boolean = numVlSrc > 0
 
-  def readMatrixRf: Boolean = numMatrixSrc > 0
+  def readMtilexRf: Boolean = numMtilexSrc > 0
 
   def writeIntRf: Boolean = exuBlockParams.map(_.writeIntRf).reduce(_ || _)
 
@@ -111,6 +111,8 @@ case class IssueBlockParams(
   def writeV0Rf: Boolean = exuBlockParams.map(_.writeV0Rf).reduce(_ || _)
 
   def writeVlRf: Boolean = exuBlockParams.map(_.writeVlRf).reduce(_ || _)
+
+  def writeMtilexRf: Boolean = exuBlockParams.map(_.writeMtilexRf).reduce(_ || _)
 
   def exceptionOut: Seq[Int] = exuBlockParams.map(_.exceptionOut).reduce(_ ++ _).distinct.sorted
 
@@ -145,6 +147,8 @@ case class IssueBlockParams(
   def numWriteVecRf: Int = exuBlockParams.count(_.writeVecRf)
 
   def numWriteVfRf: Int = exuBlockParams.count(_.writeVfRf)
+
+  def numWriteMtilexRf: Int = exuBlockParams.count(_.writeMtilexRf)
 
   def numNoDataWB: Int = exuBlockParams.count(_.hasNoDataWB)
 
@@ -298,7 +302,7 @@ case class IssueBlockParams(
 
   def needWakeupFromVlWBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readVlRf).groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
 
-  def needWakeupFromMfWBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readMatrixRf).groupBy(x => x.getMfWBPort.getOrElse(MfWB(port = -1)).port).filter(_._1 != -1)
+  def needWakeupFromMtilexWBPort = backendParam.allExuParams.filter(x => !wakeUpInExuSources.map(_.name).contains(x.name) && this.readMtilexRf).groupBy(x => x.getMtilexWBPort.getOrElse(MtilexWB(port = -1)).port).filter(_._1 != -1)
 
   def hasWakeupFromMem: Boolean = backendParam.allExuParams.filter(x => wakeUpInExuSources.map(_.name).contains(x.name)).map(_.isMemExeUnit).fold(false)(_ | _)
 
@@ -392,7 +396,11 @@ case class IssueBlockParams(
       case VfScheduler() | MemScheduler() => needWakeupFromVlWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
       case _ => Seq()
     }
-    MixedVec(intBundle ++ fpBundle ++ vfBundle ++ v0Bundle ++ vlBundle)
+    val mtilexBundle = schdType match {
+      case MfScheduler() | MemScheduler() => needWakeupFromMtilexWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
+      case _ => Seq()
+    }
+    MixedVec(intBundle ++ fpBundle ++ vfBundle ++ v0Bundle ++ vlBundle ++ mtilexBundle)
   }
 
   def genIQWakeUpSourceValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = {

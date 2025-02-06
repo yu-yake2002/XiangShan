@@ -36,7 +36,6 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   val vlFromPreg = csrIn.vpu.vl
 
   val setMtype = csrIn.matrix.set_mtype
-  val setMsat = csrIn.matrix.set_msat
   val setMsDirty = csrIn.matrix.dirty_ms
   val setMstart = csrIn.matrix.set_mstart
   val mtilemFromPreg = csrIn.matrix.mtilem

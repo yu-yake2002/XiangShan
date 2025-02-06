@@ -137,6 +137,8 @@ class ExceptionGen(params: BackendParams)(implicit p: Parameters) extends XSModu
         current.trigger   := Mux(isVecUpdate, s1_out_bits.trigger,    current.trigger)
         current.vstart    := Mux(isVecUpdate, s1_out_bits.vstart,     current.vstart)
         current.vstartEn  := Mux(isVecUpdate, s1_out_bits.vstartEn,   current.vstartEn)
+        current.mstart    := Mux(isVecUpdate, s1_out_bits.mstart,     current.mstart)
+        current.mstartEn  := Mux(isVecUpdate, s1_out_bits.mstartEn,   current.mstartEn)
         current.isVecLoad := Mux(isVecUpdate, s1_out_bits.isVecLoad,  current.isVecLoad)
         current.isVlm     := Mux(isVecUpdate, s1_out_bits.isVlm,      current.isVlm)
         current.isStrided := Mux(isVecUpdate, s1_out_bits.isStrided,  current.isStrided)

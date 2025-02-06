@@ -53,36 +53,37 @@ class DecodeStageIO(implicit p: Parameters) extends XSBundle {
   val vecRat = Vec(RenameWidth, Vec(numVecRatPorts, Flipped(new RatReadPort(VecLogicRegs))))
   val v0Rat = Vec(RenameWidth, Flipped(new RatReadPort(V0LogicRegs)))
   val vlRat = Vec(RenameWidth, Flipped(new RatReadPort(VlLogicRegs)))
+  val mtilexRat = Vec(RenameWidth, Flipped(new RatReadPort(MtilexLogicRegs)))
   // csr control
   val csrCtrl = Input(new CustomCSRCtrlIO)
   val fromCSR = Input(new CSRToDecode)
   val fusion = Vec(DecodeWidth - 1, Input(Bool()))
 
-    // vtype & mtype update
-    val fromRob = new Bundle {
-      val isResumeVType = Input(Bool())
-      val walkToArchVType = Input(Bool())
-      val commitVType = new Bundle {
-        val vtype = Flipped(Valid(new VType))
-        val hasVsetvl = Input(Bool())
-      }
-      val walkVType = Flipped(Valid(new VType))
-      val isResumeMType = Input(Bool())
-      val walkToArchMType = Input(Bool())
-      val commitMType = new Bundle {
-        val mtype = Flipped(Valid(new MType))
-        val hasMsettype = Input(Bool())
-      }
-      val walkMType = Flipped(Valid(new MType))
+  // vtype & mtype update
+  val fromRob = new Bundle {
+    val isResumeVType = Input(Bool())
+    val walkToArchVType = Input(Bool())
+    val commitVType = new Bundle {
+      val vtype = Flipped(Valid(new VType))
+      val hasVsetvl = Input(Bool())
     }
-    val stallReason = new Bundle {
-      val in = Flipped(new StallReasonIO(DecodeWidth))
-      val out = new StallReasonIO(DecodeWidth)
+    val walkVType = Flipped(Valid(new VType))
+    val isResumeMType = Input(Bool())
+    val walkToArchMType = Input(Bool())
+    val commitMType = new Bundle {
+      val mtype = Flipped(Valid(new MType))
+      val hasMsettype = Input(Bool())
     }
-    val vsetvlVType = Input(VType())
-    val vstart = Input(Vl())
-    val msettypeMType = Input(MType())
-    val mstart = Input(Vl()) // FIXME: don't use Vl here
+    val walkMType = Flipped(Valid(new MType))
+  }
+  val stallReason = new Bundle {
+    val in = Flipped(new StallReasonIO(DecodeWidth))
+    val out = new StallReasonIO(DecodeWidth)
+  }
+  val vsetvlVType = Input(VType())
+  val vstart = Input(Vl())
+  val msettypeMType = Input(MType())
+  val mstart = Input(Vl()) // FIXME: don't use Vl here
 
   val toCSR = new Bundle {
     val trapInstInfo = ValidIO(new TrapInstInfo)
@@ -278,7 +279,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
 
   io.out.map(x =>
     when(x.valid){
-      assert(PopCount(VecInit(x.bits.rfWen, x.bits.fpWen, x.bits.vecWen, x.bits.v0Wen, x.bits.vlWen)) < 2.U,
+      assert(PopCount(VecInit(x.bits.rfWen, x.bits.fpWen, x.bits.vecWen, x.bits.v0Wen, x.bits.vlWen, x.bits.mtilexWen)) < 2.U,
         "DecodeOut: can't wirte two regfile in one uop/instruction")
     }
   )
@@ -312,7 +313,9 @@ class DecodeStage(implicit p: Parameters) extends XSModule
     io.vlRat(i).addr := Vl_IDX.U // vl
     io.vlRat(i).hold := !io.out(i).ready
 
-    // TODO: implement the logic for matrix instructions here
+    // TODO: Select mtilem/n/k
+    io.mtilexRat(i).addr := Mtilex_IDX.U // mtilex
+    io.mtilexRat(i).hold := !io.out(i).ready
   }
 
   /** whether valid input requests from frontend exists */

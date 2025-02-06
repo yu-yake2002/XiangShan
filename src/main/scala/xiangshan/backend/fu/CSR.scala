@@ -65,7 +65,6 @@ class MatrixCsrIO(implicit p: Parameters) extends XSBundle {
   
   val set_mstart = Output(Valid(UInt(XLEN.W)))
   val set_mtype = Output(Valid(UInt(XLEN.W)))
-  val set_msat = Output(Valid(UInt(1.W)))
 
   val dirty_ms = Output(Bool())
 }

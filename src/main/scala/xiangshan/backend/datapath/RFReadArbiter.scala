@@ -151,3 +151,11 @@ class VlRFReadArbiter(
 ) extends RFReadArbiterBase(RFRdArbParams(backendParams.getRdCfgs[VlRD], backendParams.vlPregParams)) {
   override protected def portRange: Range = 0 to backendParams.getRdPortIndices(VlData()).max
 }
+
+class MtilexRFReadArbiter(
+  backendParams: BackendParams
+)(implicit
+  p: Parameters
+) extends RFReadArbiterBase(RFRdArbParams(backendParams.getRdCfgs[MtilexRD], backendParams.mtilexPregParams)) {
+  override protected def portRange: Range = 0 to backendParams.getRdPortIndices(MtilexData()).max
+}

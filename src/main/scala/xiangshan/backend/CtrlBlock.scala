@@ -26,7 +26,7 @@ import xiangshan.ExceptionNO._
 import xiangshan._
 import xiangshan.backend.Bundles.{DecodedInst, DynInst, ExceptionInfo, ExuOutput, ExuVec, StaticInst, TrapInstInfo}
 import xiangshan.backend.ctrlblock.{DebugLSIO, DebugLsInfoBundle, LsTopdownInfo, MemCtrl, RedirectGenerator}
-import xiangshan.backend.datapath.DataConfig.{FpData, IntData, V0Data, VAddrData, VecData, VlData}
+import xiangshan.backend.datapath.DataConfig.{FpData, IntData, V0Data, VAddrData, VecData, VlData, MtilexData}
 import xiangshan.backend.decode.{DecodeStage, FusionDecoder}
 import xiangshan.backend.dispatch.{CoreDispatchTopDownIO}
 import xiangshan.backend.dispatch.NewDispatch
@@ -512,6 +512,7 @@ class CtrlBlockImp(
   decode.io.vecRat <> rat.io.vecReadPorts
   decode.io.v0Rat <> rat.io.v0ReadPorts
   decode.io.vlRat <> rat.io.vlReadPorts
+  decode.io.mtilexRat <> rat.io.mtilexReadPorts
   decode.io.fusion := 0.U.asTypeOf(decode.io.fusion) // Todo
   decode.io.stallReason.in <> io.frontend.stallReason
 
@@ -640,6 +641,7 @@ class CtrlBlockImp(
   rat.io.vecRenamePorts := rename.io.vecRenamePorts
   rat.io.v0RenamePorts := rename.io.v0RenamePorts
   rat.io.vlRenamePorts := rename.io.vlRenamePorts
+  rat.io.mtilexRenamePorts := rename.io.mtilexRenamePorts
 
   rename.io.redirect := s1_s3_redirect
   rename.io.rabCommits := rob.io.rabCommits
@@ -657,17 +659,20 @@ class CtrlBlockImp(
   rename.io.vecReadPorts := VecInit(rat.io.vecReadPorts.map(x => VecInit(x.map(_.data))))
   rename.io.v0ReadPorts := VecInit(rat.io.v0ReadPorts.map(x => VecInit(x.data)))
   rename.io.vlReadPorts := VecInit(rat.io.vlReadPorts.map(x => VecInit(x.data)))
+  rename.io.mtilexReadPorts := VecInit(rat.io.mtilexReadPorts.map(x => VecInit(x.data)))
   rename.io.int_need_free := rat.io.int_need_free
   rename.io.int_old_pdest := rat.io.int_old_pdest
   rename.io.fp_old_pdest := rat.io.fp_old_pdest
   rename.io.vec_old_pdest := rat.io.vec_old_pdest
   rename.io.v0_old_pdest := rat.io.v0_old_pdest
   rename.io.vl_old_pdest := rat.io.vl_old_pdest
+  rename.io.mtilex_old_pdest := rat.io.mtilex_old_pdest
   rename.io.debug_int_rat.foreach(_ := rat.io.debug_int_rat.get)
   rename.io.debug_fp_rat.foreach(_ := rat.io.debug_fp_rat.get)
   rename.io.debug_vec_rat.foreach(_ := rat.io.debug_vec_rat.get)
   rename.io.debug_v0_rat.foreach(_ := rat.io.debug_v0_rat.get)
   rename.io.debug_vl_rat.foreach(_ := rat.io.debug_vl_rat.get)
+  rename.io.debug_mtilex_rat.foreach(_ := rat.io.debug_mtilex_rat.get)
   rename.io.stallReason.in <> decode.io.stallReason.out
   rename.io.snpt.snptEnq := DontCare
   rename.io.snpt.snptDeq := snpt.io.deq
@@ -730,12 +735,13 @@ class CtrlBlockImp(
   dispatch.io.wbPregsVec := io.toDispatch.wbPregsVec
   dispatch.io.wbPregsV0 := io.toDispatch.wbPregsV0
   dispatch.io.wbPregsVl := io.toDispatch.wbPregsVl
+  dispatch.io.wbPregsMtilex := io.toDispatch.wbPregsMtilex
   dispatch.io.vlWriteBackInfo := io.toDispatch.vlWriteBackInfo
   dispatch.io.robHeadNotReady := rob.io.headNotReady
   dispatch.io.robFull := rob.io.robFull
   dispatch.io.singleStep := GatedValidRegNext(io.csrCtrl.singlestep)
 
-  val toIssueBlockUops = Seq(io.toIssueBlock.intUops, io.toIssueBlock.fpUops, io.toIssueBlock.vfUops, io.toIssueBlock.memUops).flatten
+  val toIssueBlockUops = Seq(io.toIssueBlock.intUops, io.toIssueBlock.fpUops, io.toIssueBlock.vfUops, io.toIssueBlock.mfUops, io.toIssueBlock.memUops).flatten
   toIssueBlockUops.zip(dispatch.io.toIssueQueues).map(x => x._1 <> x._2)
   io.toIssueBlock.flush   <> s2_s4_redirect
 
@@ -784,6 +790,7 @@ class CtrlBlockImp(
   io.diff_vec_rat.foreach(_ := rat.io.diff_vec_rat.get)
   io.diff_v0_rat .foreach(_ := rat.io.diff_v0_rat.get)
   io.diff_vl_rat .foreach(_ := rat.io.diff_vl_rat.get)
+  io.diff_mtilex_rat.foreach(_ := rat.io.diff_mtilex_rat.get)
 
   rob.io.debug_ls := io.robio.debug_ls
   rob.io.debugHeadLsIssue := io.robio.robHeadLsIssue
@@ -878,10 +885,12 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val intUopsNum = backendParams.intSchdParams.get.issueBlockParams.map(_.numEnq).sum
     val fpUopsNum = backendParams.fpSchdParams.get.issueBlockParams.map(_.numEnq).sum
     val vfUopsNum = backendParams.vfSchdParams.get.issueBlockParams.map(_.numEnq).sum
+    val mfUopsNum = backendParams.mfSchdParams.get.issueBlockParams.map(_.numEnq).sum
     val memUopsNum = backendParams.memSchdParams.get.issueBlockParams.filter(x => x.StdCnt == 0).map(_.numEnq).sum
     val intUops = Vec(intUopsNum, DecoupledIO(new DynInst))
     val fpUops = Vec(fpUopsNum, DecoupledIO(new DynInst))
     val vfUops = Vec(vfUopsNum, DecoupledIO(new DynInst))
+    val mfUops = Vec(mfUopsNum, DecoupledIO(new DynInst))
     val memUops = Vec(memUopsNum, DecoupledIO(new DynInst))
   }
   val fromMemToDispatch = new Bundle {
@@ -902,6 +911,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val wakeUpInt = Flipped(backendParams.intSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpFp  = Flipped(backendParams.fpSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpVec = Flipped(backendParams.vfSchdParams.get.genIQWakeUpOutValidBundle)
+    val wakeUpMatrix = Flipped(backendParams.mfSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpMem = Flipped(backendParams.memSchdParams.get.genIQWakeUpOutValidBundle)
     val allIssueParams = backendParams.allIssueParams.filter(_.StdCnt == 0)
     val allExuParams = allIssueParams.map(_.exuBlockParams).flatten
@@ -915,6 +925,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val wbPregsVec = Vec(backendParams.numPregWb(VecData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsV0 = Vec(backendParams.numPregWb(V0Data()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsVl = Vec(backendParams.numPregWb(VlData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
+    val wbPregsMtilex = Vec(backendParams.numPregWb(MtilexData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val vlWriteBackInfo = new Bundle {
       val vlFromIntIsZero  = Input(Bool())
       val vlFromIntIsVlmax = Input(Bool())
@@ -1001,6 +1012,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
   val diff_vec_rat = if (params.basicDebugEn) Some(Vec(31, Output(UInt(PhyRegIdxWidth.W)))) else None
   val diff_v0_rat  = if (params.basicDebugEn) Some(Vec(1, Output(UInt(PhyRegIdxWidth.W)))) else None
   val diff_vl_rat  = if (params.basicDebugEn) Some(Vec(1, Output(UInt(PhyRegIdxWidth.W)))) else None
+  val diff_mtilex_rat = if (params.basicDebugEn) Some(Vec(3, Output(UInt(PhyRegIdxWidth.W)))) else None
 
   val sqCanAccept = Input(Bool())
   val lqCanAccept = Input(Bool())
