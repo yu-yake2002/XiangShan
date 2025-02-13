@@ -107,6 +107,11 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     val vlFromIntIsVlmax      = Input(Bool())
     val vlFromVfIsZero        = Input(Bool())
     val vlFromVfIsVlmax       = Input(Bool())
+    // mtilex
+    val mtilexFromIntIsZero   = Input(Bool())
+    val mtilexFromIntIsMtilexmax = Input(Bool())
+    val mtilexFromMfIsZero    = Input(Bool())
+    val mtilexFromMfIsMtilexmax = Input(Bool())
     //cancel
     val og0Cancel             = Input(ExuVec())
     val og1Cancel             = Input(ExuVec())
@@ -164,6 +169,8 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     val srcWakeupByWB         = Vec(params.numRegSrc, Bool())
     val vlWakeupByIntWb       = Bool()
     val vlWakeupByVfWb        = Bool()
+    val mtilexWakeupByIntWb   = Bool()
+    val mtilexWakeupByMfWb    = Bool()
     val srcCancelVec          = Vec(params.numRegSrc, Bool())
     val srcLoadCancelVec      = Vec(params.numRegSrc, Bool())
     val srcLoadTransCancelVec = Vec(params.numRegSrc, Bool())
@@ -181,6 +188,10 @@ object EntryBundles extends HasCircularQueuePtrHelper {
                                       bundle.bits.wakeUp(psrcSrcTypeVec.take(3), bundle.valid) :+
                                       bundle.bits.wakeUpV0(psrcSrcTypeVec(3), bundle.valid) :+
                                       bundle.bits.wakeUpVl(psrcSrcTypeVec(4), bundle.valid)
+                                    }
+                                    else if (params.numRegSrc == 4) {
+                                      bundle.bits.wakeUp(psrcSrcTypeVec.take(3), bundle.valid) :+ 
+                                      bundle.bits.wakeUpMtilex(psrcSrcTypeVec(3), bundle.valid)
                                     }
                                     else
                                       bundle.bits.wakeUp(psrcSrcTypeVec, bundle.valid)
@@ -218,6 +229,25 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     } else {
       common.vlWakeupByIntWb  := false.B
       common.vlWakeupByVfWb   := false.B
+    }
+
+    if (params.numRegSrc == 4) {
+      // // only when numRegSrc == 4 need mtilex
+      // val wakeUpFromMtilex = VecInit(commonIn.wakeUpFromWB.map{ bundle => 
+      //   val psrcSrcTypeVec = status.srcStatus.map(_.psrc) zip status.srcStatus.map(_.srcType)
+      //   bundle.bits.wakeUpMtilex(psrcSrcTypeVec(3), bundle.valid)
+      // })
+      // var numMtilexWb = params.backendParam.getMtilexWBExeGroup.size
+      // var intSchdMtilexWbPort = p(XSCoreParamsKey).intSchdMtilexWbPort
+      // var mfSchdMtilexWbPort = p(XSCoreParamsKey).mfSchdMtilexWbPort
+      // common.mtilexWakeupByIntWb  := wakeUpFromMtilex(numMtilexWb + intSchdMtilexWbPort)
+      // common.mtilexWakeupByMfWb   := wakeUpFromMtilex(numMtilexWb + mfSchdMtilexWbPort)
+      // FIXME: implement wakeup from mtilex
+      common.mtilexWakeupByIntWb  := false.B
+      common.mtilexWakeupByMfWb   := false.B
+    } else {
+      common.mtilexWakeupByIntWb  := false.B
+      common.mtilexWakeupByMfWb   := false.B
     }
   }
 
@@ -295,6 +325,8 @@ object EntryBundles extends HasCircularQueuePtrHelper {
       val ignoreOldVd = Wire(Bool())
       val vlWakeUpByIntWb = common.vlWakeupByIntWb
       val vlWakeUpByVfWb = common.vlWakeupByVfWb
+      val mtilexWakeUpByIntWb = common.mtilexWakeupByIntWb
+      val mtilexWakeUpByMfWb = common.mtilexWakeupByMfWb
       val isDependOldVd = entryReg.payload.vpu.isDependOldVd
       val isWritePartVd = entryReg.payload.vpu.isWritePartVd
       val vta = entryReg.payload.vpu.vta
@@ -306,6 +338,12 @@ object EntryBundles extends HasCircularQueuePtrHelper {
       val vlFromVfIsVlmax = commonIn.vlFromVfIsVlmax
       val vlIsVlmax = (vlFromIntIsVlmax && vlWakeUpByIntWb) || (vlFromVfIsVlmax && vlWakeUpByVfWb)
       val vlIsNonZero = (!vlFromIntIsZero && vlWakeUpByIntWb) || (!vlFromVfIsZero && vlWakeUpByVfWb)
+      val mtilexFromIntIsZero = commonIn.mtilexFromIntIsZero
+      val mtilexFromIntIsMtilexmax = commonIn.mtilexFromIntIsMtilexmax
+      val mtilexFromMfIsZero = commonIn.mtilexFromMfIsZero
+      val mtilexFromMfIsMtilexmax = commonIn.mtilexFromMfIsMtilexmax
+      val mtilexIsMtilexmax = (mtilexFromIntIsMtilexmax && mtilexWakeUpByIntWb) || (mtilexFromMfIsMtilexmax && mtilexWakeUpByMfWb)
+      val mtilexIsNonZero = (!mtilexFromIntIsZero && mtilexWakeUpByIntWb) || (!mtilexFromMfIsZero && mtilexWakeUpByMfWb)
       val ignoreTail = vlIsVlmax && (vm =/= 0.U || vma) && !isWritePartVd
       val ignoreWhole = (vm =/= 0.U || vma) && vta
       val srcIsVec = SrcType.isVp(srcStatus.srcType)

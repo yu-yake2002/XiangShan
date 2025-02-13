@@ -735,10 +735,17 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     val info = io.commits.info(i)
     v & info.dirtyVs
   })
+  val dirtyMs = (0 until CommitWidth).map(i => {
+    val v = io.commits.commitValid(i)
+    val info = io.commits.info(i)
+    v & info.dirtyMs
+  })
   val dirty_fs = io.commits.isCommit && VecInit(dirtyFs).asUInt.orR
   val dirty_vs = io.commits.isCommit && VecInit(dirtyVs).asUInt.orR
+  val dirty_ms = io.commits.isCommit && VecInit(dirtyMs).asUInt.orR
 
   val resetVstart = dirty_vs && !io.vstartIsZero
+  val resetMstart = dirty_ms && !io.mstartIsZero
 
   vecExcpInfo.valid := exceptionHappen && !intrEnable && exceptionDataRead.bits.vstartEn && exceptionDataRead.bits.isVecLoad && !exceptionDataRead.bits.isEnqExcp
   when (exceptionHappen) {
@@ -755,6 +762,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
 
   io.csr.vstart.valid := RegNext(Mux(exceptionHappen && deqHasException, exceptionDataRead.bits.vstartEn, resetVstart))
   io.csr.vstart.bits := RegNext(Mux(exceptionHappen && deqHasException, exceptionDataRead.bits.vstart, 0.U))
+  io.csr.mstart.valid := RegNext(Mux(exceptionHappen && deqHasException, exceptionDataRead.bits.mstartEn, resetMstart))
+  io.csr.mstart.bits := RegNext(Mux(exceptionHappen && deqHasException, exceptionDataRead.bits.mstart, 0.U))
 
   val vxsat = Wire(Valid(Bool()))
   vxsat.valid := io.commits.isCommit && vxsat.bits
@@ -847,6 +856,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   io.csr.dirty_fs := GatedValidRegNext(dirty_fs)
   io.csr.dirty_vs := GatedValidRegNext(dirty_vs)
   io.csr.vxsat    := RegNextWithEnable(vxsat)
+
+  io.csr.dirty_ms := GatedValidRegNext(dirty_ms)
 
   // commit load/store to lsq
   val ldCommitVec = VecInit((0 until CommitWidth).map(i => io.commits.commitValid(i) && io.commits.info(i).commitType === CommitType.LOAD))
@@ -1208,6 +1219,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exceptionGen.io.enq(i).bits.trigger := io.enq.req(i).bits.trigger
     exceptionGen.io.enq(i).bits.vstartEn := false.B //DontCare
     exceptionGen.io.enq(i).bits.vstart := 0.U //DontCare
+    exceptionGen.io.enq(i).bits.mstartEn := false.B //DontCare
+    exceptionGen.io.enq(i).bits.mstart := 0.U //DontCare
     exceptionGen.io.enq(i).bits.vuopIdx := 0.U
     exceptionGen.io.enq(i).bits.isVecLoad := false.B
     exceptionGen.io.enq(i).bits.isVlm := false.B

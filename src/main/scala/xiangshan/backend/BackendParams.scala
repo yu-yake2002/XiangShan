@@ -66,9 +66,10 @@ case class BackendParams(
   def intSchdParams = schdParams.get(IntScheduler())
   def fpSchdParams = schdParams.get(FpScheduler())
   def vfSchdParams = schdParams.get(VfScheduler())
+  def mfSchdParams = schdParams.get(MfScheduler())
   def memSchdParams = schdParams.get(MemScheduler())
   def allSchdParams: Seq[SchdBlockParams] =
-    (Seq(intSchdParams) :+ fpSchdParams :+ vfSchdParams :+ memSchdParams)
+    (Seq(intSchdParams) :+ fpSchdParams :+ vfSchdParams :+ mfSchdParams :+ memSchdParams)
     .filter(_.nonEmpty)
     .map(_.get)
   def allIssueParams: Seq[IssueBlockParams] =
@@ -85,6 +86,8 @@ case class BackendParams(
   def vfPregParams: VfPregParams = pregParams.collectFirst { case x: VfPregParams => x }.get
   def v0PregParams: V0PregParams = pregParams.collectFirst { case x: V0PregParams => x }.get
   def vlPregParams: VlPregParams = pregParams.collectFirst { case x: VlPregParams => x }.get
+  def mfPregParams: MfPregParams = pregParams.collectFirst { case x: MfPregParams => x }.get
+  def mtilexPregParams: MtilexPregParams = pregParams.collectFirst { case x: MtilexPregParams => x }.get
   def getPregParams: Map[DataConfig, PregParams] = {
     pregParams.map(x => (x.dataCfg, x)).toMap
   }
@@ -160,6 +163,10 @@ case class BackendParams(
     Seq.fill(this.getVlRfWriteSize)(new RfWritePortWithConfig(VlData(), vlPregParams.addrWidth))
   }
 
+  def genMtilexWriteBackBundle(implicit p: Parameters) = {
+    Seq.fill(this.getMtilexWriteSize)(new RfWritePortWithConfig(MtilexData(), mtilexPregParams.addrWidth))
+  }
+
   def genWriteBackBundles(implicit p: Parameters): Seq[RfWritePortWithConfig] = {
     genIntWriteBackBundle ++ genVfWriteBackBundle
   }
@@ -191,6 +198,11 @@ case class BackendParams(
   def getVlWbArbiterParams: WbArbiterParams = {
     val vlWbCfgs: Seq[VlWB] = allSchdParams.flatMap(_.getWbCfgs.flatten.flatten.filter(x => x.writeVl)).map(_.asInstanceOf[VlWB])
     datapath.WbArbiterParams(vlWbCfgs, vlPregParams, this)
+  }
+
+  def getMtilexWbArbiterParams: WbArbiterParams = {
+    val mtilexWbCfgs: Seq[MtilexWB] = allSchdParams.flatMap(_.getWbCfgs.flatten.flatten.filter(x => x.writeMtilex)).map(_.asInstanceOf[MtilexWB])
+    datapath.WbArbiterParams(mtilexWbCfgs, mtilexPregParams, this)
   }
 
   /**
@@ -312,6 +324,10 @@ case class BackendParams(
     this.vlPregParams.numWrite.getOrElse(this.getWbPortIndices(VlData()).size)
   }
 
+  def getMtilexWriteSize = {
+    this.mtilexPregParams.numWrite.getOrElse(this.getWbPortIndices(MtilexData()).size)
+  }
+
   def getRfReadSize(dataCfg: DataConfig) = {
     dataCfg match{
       case IntData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
@@ -319,6 +335,7 @@ case class BackendParams(
       case VecData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case V0Data() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case VlData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
+      case MtilexData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case _ => throw new IllegalArgumentException(s"DataConfig ${dataCfg} can not get RfReadSize")
     }
   }
@@ -380,6 +397,7 @@ case class BackendParams(
   def getVfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVfWBPort.getOrElse(VfWB(port = -1)).port).filter(_._1 != -1)
   def getV0WBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getV0WBPort.getOrElse(V0WB(port = -1)).port).filter(_._1 != -1)
   def getVlWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
+  def getMtilexWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMtilexWBPort.getOrElse(MtilexWB(port = -1)).port).filter(_._1 != -1)
   def getMfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMfWBPort.getOrElse(MfWB(port = -1)).port).filter(_._1 != -1)
 
   private def isContinuous(portIndices: Seq[Int]): Boolean = {

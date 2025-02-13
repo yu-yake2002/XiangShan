@@ -30,6 +30,10 @@ object RdConfig {
     override def getDataConfig = VlData()
   }
 
+  case class MtilexRD(port: Int = -1, priority: Int = Int.MaxValue) extends RdConfig() {
+    override def getDataConfig = MtilexData()
+  }
+
   case class NoRD() extends RdConfig() {
     override val port: Int = -1
 

@@ -147,6 +147,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
   val numOfWB = Wire(UInt(log2Up(maxUopSize).W))
   val lmul = Wire(UInt(4.W))
   val isVsetSimple = Wire(Bool())
+  val isMsetSimple = Wire(Bool())
 
   val indexedLSRegOffset = Seq.tabulate(MAX_VLMUL)(i => Module(new indexedLSUopTable(i)))
   indexedLSRegOffset.map(_.src := 0.U)
@@ -157,6 +158,8 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
   val vlmulReg = latchedInst.vpu.vlmul
   val vsewReg = latchedInst.vpu.vsew
   val vstartReg = latchedInst.vpu.vstart
+
+  isMsetSimple := latchedInst.isMset
 
   //Type of uop Div
   val typeOfSplit = latchedInst.uopSplitType
@@ -353,6 +356,73 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
         // use bypass vtype from vtypeGen
         csBundle(0).vpu.connectVType(io.vtypeBypass)
         csBundle(1).vpu.connectVType(io.vtypeBypass)
+      }
+    }
+    is(UopSplitType.MSET) {
+      when(isMsetSimple) {
+        // Default
+        // uop0 set rd
+        // csBundle(0).fuType := 
+        // csBundle(0).flushPipe := Mux(VSETOpType.isVsetvl(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
+        csBundle(0).blockBackward := false.B
+        csBundle(0).rfWen := true.B
+        // uop1 set mtilex
+        // csBundle(1).ldest := 
+        csBundle(1).vecWen := false.B
+        csBundle(1).mtilexWen := true.B
+        csBundle(1).flushPipe := false.B
+        // csBundle(1).blockBackward := Mux(VSETOpType.isVsetvl(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
+        when(MatrixSETOpType.isMsettilexi(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
+          // write nothing, uop0 is a nop instruction
+          csBundle(0).rfWen := false.B
+          csBundle(0).fpWen := false.B
+          csBundle(0).vecWen := false.B
+          csBundle(0).vlWen := false.B
+          csBundle(0).mtilexWen := false.B
+          // csBundle(1).fuType := FuType.vsetfwf.U
+          csBundle(1).srcType(0) := SrcType.no
+          csBundle(1).srcType(2) := SrcType.no
+          csBundle(1).srcType(3) := SrcType.no
+          csBundle(1).srcType(4) := SrcType.mp
+          // csBundle(1).lsrc(4) := Vl_IDX.U
+        }.elsewhen(MatrixSETOpType.isMsettilex(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
+          // uop0: mv vtype gpr to vector region
+          csBundle(0).srcType(0) := SrcType.xp
+          csBundle(0).srcType(1) := SrcType.no
+          csBundle(0).lsrc(0) := src2
+          csBundle(0).lsrc(1) := 0.U
+          csBundle(0).ldest := VECTOR_TMP_REG_LMUL.U
+          csBundle(0).fuType := FuType.i2v.U
+          csBundle(0).fuOpType := Cat(IF2VectorType.i2Vec(2, 0), e64)
+          csBundle(0).rfWen := false.B
+          csBundle(0).fpWen := false.B
+          csBundle(0).vecWen := true.B
+          csBundle(0).vlWen := false.B
+          // uop1: uvsetvcfg_vv
+          csBundle(1).fuType := FuType.vsetfwf.U
+          // vl
+          csBundle(1).srcType(0) := SrcType.no
+          csBundle(1).srcType(2) := SrcType.no
+          csBundle(1).srcType(3) := SrcType.no
+          csBundle(1).srcType(4) := SrcType.mp
+          // csBundle(1).lsrc(4) := Vl_IDX.U
+          // vtype
+          csBundle(1).srcType(1) := SrcType.mp
+          csBundle(1).lsrc(1) := VECTOR_TMP_REG_LMUL.U
+          csBundle(1).vecWen := false.B
+          csBundle(1).vlWen := true.B
+          // csBundle(1).ldest := Vl_IDX.U
+        }.elsewhen(dest === 0.U) {
+          // write nothing, uop0 is a nop instruction
+          csBundle(0).rfWen := false.B
+          csBundle(0).fpWen := false.B
+          csBundle(0).vecWen := false.B
+          csBundle(0).vlWen := false.B
+          csBundle(0).mtilexWen := false.B
+        }
+        // use bypass mtype from mtypeGen
+        csBundle(0).mpu.connectMType(io.mtypeBypass)
+        csBundle(1).mpu.connectMType(io.mtypeBypass)
       }
     }
     is(UopSplitType.VEC_VVV) {

@@ -26,6 +26,7 @@ import xiangshan.backend.Bundles._
 import xiangshan.backend.datapath.WbConfig._
 import xiangshan.backend.issue.SchdBlockParams
 import xiangshan.backend.datapath.{DataSource}
+import xiangshan.backend.fu.matrix.Bundles.Mtilex
 
 class BusyTableReadIO(implicit p: Parameters) extends XSBundle {
   val req = Input(UInt(PhyRegIdxWidth.W))
@@ -39,6 +40,11 @@ class VlBusyTableReadIO(implicit p: Parameters) extends XSBundle {
   val is_vlmax = Output(Bool())
 }
 
+class MtilexBusyTableReadIO(implicit p: Parameters) extends XSBundle {
+  val is_zero = Output(Bool())
+  val is_mtilexmax = Output(Bool())
+}
+
 class BusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB: PregWB)(implicit p: Parameters) extends XSModule with HasPerfEvents {
   val io = IO(new Bundle() {
     // set preg state to busy
@@ -49,6 +55,7 @@ class BusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB:
     val wakeUpInt = Flipped(backendParams.intSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpFp = Flipped(backendParams.fpSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpVec = Flipped(backendParams.vfSchdParams.get.genIQWakeUpOutValidBundle)
+    val wakeUpMf = Flipped(backendParams.mfSchdParams.get.genIQWakeUpOutValidBundle)
     val wakeUpMem = Flipped(backendParams.memSchdParams.get.genIQWakeUpOutValidBundle)
     // cancelFromDatapath
     val og0Cancel = Input(ExuVec())
@@ -72,23 +79,28 @@ class BusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB:
   val vlBusyTableNeedLoadCancel = allExuParams.map(x =>
     x.needLoadDependency && x.writeVlRf && x.iqWakeUpSourcePairs.map(y => y.sink.getExuParam(allExuParams).readVlRf).foldLeft(false)(_ || _)
   ).reduce(_ || _)
+  val mtilexBusyTableNeedLoadCancel = allExuParams.map(x =>
+    x.needLoadDependency && x.writeMtilexRf && x.iqWakeUpSourcePairs.map(y => y.sink.getExuParam(allExuParams).readMtilexRf).foldLeft(false)(_ || _)
+  ).reduce(_ || _)
   val needLoadCancel = pregWB match {
     case IntWB(_, _) => intBusyTableNeedLoadCancel
     case FpWB(_, _) => fpBusyTableNeedLoadCancel
     case VfWB(_, _) => vfBusyTableNeedLoadCancel
     case V0WB(_, _) => v0BusyTableNeedLoadCancel
     case VlWB(_, _) => vlBusyTableNeedLoadCancel
+    case MtilexWB(_, _) => mtilexBusyTableNeedLoadCancel
     case _ => throw new IllegalArgumentException(s"WbConfig ${pregWB} is not permitted")
   }
   if (!needLoadCancel) println(s"[BusyTable]: WbConfig ${pregWB} busyTable don't need loadCancel")
   val loadCancel = if (needLoadCancel) io.ldCancel else 0.U.asTypeOf(io.ldCancel)
-  val allWakeUp = io.wakeUpInt ++ io.wakeUpFp ++ io.wakeUpVec ++ io.wakeUpMem
+  val allWakeUp = io.wakeUpInt ++ io.wakeUpFp ++ io.wakeUpVec ++ io.wakeUpMf ++ io.wakeUpMem
   val wakeUpIn = pregWB match {
     case IntWB(_, _) => allWakeUp.filter{x => x.bits.params.writeIntRf && (x.bits.params.hasLoadExu || x.bits.params.hasAluFu)}
     case FpWB(_, _) => allWakeUp.filter{x => x.bits.params.writeFpRf && !x.bits.params.hasLoadExu}
     case VfWB(_, _) => allWakeUp.filter(_.bits.params.writeVfRf)
     case V0WB(_, _) => allWakeUp.filter(_.bits.params.writeV0Rf)
     case VlWB(_, _) => allWakeUp.filter(_.bits.params.writeVlRf)
+    case MtilexWB(_, _) => allWakeUp.filter(_.bits.params.writeMtilexRf)
     case _ => throw new IllegalArgumentException(s"WbConfig ${pregWB} is not permitted")
   }
   val loadDependency = RegInit(0.U.asTypeOf(Vec(numPhyPregs, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W)))))
@@ -121,6 +133,7 @@ class BusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB:
       case VfWB(_, _)  => wakeUpIn.map(x => x.valid && x.bits.vecWen && UIntToOH(x.bits.pdest)(idx) && !LoadShouldCancel(Some(x.bits.loadDependency), loadCancel) && !(x.bits.is0Lat && io.og0Cancel(x.bits.params.exuIdx)))
       case V0WB(_, _)  => wakeUpIn.map(x => x.valid && x.bits.v0Wen  && UIntToOH(x.bits.pdest)(idx) && !LoadShouldCancel(Some(x.bits.loadDependency), loadCancel) && !(x.bits.is0Lat && io.og0Cancel(x.bits.params.exuIdx)))
       case VlWB(_, _)  => wakeUpIn.map(x => x.valid && x.bits.vlWen  && UIntToOH(x.bits.pdest)(idx) && !LoadShouldCancel(Some(x.bits.loadDependency), loadCancel) && !(x.bits.is0Lat && io.og0Cancel(x.bits.params.exuIdx)))
+      case MtilexWB(_, _) => wakeUpIn.map(x => x.valid && x.bits.mtilexWen && UIntToOH(x.bits.pdest)(idx) && !LoadShouldCancel(Some(x.bits.loadDependency), loadCancel) && !(x.bits.is0Lat && io.og0Cancel(x.bits.params.exuIdx)))
       case _ => throw new IllegalArgumentException(s"WbConfig ${pregWB} is not permitted")
     }
     wakeupOH := (if (wakeUpIn.nonEmpty) VecInit(tmp.toSeq).asUInt else 0.U)
@@ -257,3 +270,67 @@ class VlBusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregW
   }
 }
 
+class MtilexBusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB: PregWB)(implicit p: Parameters) extends BusyTable(numReadPorts, numWritePorts, numPhyPregs, pregWB) {
+
+  val io_mtilex_Wb = IO(new Bundle() {
+    val mtilexWriteBackInfo = new Bundle {
+      val mtilexFromIntIsZero  = Input(Bool())
+      val mtilexFromIntIsMtilexmax = Input(Bool())
+      val mtilexFromMfIsZero   = Input(Bool())
+      val mtilexFromMfIsMtilexmax  = Input(Bool())
+    }
+  })
+  val io_mtilex_read = IO(new Bundle() {
+    val mtilexReadInfo = Vec(numReadPorts, new MtilexBusyTableReadIO)
+  })
+
+  var intSchdMtilexWbPort = p(XSCoreParamsKey).intSchdMtilexWbPort
+  var mfSchdMtilexWbPort = p(XSCoreParamsKey).mfSchdMtilexWbPort
+
+  val zeroTableUpdate = Wire(Vec(numPhyPregs, Bool()))
+  val mtilexmaxTableUpdate = Wire(Vec(numPhyPregs, Bool()))
+
+  val intMtilexWb = Mux(io.wbPregs(intSchdMtilexWbPort).valid, UIntToOH(io.wbPregs(intSchdMtilexWbPort).bits), 0.U)
+  val mfMtilexWb = Mux(io.wbPregs(mfSchdMtilexWbPort).valid, UIntToOH(io.wbPregs(mfSchdMtilexWbPort).bits), 0.U)
+
+  val zeroTable = VecInit((0 until numPhyPregs).zip(zeroTableUpdate).map{ case (idx, update) =>
+    RegEnable(update, 0.U(1.W), allocMask(idx) || ldCancelMask(idx) || intMtilexWb(idx) || mfMtilexWb(idx))
+  }).asUInt
+  val mtilexmaxTable = VecInit((0 until numPhyPregs).zip(mtilexmaxTableUpdate).map{ case (idx, update) =>
+    RegEnable(update, 0.U(1.W), allocMask(idx) || ldCancelMask(idx) || intMtilexWb(idx) || mfMtilexWb(idx))
+  }).asUInt
+
+
+  zeroTableUpdate.zipWithIndex.foreach{ case (update, idx) =>
+    when(intMtilexWb(idx)) {
+      // int schd mtilex write back, check whether the mtilex is zero
+      update := !io_mtilex_Wb.mtilexWriteBackInfo.mtilexFromIntIsZero
+    }.elsewhen(mfMtilexWb(idx)) {
+      // mf schd mtilex write back, check whether the mtilex is zero
+      update := !io_mtilex_Wb.mtilexWriteBackInfo.mtilexFromMfIsZero
+    }.elsewhen(allocMask(idx) || ldCancelMask(idx)) {
+      update := true.B
+    }.otherwise {
+      update := zeroTable(idx)
+    }
+  }
+
+  mtilexmaxTableUpdate.zipWithIndex.foreach{ case (update, idx) =>
+    when(intMtilexWb(idx)) {
+      // int schd vl write back, check whether the vl is vlmax
+      update := !io_mtilex_Wb.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax
+    }.elsewhen(mfMtilexWb(idx)) {
+      // vf schd vl write back, check whether the vl is vlmax
+      update := !io_mtilex_Wb.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax
+    }.elsewhen(allocMask(idx) || ldCancelMask(idx)) {
+      update := true.B
+    }.otherwise {
+      update := mtilexmaxTable(idx)
+    }
+  }
+
+  io_mtilex_read.mtilexReadInfo.zip(io.read).foreach{ case (mtilexRes, res) =>
+    mtilexRes.is_zero := !zeroTable(res.req)
+    mtilexRes.is_mtilexmax := !mtilexmaxTable(res.req)
+  }
+}

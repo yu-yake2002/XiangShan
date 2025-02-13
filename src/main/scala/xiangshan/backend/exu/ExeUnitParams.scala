@@ -39,8 +39,8 @@ case class ExeUnitParams(
   val numVfSrc: Int = fuConfigs.map(_.numVfSrc).max
   val numV0Src: Int = fuConfigs.map(_.numV0Src).max
   val numVlSrc: Int = fuConfigs.map(_.numVlSrc).max
-  val numMatrixSrc: Int = fuConfigs.map(_.numMatrixSrc).max
-  val numMfSrc: Int = fuConfigs.map(_.numMfSrc).max
+  val numMtilexSrc: Int = fuConfigs.map(_.numMtilexSrc).max
+  // val numMfSrc: Int = fuConfigs.map(_.numMfSrc).max
   val numRegSrc: Int = fuConfigs.map(_.numRegSrc).max
   val numSrc: Int = fuConfigs.map(_.numSrc).max
   val destDataBitsMax: Int = fuConfigs.map(_.destDataBits).max
@@ -50,16 +50,19 @@ case class ExeUnitParams(
   val readVecRf: Boolean = numVecSrc > 0
   val readVfRf: Boolean = numVfSrc > 0
   val readVlRf: Boolean = numVlSrc > 0
+  val readMtilexRf: Boolean = numMtilexSrc > 0
   val writeIntRf: Boolean = fuConfigs.map(_.writeIntRf).reduce(_ || _)
   val writeFpRf: Boolean = fuConfigs.map(_.writeFpRf).reduce(_ || _)
   val writeVecRf: Boolean = fuConfigs.map(_.writeVecRf).reduce(_ || _)
   val writeV0Rf: Boolean = fuConfigs.map(_.writeV0Rf).reduce(_ || _)
   val writeVlRf: Boolean = fuConfigs.map(_.writeVlRf).reduce(_ || _)
+  val writeMtilexRf: Boolean = fuConfigs.map(_.writeMtilexRf).reduce(_ || _)
   val needIntWen: Boolean = fuConfigs.map(_.needIntWen).reduce(_ || _)
   val needFpWen: Boolean = fuConfigs.map(_.needFpWen).reduce(_ || _)
   val needVecWen: Boolean = fuConfigs.map(_.needVecWen).reduce(_ || _)
   val needV0Wen: Boolean = fuConfigs.map(_.needV0Wen).reduce(_ || _)
   val needVlWen: Boolean = fuConfigs.map(_.needVlWen).reduce(_ || _)
+  val needMtilexWen: Boolean = fuConfigs.map(_.needMtilexWen).reduce(_ || _)
   val needOg2: Boolean = fuConfigs.map(_.needOg2).reduce(_ || _)
   val writeVfRf: Boolean = writeVecRf
   val writeFflags: Boolean = fuConfigs.map(_.writeFflags).reduce(_ || _)
@@ -84,6 +87,7 @@ case class ExeUnitParams(
   val writeVConfig: Boolean = fuConfigs.map(_.writeVlRf).reduce(_ || _)
   val writeVType: Boolean = fuConfigs.map(_.writeVType).reduce(_ || _)
   val writeMType: Boolean = fuConfigs.map(_.writeMType).reduce(_ || _)
+  val writeMtilex: Boolean = fuConfigs.map(_.writeMtilexRf).reduce(_ || _)
   val needCriticalErrors: Boolean = fuConfigs.map(_.needCriticalErrors).reduce(_ || _)
   val isHighestWBPriority: Boolean = wbPortConfigs.forall(_.priority == 0)
 
@@ -105,13 +109,15 @@ case class ExeUnitParams(
   val wbNeedVecWen : Boolean = writeVecRf && !isMemExeUnit
   val wbNeedV0Wen  : Boolean = writeV0Rf  && !isMemExeUnit
   val wbNeedVlWen  : Boolean = writeVlRf  && !isMemExeUnit
-  val wbPathNum: Int = Seq(wbNeedIntWen, wbNeedFpWen, wbNeedVecWen, wbNeedV0Wen, wbNeedVlWen).count(_ == true) + 1
+  val wbNeedMtilexWen : Boolean = writeMtilexRf && !isMemExeUnit
+  val wbPathNum: Int = Seq(wbNeedIntWen, wbNeedFpWen, wbNeedVecWen, wbNeedV0Wen, wbNeedVlWen, wbNeedMtilexWen).count(_ == true) + 1
   val wbNeeds = Seq(
     ("int", wbNeedIntWen),
     ("fp", wbNeedFpWen),
     ("vec", wbNeedVecWen),
     ("v0", wbNeedV0Wen),
-    ("vl", wbNeedVlWen)
+    ("vl", wbNeedVlWen),
+    ("mtilex", wbNeedMtilexWen)
   )
   val wbIndexeds = wbNeeds.filter(_._2).zipWithIndex.map {
     case ((label, _), index) => (label, index + 1)
@@ -121,7 +127,8 @@ case class ExeUnitParams(
   val wbVecIndex: Int = wbIndexeds.getOrElse("vec", 0)
   val wbV0Index : Int = wbIndexeds.getOrElse("v0" , 0)
   val wbVlIndex : Int = wbIndexeds.getOrElse("vl" , 0)
-  val wbIndex: Seq[Int] = Seq(wbIntIndex, wbFpIndex, wbVecIndex, wbV0Index, wbVlIndex)
+  val wbMtilexIndex: Int = wbIndexeds.getOrElse("mtilex", 0)
+  val wbIndex: Seq[Int] = Seq(wbIntIndex, wbFpIndex, wbVecIndex, wbV0Index, wbVlIndex, wbMtilexIndex)
 
 
   def copyNum: Int = {
@@ -149,6 +156,7 @@ case class ExeUnitParams(
   val writeVfFuConfigs: Seq[FuConfig] = fuConfigs.filter(x => x.writeVecRf)
   val writeV0FuConfigs: Seq[FuConfig] = fuConfigs.filter(x => x.writeV0Rf)
   val writeVlFuConfigs: Seq[FuConfig] = fuConfigs.filter(x => x.writeVlRf)
+  val writeMtilexFuConfigs: Seq[FuConfig] = fuConfigs.filter(x => x.writeMtilexRf)
 
   /**
     * Check if this exu has certain latency
@@ -159,6 +167,7 @@ case class ExeUnitParams(
   def vfLatencyCertain: Boolean = writeVfFuConfigs.forall(x => x.latency.latencyVal.nonEmpty)
   def v0LatencyCertain: Boolean = writeV0FuConfigs.forall(x => x.latency.latencyVal.nonEmpty)
   def vlLatencyCertain: Boolean = writeVlFuConfigs.forall(x => x.latency.latencyVal.nonEmpty)
+  def mtilexLatencyCertain: Boolean = writeMtilexFuConfigs.forall(x => x.latency.latencyVal.nonEmpty)
   // only load use it
   def hasUncertainLatencyVal: Boolean = fuConfigs.map(x => x.latency.uncertainLatencyVal.nonEmpty).reduce(_ || _)
 
@@ -248,6 +257,15 @@ case class ExeUnitParams(
   }
 
   def vlLatencyValMax: Int = vlFuLatencyMap.values.fold(0)(_ max _)
+
+  def mtilexFuLatencyMap: Map[FuType.OHType, Int] = {
+    if (mtilexLatencyCertain)
+      if(needOg2) writeMtilexFuConfigs.map(x => (x.fuType, x.latency.latencyVal.get + 1)).toMap else writeMtilexFuConfigs.map(x => (x.fuType, x.latency.latencyVal.get)).toMap
+    else
+      Map()
+  }
+
+  def mtilexLatencyValMax: Int = mtilexFuLatencyMap.values.fold(0)(_ max _)
 
   /**
     * Check if this exu has fixed latency
@@ -374,6 +392,12 @@ case class ExeUnitParams(
   def getVlWBPort = {
     wbPortConfigs.collectFirst {
       case x: VlWB => x
+    }
+  }
+
+  def getMtilexWBPort = {
+    wbPortConfigs.collectFirst {
+      case x: MtilexWB => x
     }
   }
 

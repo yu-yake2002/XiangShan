@@ -23,8 +23,9 @@ case class WbArbiterParams(
     case _: WbConfig.VfWB => pregParams.numWrite.getOrElse(backendParams.getWbPortIndices(VecData()).size)
     case _: WbConfig.V0WB => pregParams.numWrite.getOrElse(backendParams.getWbPortIndices(V0Data()).size)
     case _: WbConfig.VlWB => pregParams.numWrite.getOrElse(backendParams.getWbPortIndices(VlData()).size)
+    case _: WbConfig.MtilexWB => pregParams.numWrite.getOrElse(backendParams.getWbPortIndices(MtilexData()).size)
     case x =>
-      assert(assertion = false, s"the WbConfig in WbArbiterParams should be either IntWB or FpWB or VfWB or V0WB or VlWB, found ${x.getClass}")
+      assert(assertion = false, s"the WbConfig in WbArbiterParams should be either IntWB or FpWB or VfWB or V0WB or VlWB or MtilexWB, found ${x.getClass}")
       0
   }
 
@@ -46,6 +47,7 @@ case class WbArbiterParams(
             case VecData() => VfWB(port = x)
             case V0Data()  => V0WB(port = x)
             case VlData()  => VlWB(port = x)
+            case MtilexData() => MtilexWB(port = x)
             case _ => ???
           },
           backendParams

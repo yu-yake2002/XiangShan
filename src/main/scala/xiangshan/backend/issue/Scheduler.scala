@@ -24,8 +24,8 @@ case class IntScheduler() extends SchedulerType
 case class FpScheduler() extends SchedulerType
 case class MemScheduler() extends SchedulerType
 case class VfScheduler() extends SchedulerType
-case class NoScheduler() extends SchedulerType
 case class MfScheduler() extends SchedulerType
+case class NoScheduler() extends SchedulerType
 
 class Scheduler(val params: SchdBlockParams)(implicit p: Parameters) extends LazyModule with HasXSParameter {
   override def shouldBeInlined: Boolean = false
@@ -35,6 +35,7 @@ class Scheduler(val params: SchdBlockParams)(implicit p: Parameters) extends Laz
   val numVfStateWrite = backendParams.numPregWb(VecData())
   val numV0StateWrite = backendParams.numPregWb(V0Data())
   val numVlStateWrite = backendParams.numPregWb(VlData())
+  val numMtilexStateWrite = backendParams.numPregWb(MtilexData())
 
   val issueQueue = params.issueBlockParams.map(x => LazyModule(new IssueQueue(x).suggestName(x.getIQName)))
 
@@ -80,6 +81,8 @@ class SchedulerIO()(implicit params: SchdBlockParams, p: Parameters) extends XSB
     new RfWritePortWithConfig(backendParams.v0PregParams.dataCfg, backendParams.v0PregParams.addrWidth)))
   val vlWriteBack = MixedVec(Vec(backendParams.numPregWb(VlData()),
     new RfWritePortWithConfig(backendParams.vlPregParams.dataCfg, backendParams.vlPregParams.addrWidth)))
+  val mtilexWriteBack = MixedVec(Vec(backendParams.numPregWb(MtilexData()),
+    new RfWritePortWithConfig(backendParams.mtilexPregParams.dataCfg, backendParams.mtilexPregParams.addrWidth)))
   val intWriteBackDelayed = MixedVec(Vec(backendParams.numPregWb(IntData()),
     new RfWritePortWithConfig(backendParams.intPregParams.dataCfg, backendParams.intPregParams.addrWidth)))
   val fpWriteBackDelayed = MixedVec(Vec(backendParams.numPregWb(FpData()),
@@ -90,6 +93,8 @@ class SchedulerIO()(implicit params: SchdBlockParams, p: Parameters) extends XSB
     new RfWritePortWithConfig(backendParams.v0PregParams.dataCfg, backendParams.v0PregParams.addrWidth)))
   val vlWriteBackDelayed = MixedVec(Vec(backendParams.numPregWb(VlData()),
     new RfWritePortWithConfig(backendParams.vlPregParams.dataCfg, backendParams.vlPregParams.addrWidth)))
+  val mtilexWriteBackDelayed = MixedVec(Vec(backendParams.numPregWb(MtilexData()),
+    new RfWritePortWithConfig(backendParams.mtilexPregParams.dataCfg, backendParams.mtilexPregParams.addrWidth)))
   val toDataPathAfterDelay: MixedVec[MixedVec[DecoupledIO[IssueQueueIssueBundle]]] = MixedVec(params.issueBlockParams.map(_.genIssueDecoupledBundle))
 
   val vlWriteBackInfo = new Bundle {
@@ -97,6 +102,13 @@ class SchedulerIO()(implicit params: SchdBlockParams, p: Parameters) extends XSB
     val vlFromIntIsVlmax = Input(Bool())
     val vlFromVfIsZero   = Input(Bool())
     val vlFromVfIsVlmax  = Input(Bool())
+  }
+
+  val mtilexWriteBackInfo = new Bundle {
+    val mtilexFromIntIsZero      = Input(Bool())
+    val mtilexFromIntIsMtilexmax = Input(Bool())
+    val mtilexFromMfIsZero       = Input(Bool())
+    val mtilexFromMfIsMtilexmax  = Input(Bool())
   }
 
   val fromSchedulers = new Bundle {
@@ -171,16 +183,16 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
   val wakeupFromVfWBVec = Wire(params.genVfWBWakeUpSinkValidBundle)
   val wakeupFromV0WBVec = Wire(params.genV0WBWakeUpSinkValidBundle)
   val wakeupFromVlWBVec = Wire(params.genVlWBWakeUpSinkValidBundle)
-  val wakeupFromMfWBVec = Wire(params.genMfWBWakeUpSinkValidBundle)
+  val wakeupFromMtilexWBVec = Wire(params.genMtilexWBWakeUpSinkValidBundle)
   val wakeupFromIntWBVecDelayed = Wire(params.genIntWBWakeUpSinkValidBundle)
   val wakeupFromFpWBVecDelayed = Wire(params.genFpWBWakeUpSinkValidBundle)
   val wakeupFromVfWBVecDelayed = Wire(params.genVfWBWakeUpSinkValidBundle)
   val wakeupFromV0WBVecDelayed = Wire(params.genV0WBWakeUpSinkValidBundle)
   val wakeupFromVlWBVecDelayed = Wire(params.genVlWBWakeUpSinkValidBundle)
-  val wakeupFromMfWBVecDelayed = Wire(params.genMfWBWakeUpSinkValidBundle)
+  val wakeupFromMtilexWBVecDelayed = Wire(params.genMtilexWBWakeUpSinkValidBundle)
 
-  val wakeupFromWBVec = Seq(wakeupFromIntWBVec, wakeupFromFpWBVec, wakeupFromVfWBVec, wakeupFromV0WBVec, wakeupFromVlWBVec)
-  val allWriteBack = Seq(io.intWriteBack, io.fpWriteBack, io.vfWriteBack, io.v0WriteBack, io.vlWriteBack)
+  val wakeupFromWBVec = Seq(wakeupFromIntWBVec, wakeupFromFpWBVec, wakeupFromVfWBVec, wakeupFromV0WBVec, wakeupFromVlWBVec, wakeupFromMtilexWBVec)
+  val allWriteBack = Seq(io.intWriteBack, io.fpWriteBack, io.vfWriteBack, io.v0WriteBack, io.vlWriteBack, io.mtilexWriteBack)
   wakeupFromWBVec.zip(allWriteBack).map{ case (sinks, sources) =>
     sinks.zip(sources).map{ case (sink, source) =>
       sink.valid := source.wen
@@ -189,12 +201,13 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
       sink.bits.vecWen := source.vecWen
       sink.bits.v0Wen := source.v0Wen
       sink.bits.vlWen := source.vlWen
+      sink.bits.mtilexWen := source.mtilexWen
       sink.bits.pdest := source.addr
     }
   }
 
-  val wakeupFromWBVecDelayed = Seq(wakeupFromIntWBVecDelayed, wakeupFromFpWBVecDelayed, wakeupFromVfWBVecDelayed, wakeupFromV0WBVecDelayed, wakeupFromVlWBVecDelayed)
-  val allWriteBackDelayed = Seq(io.intWriteBackDelayed, io.fpWriteBackDelayed, io.vfWriteBackDelayed, io.v0WriteBackDelayed, io.vlWriteBackDelayed)
+  val wakeupFromWBVecDelayed = Seq(wakeupFromIntWBVecDelayed, wakeupFromFpWBVecDelayed, wakeupFromVfWBVecDelayed, wakeupFromV0WBVecDelayed, wakeupFromVlWBVecDelayed, wakeupFromMtilexWBVecDelayed)
+  val allWriteBackDelayed = Seq(io.intWriteBackDelayed, io.fpWriteBackDelayed, io.vfWriteBackDelayed, io.v0WriteBackDelayed, io.vlWriteBackDelayed, io.mtilexWriteBackDelayed)
   wakeupFromWBVecDelayed.zip(allWriteBackDelayed).map { case (sinks, sources) =>
     sinks.zip(sources).map { case (sink, source) =>
       sink.valid := source.wen
@@ -203,6 +216,7 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
       sink.bits.vecWen := source.vecWen
       sink.bits.v0Wen := source.v0Wen
       sink.bits.vlWen := source.vlWen
+      sink.bits.mtilexWen := source.mtilexWen
       sink.bits.pdest := source.addr
     }
   }
@@ -222,6 +236,7 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
         if (wakeUpIn.bits.vecWenCopy.nonEmpty) wakeUp.bits.vecWen := wakeUpIn.bits.vecWenCopy.get(backendParams.getCopyPdestIndex(exuIdx))
         if (wakeUpIn.bits.v0WenCopy.nonEmpty) wakeUp.bits.v0Wen := wakeUpIn.bits.v0WenCopy.get(backendParams.getCopyPdestIndex(exuIdx))
         if (wakeUpIn.bits.vlWenCopy.nonEmpty) wakeUp.bits.vlWen := wakeUpIn.bits.vlWenCopy.get(backendParams.getCopyPdestIndex(exuIdx))
+        if (wakeUpIn.bits.mtilexWenCopy.nonEmpty) wakeUp.bits.mtilexWen := wakeUpIn.bits.mtilexWenCopy.get(backendParams.getCopyPdestIndex(exuIdx))
         if (wakeUpIn.bits.loadDependencyCopy.nonEmpty) wakeUp.bits.loadDependency := wakeUpIn.bits.loadDependencyCopy.get(backendParams.getCopyPdestIndex(exuIdx))
       }
       if (iq.params.numIntSrc == 0) wakeUp.bits.rfWen := false.B
@@ -229,6 +244,7 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
       if (iq.params.numVfSrc == 0)  wakeUp.bits.vecWen := false.B
       if (iq.params.numV0Src == 0)  wakeUp.bits.v0Wen := false.B
       if (iq.params.numVlSrc == 0)  wakeUp.bits.vlWen := false.B
+      if (iq.params.numMtilexSrc == 0)  wakeUp.bits.mtilexWen := false.B
     }
     iq.io.wakeupFromIQDelayed.foreach { wakeUp =>
       val wakeUpIn = iqWakeUpInMapDelayed(wakeUp.bits.exuIdx)
@@ -238,6 +254,7 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
       if (iq.params.numVfSrc == 0) wakeUp.bits.vecWen := false.B
       if (iq.params.numV0Src == 0) wakeUp.bits.v0Wen := false.B
       if (iq.params.numVlSrc == 0) wakeUp.bits.vlWen := false.B
+      if (iq.params.numMtilexSrc == 0) wakeUp.bits.mtilexWen := false.B
     }
     iq.io.og0Cancel := io.fromDataPath.og0Cancel
     iq.io.og1Cancel := io.fromDataPath.og1Cancel
@@ -253,6 +270,10 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
     iq.io.vlFromIntIsZero := io.vlWriteBackInfo.vlFromIntIsZero
     iq.io.vlFromVfIsVlmax := io.vlWriteBackInfo.vlFromVfIsVlmax
     iq.io.vlFromVfIsZero := io.vlWriteBackInfo.vlFromVfIsZero
+    iq.io.mtilexFromIntIsMtilexmax := io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax
+    iq.io.mtilexFromIntIsZero      := io.mtilexWriteBackInfo.mtilexFromIntIsZero
+    iq.io.mtilexFromMfIsMtilexmax  := io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax
+    iq.io.mtilexFromMfIsZero       := io.mtilexWriteBackInfo.mtilexFromMfIsZero
   }
 
   private val iqWakeUpOutMap: Map[Int, ValidIO[IssueQueueIQWakeUpBundle]] =
@@ -356,7 +377,7 @@ class SchedulerArithImp(override val wrapper: Scheduler)(implicit params: SchdBl
       case VfScheduler() => (wakeupFromVfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromV0WBVec.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1))
-      case MfScheduler() => wakeupFromMfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromMfWBPort.keys.toSeq.contains(x._2)).map(_._1)
+      case MfScheduler() => wakeupFromMtilexWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1)
       case _ => null
     }
     val intWBIQDelayed = params.schdType match {
@@ -365,7 +386,7 @@ class SchedulerArithImp(override val wrapper: Scheduler)(implicit params: SchdBl
       case VfScheduler() => (wakeupFromVfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromV0WBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1))
-      case MfScheduler() => wakeupFromMfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromMfWBPort.keys.toSeq.contains(x._2)).map(_._1)
+      case MfScheduler() => wakeupFromMtilexWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1)
       case _ => null
     }
     iq.io.wakeupFromWB.zip(intWBIQ).foreach{ case (sink, source) => sink := source}
@@ -426,14 +447,16 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
       wakeupFromFpWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
       wakeupFromVfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
       wakeupFromV0WBVec.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
-      wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1)
-    ).foreach{ case (sink, source) => sink := source}
+      wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
+      wakeupFromMtilexWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1)
+    ).foreach{ case (sink, source) => sink := source }
     iq.io.wakeupFromWBDelayed.zip(
       wakeupFromIntWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromIntWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
       wakeupFromFpWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
       wakeupFromVfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
       wakeupFromV0WBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
-      wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1)
+      wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
+      wakeupFromMtilexWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1)
     ).foreach { case (sink, source) => sink := source }
   }
 
@@ -490,14 +513,16 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
       wakeupFromFpWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
       wakeupFromVfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
       wakeupFromV0WBVec.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
-      wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
+      wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
+      wakeupFromMtilexWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
     ).foreach{ case (sink, source) => sink := source}
     iq.io.wakeupFromWBDelayed.zip(
       wakeupFromIntWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromIntWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
       wakeupFromFpWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
       wakeupFromVfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
       wakeupFromV0WBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
-      wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
+      wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
+      wakeupFromMtilexWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
     ).foreach { case (sink, source) => sink := source }
     // here disable fp load fast wakeup to std, and no FEX wakeup to std
     iq.io.wakeupFromIQ.map(_.bits.fpWen := false.B)
@@ -536,14 +561,16 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
         wakeupFromFpWBVec.zipWithIndex.filter(x => imp.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
         wakeupFromVfWBVec.zipWithIndex.filter(x => imp.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
         wakeupFromV0WBVec.zipWithIndex.filter(x => imp.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
-        wakeupFromVlWBVec.zipWithIndex.filter(x => imp.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
+        wakeupFromVlWBVec.zipWithIndex.filter(x => imp.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
+        wakeupFromMtilexWBVec.zipWithIndex.filter(x => imp.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
       ).foreach{ case (sink, source) => sink := source}
       imp.io.wakeupFromWBDelayed.zip(
         wakeupFromIntWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromIntWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
         wakeupFromFpWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromFpWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
         wakeupFromVfWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
         wakeupFromV0WBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
-        wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
+        wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq ++
+        wakeupFromMtilexWBVecDelayed.zipWithIndex.filter(x => imp.params.needWakeupFromMtilexWBPort.keys.toSeq.contains(x._2)).map(_._1).toSeq
       ).foreach { case (sink, source) => sink := source }
 
     case _ =>
