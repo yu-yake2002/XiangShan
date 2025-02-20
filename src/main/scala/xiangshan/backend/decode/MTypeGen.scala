@@ -44,13 +44,37 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
   mtypeArch := mtypeArchNext
   mtypeSpec := mtypeSpecNext
 
-  private val instMType: InstMType = firstMsetInstField.ZIMM_MSETMTILEXI.asTypeOf(new InstMType)
-  private val mtypei: MsetMType = MsetMType.fromInstMType(instMType)
-  // TODO: use correct mtype and mask
+  private val instMtype: UInt = firstMsetInstField.IMM_MSET
+  private val instMfield: UInt = firstMsetInstField.IMM_MSETFIELD
+  private val instMsetval: UInt = firstMsetInstField.IMM_MSETVAL
+  private val instUse10bits = (firstMsetInstField.FUNCT3 === "b101".U || 
+    firstMsetInstField.FUNCT3 === "b100".U)
+  private val instMfieldOp: UInt = WireInit(0.U(8.W))
+  switch(instMfield(3, 0)) {
+    is ("b0000".U) { instMfieldOp := MSETtypeOpType.msetsew }
+    is ("b0001".U) { instMfieldOp := MSETtypeOpType.msetint4 }
+    is ("b0010".U) { instMfieldOp := MSETtypeOpType.msetint8 }
+    is ("b0011".U) { instMfieldOp := MSETtypeOpType.msetint16 }
+    is ("b0100".U) { instMfieldOp := MSETtypeOpType.msetint32 }
+    is ("b0101".U) { instMfieldOp := MSETtypeOpType.msetint64 }
+    is ("b0110".U) { instMfieldOp := MSETtypeOpType.msetfp8 }
+    is ("b0111".U) { instMfieldOp := MSETtypeOpType.msetfp16 }
+    is ("b1000".U) { instMfieldOp := MSETtypeOpType.msetfp32 }
+    is ("b1001".U) { instMfieldOp := MSETtypeOpType.msetfp64 }
+    is ("b1010".U) { instMfieldOp := MSETtypeOpType.msetba }
+  }
+  
+  // TODO: use correct oldmtype
   private val msettypeModule = Module(new MsetMtypeModule)
-  msettypeModule.io.in.oldmtype := 0.U.asTypeOf(new MsetMType)
-  msettypeModule.io.in.newmtype := mtypei
-  msettypeModule.io.in.mask := 0.U
+  msettypeModule.io.in.oldmtype := MType.toMsetMType(mtypeSpec)
+  msettypeModule.io.in.newmtype := Mux(instUse10bits, Cat(instMsetval, instMfield), instMsetval)
+  msettypeModule.io.in.func := 0.U
+  switch (firstMsetInstField.FUNCT3) {
+    is ("b100".U) { msettypeModule.io.in.func := MSETtypeOpType.msettypei }
+    is ("b101".U) { msettypeModule.io.in.func := MSETtypeOpType.msettypehi }
+    is ("b110".U) { msettypeModule.io.in.func := instMfieldOp }
+  }
+
   private val mtypeNew = msettypeModule.io.out.mtype
 
   when(io.commitMType.hasMsettype) {
@@ -69,7 +93,7 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
   }.elsewhen(io.walkToArchMType) {
     mtypeSpecNext := mtypeArch
   }.elsewhen(inHasMsettype && io.canUpdateMType) {
-    mtypeSpecNext := mtypeNew
+    mtypeSpecNext := MsetMType.toMType(mtypeNew)
   }
 
   io.mtype := mtypeSpec

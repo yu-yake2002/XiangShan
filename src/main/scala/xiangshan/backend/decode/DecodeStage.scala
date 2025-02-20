@@ -181,7 +181,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
     inst.bits := io.in(i).bits.instr
   }
   // when io.redirect is True, never update mtype
-  mtypeGen.io.canUpdateMType := decoderComp.io.in.fire && decoderComp.io.in.bits.simpleDecodedInst.isMset && !io.redirect
+  mtypeGen.io.canUpdateMType := decoderComp.io.in.fire && decoderComp.io.in.bits.simpleDecodedInst.isMsettype && !io.redirect
   mtypeGen.io.walkToArchMType := io.fromRob.walkToArchMType
   mtypeGen.io.commitMType := io.fromRob.commitMType
   mtypeGen.io.walkMType := io.fromRob.walkMType

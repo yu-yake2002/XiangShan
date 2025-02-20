@@ -410,8 +410,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     sink.bits := source.bits
   }
 
-  private val commitIsMTypeVec = VecInit(io.commits.commitValid.zip(io.commits.info).map { case (valid, info) => io.commits.isCommit && valid && info.isMset })
-  private val walkIsMTypeVec = VecInit(io.commits.walkValid.zip(walkInfo).map { case (valid, info) => io.commits.isWalk && valid && info.isMset })
+  private val commitIsMTypeVec = VecInit(io.commits.commitValid.zip(io.commits.info).map { case (valid, info) => io.commits.isCommit && valid && info.isMsettype })
+  private val walkIsMTypeVec = VecInit(io.commits.walkValid.zip(walkInfo).map { case (valid, info) => io.commits.isWalk && valid && info.isMsettype })
   mtypeBuffer.io.fromRob.commitSize := PopCount(commitIsMTypeVec)
   mtypeBuffer.io.fromRob.walkSize := PopCount(walkIsMTypeVec)
   mtypeBuffer.io.snpt := io.snpt
@@ -1211,7 +1211,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exceptionGen.io.enq(i).bits.isFetchMalAddr := io.enq.req(i).bits.isFetchMalAddr
     exceptionGen.io.enq(i).bits.flushPipe := io.enq.req(i).bits.flushPipe
     exceptionGen.io.enq(i).bits.isVset := io.enq.req(i).bits.isVset
-    exceptionGen.io.enq(i).bits.isMset := io.enq.req(i).bits.isMset
+    exceptionGen.io.enq(i).bits.isMsettilex := io.enq.req(i).bits.isMsettilex
+    exceptionGen.io.enq(i).bits.isMsettype := io.enq.req(i).bits.isMsettype
     exceptionGen.io.enq(i).bits.replayInst := false.B
     XSError(canEnqueue(i) && io.enq.req(i).bits.replayInst, "enq should not set replayInst")
     exceptionGen.io.enq(i).bits.singleStep := io.enq.req(i).bits.singleStep
@@ -1250,7 +1251,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exc_wb.bits.isFetchMalAddr  := false.B
     exc_wb.bits.flushPipe       := wb.bits.flushPipe.getOrElse(false.B)
     exc_wb.bits.isVset          := false.B
-    exc_wb.bits.isMset          := false.B
+    exc_wb.bits.isMsettilex     := false.B
+    exc_wb.bits.isMsettype      := false.B
     exc_wb.bits.replayInst      := wb.bits.replay.getOrElse(false.B)
     exc_wb.bits.singleStep      := false.B
     exc_wb.bits.crossPageIPFFix := false.B

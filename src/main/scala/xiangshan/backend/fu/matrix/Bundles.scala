@@ -68,6 +68,24 @@ object Bundles {
       res
     }
 
+    def toMsetMType(mtype: MType)(implicit p: Parameters) : MsetMType = {
+      val res = Wire(MsetMType())
+      res.illegal  := mtype.illegal
+      res.reserved := 0.U
+      res.mba      := mtype.mba
+      res.mfp64    := mtype.mfp64
+      res.mfp32    := mtype.mfp32
+      res.mfp16    := mtype.mfp16
+      res.mfp8     := mtype.mfp8
+      res.mint64   := mtype.mint64
+      res.mint32   := mtype.mint32
+      res.mint16   := mtype.mint16
+      res.mint8    := mtype.mint8
+      res.mint4    := mtype.mint4
+      res.msew     := mtype.msew
+      res
+    }
+
     def initMtype()(implicit p: Parameters) : MType = {
       val res = Wire(MType())
       res.illegal := false.B
@@ -130,6 +148,23 @@ object Bundles {
       res.mint4 := mtypeStruct.mint4
       res.msew := mtypeStruct.msew
       res.reserved := mtypeStruct.reserved
+      res
+    }
+
+    def toMType(msettype: MsetMType)(implicit p: Parameters): MType = {
+      val res = Wire(MType())
+      res.illegal := msettype.illegal
+      res.mba := msettype.mba
+      res.mfp64 := msettype.mfp64
+      res.mfp32 := msettype.mfp32
+      res.mfp16 := msettype.mfp16
+      res.mfp8 := msettype.mfp8
+      res.mint64 := msettype.mint64
+      res.mint32 := msettype.mint32
+      res.mint16 := msettype.mint16
+      res.mint8 := msettype.mint8
+      res.mint4 := msettype.mint4
+      res.msew := msettype.msew
       res
     }
   }
