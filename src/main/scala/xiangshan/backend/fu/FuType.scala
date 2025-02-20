@@ -149,7 +149,8 @@ object FuType extends OHEnumeration {
   val scalaNeedFrm = Seq(i2f, fmac, fDivSqrt)
   val vectorNeedFrm = Seq(vfalu, vfma, vfdiv, vfcvt)
 
-  val matrixMSET = Seq(msetmtilexiwi, msetmtilexiwf, msetmtilexfwf)
+  val matrixMSETtilex = Seq(msetmtilexiwi, msetmtilexiwf, msetmtilexfwf)
+  val matrixMSETtype = Seq(msetmtypeiwi, msetmtypeiwf)
 
   def X = BitPat.N(num) // Todo: Don't Care
 
@@ -172,8 +173,8 @@ object FuType extends OHEnumeration {
   def isBrh(fuType: UInt): Bool = FuTypeOrR(fuType, Seq(brh))
 
   def isVset(fuType: UInt): Bool = FuTypeOrR(fuType, vecVSET)
-
-  def isMset(fuType: UInt): Bool = FuTypeOrR(fuType, matrixMSET)
+  def isMsettilex(fuType: UInt): Bool = FuTypeOrR(fuType, matrixMSETtilex)
+  def isMsettype(fuType: UInt): Bool = FuTypeOrR(fuType, matrixMSETtype)
 
   def isJump(fuType: UInt): Bool = FuTypeOrR(fuType, jmp)
 

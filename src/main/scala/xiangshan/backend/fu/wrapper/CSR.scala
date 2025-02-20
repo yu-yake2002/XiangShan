@@ -35,12 +35,12 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   val setVxsat = csrIn.vpu.set_vxsat
   val vlFromPreg = csrIn.vpu.vl
 
-  val setMtype = csrIn.matrix.set_mtype
-  val setMsDirty = csrIn.matrix.dirty_ms
-  val setMstart = csrIn.matrix.set_mstart
-  val mtilemFromPreg = csrIn.matrix.mtilem
-  val mtilenFromPreg = csrIn.matrix.mtilen
-  val mtilekFromPreg = csrIn.matrix.mtilek
+  val setMtype = csrIn.mpu.set_mtype
+  val setMsDirty = csrIn.mpu.dirty_ms
+  val setMstart = csrIn.mpu.set_mstart
+  val mtilemFromPreg = csrIn.mpu.mtilem
+  val mtilenFromPreg = csrIn.mpu.mtilen
+  val mtilekFromPreg = csrIn.mpu.mtilek
 
   val flushPipe = Wire(Bool())
   val flush = io.flush.valid
@@ -343,7 +343,7 @@ class CSR(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg)
   csrOut.vpu.vstart := csrMod.io.status.vecState.vstart.asUInt
   csrOut.vpu.vxrm   := csrMod.io.status.vecState.vxrm.asUInt
 
-  csrOut.matrix.mstart := csrMod.io.status.matrixState.mstart.asUInt
+  csrOut.mpu.mstart := csrMod.io.status.matrixState.mstart.asUInt
 
   csrOut.isXRet := isXRet
 

@@ -37,11 +37,11 @@ class MsetMtilexModule(implicit p: Parameters) extends XSModule {
 
   private val outMtilex = io.out.mtilex
 
-  private val isMsetMtilem = MatrixSETOpType.isMsetMtilem(func)
-  private val isMsetMtilen = MatrixSETOpType.isMsetMtilen(func)
-  private val isMsetMtilek = MatrixSETOpType.isMsetMtilek(func)
+  private val isMsetMtilem = MSETtilexOpType.isMsetMtilem(func)
+  private val isMsetMtilen = MSETtilexOpType.isMsetMtilen(func)
+  private val isMsetMtilek = MSETtilexOpType.isMsetMtilek(func)
 
-  private val isMsetMtilexmax = MatrixSETOpType.isMsetMtilexmax(func)
+  private val isMsetMtilexmax = MSETtilexOpType.isMsetMtilexmax(func)
 
   private val msew : UInt = mtype.msew
 
@@ -93,42 +93,74 @@ class MsetMtilexModule(implicit p: Parameters) extends XSModule {
 class MsetMtypeModuleIO(implicit p: Parameters) extends XSBundle {
   val in = Input(new Bundle {
     val oldmtype : MsetMType = MsetMType()
-    val newmtype : MsetMType = MsetMType()
-    val mask : UInt = UInt(XLEN.W)
+    val newmtype : UInt      = UInt(XLEN.W)
+    // Function code
+    val func  : UInt = FuOpType()
   })
 
   val out = Output(new Bundle {
-    val mtype : MType = MType()
+    val mtype : MsetMType = MsetMType()
   })
 }
 
 class MsetMtypeModule(implicit p: Parameters) extends XSModule {
   val io = IO(new MsetMtypeModuleIO)
 
-  private val mtype = ((io.in.newmtype.asUInt & io.in.mask) |
-                       (io.in.oldmtype.asUInt & ~io.in.mask)).asTypeOf(MsetMType())
+  val updatemtype = WireInit(io.in.oldmtype)
+  switch(io.in.func) {
+    is (MSETtypeOpType.msetsew)    { updatemtype.msew   := io.in.newmtype(2, 0) }
+    is (MSETtypeOpType.msetint4)   { updatemtype.mint4  := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetint8)   { updatemtype.mint8  := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetint16)  { updatemtype.mint16 := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetint32)  { updatemtype.mint32 := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetint64)  { updatemtype.mint64 := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetfp8)    { updatemtype.mfp8   := io.in.newmtype(1, 0) }
+    is (MSETtypeOpType.msetfp16)   { updatemtype.mfp16  := io.in.newmtype(1, 0) }
+    is (MSETtypeOpType.msetfp32)   { updatemtype.mfp32  := io.in.newmtype(1, 0) }
+    is (MSETtypeOpType.msetfp64)   { updatemtype.mfp64  := io.in.newmtype(0) }
+    is (MSETtypeOpType.msetba)     { updatemtype.mba    := io.in.newmtype(0) }
+    is (MSETtypeOpType.msettype)   { updatemtype        := io.in.newmtype.asTypeOf(updatemtype) }
+    is (MSETtypeOpType.msettypei)  { 
+      updatemtype.mfp8   := io.in.newmtype(9, 8)
+      updatemtype.mint64 := io.in.newmtype(7)
+      updatemtype.mint32 := io.in.newmtype(6)
+      updatemtype.mint16 := io.in.newmtype(5)
+      updatemtype.mint8  := io.in.newmtype(4)
+      updatemtype.mint4  := io.in.newmtype(3)
+      updatemtype.msew   := io.in.newmtype(2, 0)
+    }
+    is (MSETtypeOpType.msettypehi) {
+      updatemtype.reserved := Cat(io.in.oldmtype.reserved(46, 3), io.in.newmtype(9, 7))
+      updatemtype.mba      := io.in.newmtype(6)
+      updatemtype.mfp64    := io.in.newmtype(5, 4)
+      updatemtype.mfp32    := io.in.newmtype(3, 2)
+      updatemtype.mfp16    := io.in.newmtype(1, 0)
+    }
+  }
   
-  private val outMtype = io.out.mtype
+  private val outMtype = WireInit(0.U.asTypeOf(updatemtype))
 
-  private val msew : UInt = mtype.msew
+  private val msew : UInt = updatemtype.msew
 
   // Check illegal cases
   private val log2Msew = msew(MSew.width - 1, 0) +& "b011".U
   private val log2MsewMax = log2Up(ELEN).U
   private val sewIllegal = MSew.isReserved(msew) || (log2Msew > log2MsewMax)
-  private val reservedIllegal = mtype.reserved.orR
-  private val illegal = sewIllegal | reservedIllegal | mtype.illegal
+  private val reservedIllegal = updatemtype.reserved.orR
+  private val illegal = sewIllegal | reservedIllegal | updatemtype.illegal
 
   outMtype.illegal := illegal
-  outMtype.mba     := Mux(illegal, 0.U, mtype.mba)
-  outMtype.mfp64   := Mux(illegal, 0.U, mtype.mfp64)
-  outMtype.mfp32   := Mux(illegal, 0.U, mtype.mfp32)
-  outMtype.mfp16   := Mux(illegal, 0.U, mtype.mfp16)
-  outMtype.mfp8    := Mux(illegal, 0.U, mtype.mfp8)
-  outMtype.mint64  := Mux(illegal, 0.U, mtype.mint64)
-  outMtype.mint32  := Mux(illegal, 0.U, mtype.mint32)
-  outMtype.mint16  := Mux(illegal, 0.U, mtype.mint16)
-  outMtype.mint8   := Mux(illegal, 0.U, mtype.mint8)
-  outMtype.mint4   := Mux(illegal, 0.U, mtype.mint4)
-  outMtype.msew    := Mux(illegal, 0.U, mtype.msew)
+  outMtype.mba     := Mux(illegal, 0.U, updatemtype.mba)
+  outMtype.mfp64   := Mux(illegal, 0.U, updatemtype.mfp64)
+  outMtype.mfp32   := Mux(illegal, 0.U, updatemtype.mfp32)
+  outMtype.mfp16   := Mux(illegal, 0.U, updatemtype.mfp16)
+  outMtype.mfp8    := Mux(illegal, 0.U, updatemtype.mfp8)
+  outMtype.mint64  := Mux(illegal, 0.U, updatemtype.mint64)
+  outMtype.mint32  := Mux(illegal, 0.U, updatemtype.mint32)
+  outMtype.mint16  := Mux(illegal, 0.U, updatemtype.mint16)
+  outMtype.mint8   := Mux(illegal, 0.U, updatemtype.mint8)
+  outMtype.mint4   := Mux(illegal, 0.U, updatemtype.mint4)
+  outMtype.msew    := Mux(illegal, 0.U, updatemtype.msew)
+
+  io.out.mtype := outMtype
 }

@@ -147,7 +147,8 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
   val numOfWB = Wire(UInt(log2Up(maxUopSize).W))
   val lmul = Wire(UInt(4.W))
   val isVsetSimple = Wire(Bool())
-  val isMsetSimple = Wire(Bool())
+  val isMsettilexSimple = Wire(Bool())
+  val isMsettypeSimple = Wire(Bool())
 
   val indexedLSRegOffset = Seq.tabulate(MAX_VLMUL)(i => Module(new indexedLSUopTable(i)))
   indexedLSRegOffset.map(_.src := 0.U)
@@ -159,7 +160,8 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
   val vsewReg = latchedInst.vpu.vsew
   val vstartReg = latchedInst.vpu.vstart
 
-  isMsetSimple := latchedInst.isMset
+  isMsettilexSimple := latchedInst.isMsettilex
+  isMsettypeSimple := latchedInst.isMsettype
 
   //Type of uop Div
   val typeOfSplit = latchedInst.uopSplitType
@@ -359,7 +361,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
       }
     }
     is(UopSplitType.MSET) {
-      when(isMsetSimple) {
+      when(isMsettilexSimple) {
         // Default
         // uop0 set rd
         // csBundle(0).fuType := 
@@ -372,7 +374,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
         csBundle(1).mtilexWen := true.B
         csBundle(1).flushPipe := false.B
         // csBundle(1).blockBackward := Mux(VSETOpType.isVsetvl(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
-        when(MatrixSETOpType.isMsettilexi(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
+        when(MSETtilexOpType.isMsettilexi(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
           // write nothing, uop0 is a nop instruction
           csBundle(0).rfWen := false.B
           csBundle(0).fpWen := false.B
@@ -385,7 +387,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(1).srcType(3) := SrcType.no
           csBundle(1).srcType(4) := SrcType.mp
           // csBundle(1).lsrc(4) := Vl_IDX.U
-        }.elsewhen(MatrixSETOpType.isMsettilex(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
+        }.elsewhen(MSETtilexOpType.isMsettilex(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
           // uop0: mv vtype gpr to vector region
           csBundle(0).srcType(0) := SrcType.xp
           csBundle(0).srcType(1) := SrcType.no
@@ -420,6 +422,13 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(0).vlWen := false.B
           csBundle(0).mtilexWen := false.B
         }
+        // use bypass mtype from mtypeGen
+        csBundle(0).mpu.connectMType(io.mtypeBypass)
+        csBundle(1).mpu.connectMType(io.mtypeBypass)
+      }
+    }
+    is(UopSplitType.dummy) {
+      when (isMsettypeSimple) {
         // use bypass mtype from mtypeGen
         csBundle(0).mpu.connectMType(io.mtypeBypass)
         csBundle(1).mpu.connectMType(io.mtypeBypass)

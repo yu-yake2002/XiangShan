@@ -9,7 +9,7 @@ import xiangshan.backend.Bundles.DynInst
 import xiangshan.backend.fu.matrix.Bundles.MType
 import xiangshan.backend.rename.SnapshotGenerator
 import xiangshan.{SnapshotPort, XSBundle, XSCoreParamsKey, XSModule}
-import xiangshan.MatrixSETOpType
+import xiangshan.MSETtilexOpType
 
 class MTypeBufferPtr(size: Int) extends CircularQueuePtr[MTypeBufferPtr](size) {
   def this()(implicit p: Parameters) = this(p(XSCoreParamsKey).MTypeBufferSize)
@@ -124,7 +124,7 @@ class MTypeBuffer(size: Int)(implicit p: Parameters) extends XSModule with HasCi
 
   // There are two uops mapped to one vset inst.
   // Only record the last here.
-  private val needAllocVec = VecInit(io.req.map(req => req.valid && req.bits.isVset && req.bits.lastUop))
+  private val needAllocVec = VecInit(io.req.map(req => req.valid && req.bits.isMsettype && req.bits.lastUop))
   private val enqCount = PopCount(needAllocVec)
 
   private val commitCount   = Wire(UInt(log2Up(CommitWidth).W))
@@ -209,7 +209,7 @@ class MTypeBuffer(size: Int)(implicit p: Parameters) extends XSModule with HasCi
   mtypeBufferWriteEnVec := needAllocVec
   mtypeBufferWriteDataVec.zip(io.req.map(_.bits)).foreach { case (entry: MTypeBufferEntry, inst) =>
     entry.mtype := inst.mpu.mtype
-    entry.isMsettype := MatrixSETOpType.isMsettype(inst.fuOpType)
+    entry.isMsettype := MSETtilexOpType.isMsettype(inst.fuOpType)
   }
   mtypeBufferReadAddrVec := mtypeBufferReadPtrVecNext.map(_.value)
 

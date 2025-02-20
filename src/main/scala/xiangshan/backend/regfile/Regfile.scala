@@ -84,13 +84,11 @@ class Regfile
   override def desiredName = name
   println(name + ": size:" + numPregs + " read: " + numReadPorts + " write: " + numWritePorts)
 
-  val mem_0 = if (isVlRegfile) RegInit(0.U(len.W)) else Reg(UInt(len.W))
-  val mem_1 = if (isMtilexRegfile) RegInit(0.U(len.W)) else Reg(UInt(len.W))
+  val mem_0 = if (isVlRegfile || isMtilexRegfile) RegInit(0.U(len.W)) else Reg(UInt(len.W))
   val mem = Reg(Vec(numPregs, UInt(len.W)))
   val memForRead = Wire(Vec(numPregs, UInt(len.W)))
   memForRead.zipWithIndex.map{ case(m, i) =>
     if (i == 0) m := mem_0
-    else if (i == 1) m := mem_1
     else m := mem(i)
   }
   require(Seq(1, 2, 4).contains(bankNum), "bankNum must be 1 or 2 or 4")
@@ -123,9 +121,6 @@ class Regfile
   for (i <- mem.indices) {
     if (hasZero && i == 0) {
       mem_0 := 0.U
-    }
-    else if (hasZero && i == 1) {
-      mem_1 := 0.U
     }
     else {
       val wenOH = VecInit(io.writePorts.map(w => w.wen && w.addr === i.U))

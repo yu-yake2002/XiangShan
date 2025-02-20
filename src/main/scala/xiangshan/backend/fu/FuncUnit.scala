@@ -15,6 +15,7 @@ import xiangshan.backend.fu.vector.Bundles.Vxsat
 import xiangshan.ExceptionNO.illegalInstr
 import xiangshan.backend.fu.vector.Bundles.VType
 import xiangshan.backend.fu.wrapper.{CSRInput, CSRToDecode}
+import xiangshan.backend.Bundles.MPUCtrlSignals
 
 class FuncUnitCtrlInput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle {
   val fuOpType    = FuOpType()
@@ -36,6 +37,7 @@ class FuncUnitCtrlInput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle 
   })
   val fpu         = OptionWrapper(cfg.writeFflags, new FPUCtrlSignals)
   val vpu         = OptionWrapper(cfg.needVecCtrl, new VPUCtrlSignals)
+  val mpu         = OptionWrapper(cfg.needMPUCtrl || cfg.needOldMtype, new MPUCtrlSignals)
 }
 
 class FuncUnitCtrlOutput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle {
@@ -53,6 +55,7 @@ class FuncUnitCtrlOutput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle
   val preDecode     = OptionWrapper(cfg.hasPredecode, new PreDecodeInfo)
   val fpu           = OptionWrapper(cfg.writeFflags, new FPUCtrlSignals)
   val vpu           = OptionWrapper(cfg.needVecCtrl, new VPUCtrlSignals)
+  val mpu           = OptionWrapper(cfg.needMPUCtrl, new MPUCtrlSignals)
 }
 
 class FuncUnitDataInput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle {

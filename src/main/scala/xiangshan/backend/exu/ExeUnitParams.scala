@@ -84,6 +84,7 @@ case class ExeUnitParams(
   val needFPUCtrl: Boolean = fuConfigs.map(_.needFPUCtrl).reduce(_ || _)
   val needVPUCtrl: Boolean = fuConfigs.map(_.needVecCtrl).reduce(_ || _)
   val needMPUCtrl: Boolean = fuConfigs.map(_.needMPUCtrl).reduce(_ || _)
+  val needOldMtype: Boolean = fuConfigs.map(_.needOldMtype).reduce(_ || _)
   val writeVConfig: Boolean = fuConfigs.map(_.writeVlRf).reduce(_ || _)
   val writeVType: Boolean = fuConfigs.map(_.writeVType).reduce(_ || _)
   val writeMType: Boolean = fuConfigs.map(_.writeMType).reduce(_ || _)
