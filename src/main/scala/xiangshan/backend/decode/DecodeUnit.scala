@@ -737,16 +737,6 @@ case class Imm_MSET() extends Imm(10){
   }
 }
 
-// Used in msettspi, msetdspi
-case class Imm_MSETSPI() extends Imm(5){
-  // TODO: check if this is correct
-  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
-
-  override def minBitsFromInstr(instr: UInt): UInt = {
-    instr(19, 15)
-  }
-}
-
 // Used in msetsew, msetint, munsetint, msetfp, mubsetfp, msetba
 case class Imm_MSETVAL() extends Imm(5){
   // TODO: check if this is correct
@@ -782,12 +772,11 @@ object ImmUnion {
   val LUI32 = Imm_LUI32()
   val VRORVI = Imm_VRORVI()
   val MSET = Imm_MSET()
-  val MSETSPI = Imm_MSETSPI()
   val MSETVAL = Imm_MSETVAL()
   val MSETFIELD = Imm_MSETFIELD()
 
   // do not add special type lui32 to this, keep ImmUnion max len being 20.
-  val imms = Seq(I, S, B, U, J, Z, B6, OPIVIS, OPIVIU, VSETVLI, VSETIVLI, VRORVI)
+  val imms = Seq(I, S, B, U, J, Z, B6, OPIVIS, OPIVIU, VSETVLI, VSETIVLI, VRORVI, MSET, MSETVAL, MSETFIELD)
   val maxLen = imms.maxBy(_.len).len
   val immSelMap = Seq(
     SelImm.IMM_I,
@@ -998,8 +987,9 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
 
   decodedInst.commitType := Cat(isLs | isVls, (isStore && !isAMO) | isVStore | isBranch)
 
-  decodedInst.isVset := FuType.isVset(decodedInst.fuType)
-  decodedInst.isMset := FuType.isMset(decodedInst.fuType)
+  decodedInst.isVset      := FuType.isVset(decodedInst.fuType)
+  decodedInst.isMsettilex := FuType.isMsettilex(decodedInst.fuType)
+  decodedInst.isMsettype  := FuType.isMsettype(decodedInst.fuType)
 
   private val needReverseInsts = Seq(VRSUB_VI, VRSUB_VX, VFRDIV_VF, VFRSUB_VF, VFMV_F_S)
   private val vextInsts = Seq(VZEXT_VF2, VZEXT_VF4, VZEXT_VF8, VSEXT_VF2, VSEXT_VF4, VSEXT_VF8)
@@ -1248,9 +1238,9 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   io.deq.decodedInst.fuOpType := MuxCase(decodedInst.fuOpType, Seq(
     isCsrrVl    -> VSETOpType.csrrvl,
     isCsrrVlenb -> ALUOpType.add,
-    isCsrrMtilem -> MatrixSETOpType.csrrmtilem,
-    isCsrrMtilen -> MatrixSETOpType.csrrmtilen,
-    isCsrrMtilek -> MatrixSETOpType.csrrmtilek,
+    isCsrrMtilem -> MSETtilexOpType.csrrmtilem,
+    isCsrrMtilen -> MSETtilexOpType.csrrmtilen,
+    isCsrrMtilek -> MSETtilexOpType.csrrmtilek,
     isCsrrMlenb -> ALUOpType.add,
     isCsrrMrlenb -> ALUOpType.add,
     isCsrrMamul -> ALUOpType.add,

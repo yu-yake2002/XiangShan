@@ -169,6 +169,11 @@ case class FuConfig (
     Seq(vipu, vialuF, vimac, vidiv, vfpu, vppu, vfalu, vfma, vfdiv, vfcvt, vldu, vstu).contains(fuType)
   }
 
+  def needOldMtype: Boolean = {
+    import FuType._
+    Seq(msetmtilexiwi, msetmtilexiwf, msetmtilexfwf, msetmtypeiwi, msetmtypeiwf).contains(fuType)
+  }
+
   def needMPUCtrl: Boolean = {
     import FuType._
     Seq(mldu, mstu).contains(fuType)
@@ -428,9 +433,8 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWi(cfg)(p).suggestName("MSetMtilexRiWi")),
     srcData = Seq(
       // src(0): atx
-      // src(1): atxImm
-      // src(2): old mtype
-      Seq(IntData(), IntData(), IntData())
+      // src(1): old mtype
+      Seq(IntData(), IntData())
     ),
     piped = true,
     writeIntRf = true,
@@ -444,9 +448,8 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWmf(cfg)(p).suggestName("MSetMtilexRiWmf")),
     srcData = Seq(
       // src(0): atx
-      // src(1): atxImm
-      // src(2): old mtype
-      Seq(IntData(), IntData(), IntData())
+      // src(1): old mtype
+      Seq(IntData(), IntData())
     ),
     piped = true,
     writeMtilexRf = true,
@@ -460,10 +463,9 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRmfWmf")),
     srcData = Seq(
       // src(0): atx
-      // src(1): atxImm
       // src(2): old mtype
       // src(3): old mtilex
-      Seq(IntData(), IntData(), IntData(), MtilexData()),
+      Seq(IntData(), IntData(), MtilexData()),
     ),
     piped = true,
     writeIntRf = true,
@@ -477,13 +479,15 @@ object FuConfig {
     fuType = FuType.msetmtypeiwi,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtypeRiWi(cfg)(p).suggestName("MSetMtypeRiWi")),
     srcData = Seq(
-      Seq(IntData(), IntData(), IntData(), IntData()),
+      // src(0): new mtype
+      // src(1): old mtype
+      Seq(IntData(), IntData()),
     ),
     piped = true,
     writeIntRf = true,
     writeMType = true,
     latency = CertainLatency(0),
-    immType = Set(SelImm.IMM_MSET),
+    immType = Set(SelImm.IMM_MSET, SelImm.IMM_MSETFIELD),
   )
 
   val MsetMtypeRiWmfCfg: FuConfig = FuConfig(
@@ -491,13 +495,15 @@ object FuConfig {
     fuType = FuType.msetmtypeiwf,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtypeRiWmf(cfg)(p).suggestName("MSetMtypeRiWmf")),
     srcData = Seq(
-      Seq(IntData(), IntData(), IntData(), IntData()),
+      // src(0): new mtype
+      // src(1): old mtype
+      Seq(IntData(), IntData()),
     ),
     piped = true,
     writeIntRf = true,
     writeMType = true,
     latency = CertainLatency(0),
-    immType = Set(SelImm.IMM_MSET),
+    immType = Set(SelImm.IMM_MSET, SelImm.IMM_MSETFIELD),
   )
 
   val LduCfg: FuConfig = FuConfig (
@@ -958,7 +964,8 @@ object FuConfig {
     LduCfg, StaCfg, StdCfg, MouCfg, MoudCfg, VialuCfg, VipuCfg, VlduCfg, VstuCfg, VseglduSeg, VsegstuCfg,
     FaluCfg, FmacCfg, FcvtCfg, FdivCfg,
     VfaluCfg, VfmaCfg, VfcvtCfg, HyldaCfg, HystaCfg,
-    MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg
+    MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg,
+    MSetMtypeRiWiCfg, MsetMtypeRiWmfCfg
   )
 
   def VecArithFuConfigs = Seq(

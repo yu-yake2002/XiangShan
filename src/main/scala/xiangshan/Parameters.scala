@@ -432,11 +432,9 @@ case class XSCoreParameters
         ExeUnitParams("ALU3", Seq(AluCfg), Seq(IntWB(port = 3, 0)), Seq(Seq(IntRD(6, 0)), Seq(IntRD(7, 0))), true, 2),
         ExeUnitParams("BJU3", Seq(CsrCfg, FenceCfg, DivCfg), Seq(IntWB(port = 4, 1)), Seq(Seq(IntRD(0, 1)), Seq(IntRD(1, 1)))),
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
-      // IssueBlockParams(Seq(
-      //   ExeUnitParams("MSET", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)), Seq(IntRD(1, 2)), Seq(IntRD(4, 2)), Seq(MtilexRD(0, 0))))
-      // ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)), Seq(IntRD(1, 2)), Seq(IntRD(4, 2))))
+        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)), Seq(IntRD(1, 2)))),
+        ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2)), Seq(IntRD(4, 2))))
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
     ),
       numPregs = intPreg.numEntries,
@@ -494,7 +492,7 @@ case class XSCoreParameters
     implicit val schdType: SchedulerType = MfScheduler()
     SchdBlockParams(Seq(
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 3)), Seq(IntRD(1, 3)), Seq(IntRD(4, 3)), Seq(MtilexRD(0, 0))))
+        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 3)), Seq(IntRD(1, 3)), Seq(MtilexRD(0, 0))))
       ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
       //   ExeUnitParams("MSTA", Seq(MStuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
@@ -557,7 +555,7 @@ case class XSCoreParameters
     Seq(
       WakeUpConfig(
         Seq("ALU0", "ALU1", "ALU2", "ALU3", "LDU0", "LDU1", "LDU2") ->
-        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSET1")
+        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSET1", "MSETTYPE")
       ),
       // TODO: add load -> fp slow wakeup
       WakeUpConfig(

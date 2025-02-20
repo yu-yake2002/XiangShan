@@ -451,7 +451,27 @@ package object xiangshan {
     def setVlmax(func: UInt)    = func | (1 << setVlmaxBit).U
   }
 
-  object MatrixSETOpType {
+  object MSETtypeOpType {
+    def placeholder = "b1100_0000".U
+
+    def msetsew    = "b0_000_0000".U
+    def msetint4   = "b0_000_0001".U
+    def msetint8   = "b0_000_0010".U
+    def msetint16  = "b0_000_0011".U
+    def msetint32  = "b0_000_0100".U
+    def msetint64  = "b0_000_0101".U
+    def msetfp8    = "b0_000_0110".U
+    def msetfp16   = "b0_000_0111".U
+    def msetfp32   = "b0_000_1000".U
+    def msetfp64   = "b0_000_1001".U
+    def msetba     = "b0_000_1010".U
+
+    def msettype   = "b1_001_0000".U
+    def msettypei  = "b0_001_0001".U
+    def msettypehi = "b0_001_0010".U
+  }
+
+  object MSETtilexOpType {
     def placeholder = "b1100_0000".U
 
     def isSet (func: UInt) = func(7) === "b0".U

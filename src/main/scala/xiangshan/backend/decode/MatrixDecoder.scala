@@ -5,37 +5,36 @@ import chisel3.util._
 import freechips.rocketchip.rocket.Instructions._
 import freechips.rocketchip.util.uintToBitPat
 import xiangshan.backend.fu.FuType
-import xiangshan.{SrcType, MatrixSETOpType, UopSplitType, SelImm, MlduType, MstuType}
+import xiangshan.{SrcType, MSETtilexOpType, MSETtypeOpType, UopSplitType, SelImm, MlduType, MstuType}
 import freechips.rocketchip.amba.ahb.AHBParameters.transBits
 import xiangshan.MmulType
 
 // Set a specific field in mtype
-case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
+case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.dummy) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val src1 = SrcType.imm
     val src2 = SrcType.imm
-    // TODO: MSETINST could be implemented as MSETTYPEINST with a mask
-    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
 
 // Set the whole mtype
-case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
+case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.dummy) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val src1 = if (mtypei) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
 
 // Set mtilem/n/k
-case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
+case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.MSET) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val src1 = if (txi) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msetmtilexiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtilexiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -76,31 +75,41 @@ object MatrixDecoder extends DecodeConstants {
   val mset: Array[(BitPat, XSDecodeBase)] = Array(
     // MSET contains msetsew, msetint, munsetint, msetfp, munsetfp, msetba
     // It sets specific field in mtype.
-    MSET       -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETSEW    -> MSETINST(fuOp = MSETtypeOpType.msetsew,   flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETINT4   -> MSETINST(fuOp = MSETtypeOpType.msetint4,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETINT8   -> MSETINST(fuOp = MSETtypeOpType.msetint8,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETINT16  -> MSETINST(fuOp = MSETtypeOpType.msetint16, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETINT32  -> MSETINST(fuOp = MSETtypeOpType.msetint32, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETINT64  -> MSETINST(fuOp = MSETtypeOpType.msetint64, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETFP8    -> MSETINST(fuOp = MSETtypeOpType.msetfp8,   flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETFP16   -> MSETINST(fuOp = MSETtypeOpType.msetfp16,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETFP32   -> MSETINST(fuOp = MSETtypeOpType.msetfp32,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETFP64   -> MSETINST(fuOp = MSETtypeOpType.msetfp64,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
+    MSETBA     -> MSETINST(fuOp = MSETtypeOpType.msetba,    flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETFIELD),
     
-    MSETTYPE   -> MSETTYPEINST(mtypei = F, fuOp = MatrixSETOpType.umsettype_xx, flushPipe = T, blockBack = T, selImm = SelImm.X),
-    MSETTYPEHI -> MSETTYPEINST(mtypei = T, fuOp = MatrixSETOpType.umsettypeh_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
-    MSETTYPEI  -> MSETTYPEINST(mtypei = T, fuOp = MatrixSETOpType.umsettypel_xi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTYPE   -> MSETTYPEINST(mtypei = F, fuOp = MSETtypeOpType.msettype,   flushPipe = T, blockBack = F, selImm = SelImm.X),
+    MSETTYPEHI -> MSETTYPEINST(mtypei = T, fuOp = MSETtypeOpType.msettypehi, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTYPEI  -> MSETTYPEINST(mtypei = T, fuOp = MSETtypeOpType.msettypei,  flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
     
     // Set tilem/n/k
-    MSETTILEM  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilem_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILEMI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilem_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
-    MSETTILEN  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilen_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILENI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilen_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
-    MSETTILEK  -> MSETTXINST(txi = F, fuOp = MatrixSETOpType.umsettilek_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    MSETTILEKI -> MSETTXINST(txi = T, fuOp = MatrixSETOpType.umsettilek_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEM  -> MSETTXINST(txi = F, fuOp = MSETtilexOpType.umsettilem_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILEMI -> MSETTXINST(txi = T, fuOp = MSETtilexOpType.umsettilem_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEN  -> MSETTXINST(txi = F, fuOp = MSETtilexOpType.umsettilen_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILENI -> MSETTXINST(txi = T, fuOp = MSETtilexOpType.umsettilen_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
+    MSETTILEK  -> MSETTXINST(txi = F, fuOp = MSETtilexOpType.umsettilek_x, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    MSETTILEKI -> MSETTXINST(txi = T, fuOp = MSETtilexOpType.umsettilek_i, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSET),
     
     // TODO: Sparse config
-    // MSETTSP    -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    // MSETTSPI   -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETSPI),
-    // MSETDSP    -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    // MSETDSPI   -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETSPI),
+    // MSETTSP    -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETTSPI   -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETSPI),
+    // MSETDSP    -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETDSPI   -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.IMM_MSETSPI),
     
     // TODO: Img2col config
-    // MSETOUTSH  -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    // MSETINSH   -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    // MSETSK     -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
-    // MSETPADVAL -> MSETINST(fuOp = MatrixSETOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETOUTSH  -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETINSH   -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETSK     -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
+    // MSETPADVAL -> MSETINST(fuOp = MSETtilexOpType.placeholder, flushPipe = F, blockBack = F, selImm = SelImm.X),
   )
 
   val mls: Array[(BitPat, XSDecodeBase)] = Array(

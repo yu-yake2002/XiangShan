@@ -117,7 +117,8 @@ object Bundles {
     val uopIdx          = UopIdx()
     val uopSplitType    = UopSplitType()
     val isVset          = Bool()
-    val isMset          = Bool()
+    val isMsettilex     = Bool()
+    val isMsettype      = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -219,7 +220,8 @@ object Bundles {
     val isDropAmocasSta = Bool()
     val uopIdx          = UopIdx()
     val isVset          = Bool()
-    val isMset          = Bool()
+    val isMsettilex     = Bool()
+    val isMsettype      = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -742,7 +744,8 @@ object Bundles {
     val mtilexWen     = if (params.needMtilexWen) Some(Bool())                        else None
     val fpu           = if (params.writeFflags)   Some(new FPUCtrlSignals)            else None
     val vpu           = if (params.needVPUCtrl)   Some(new VPUCtrlSignals)            else None
-    val mpu           = if (params.needMPUCtrl)   Some(new MPUCtrlSignals)            else None
+    val mpu           = if (params.needMPUCtrl || params.needOldMtype)
+                                                  Some(new MPUCtrlSignals)            else None
     val flushPipe     = if (params.flushPipe)     Some(Bool())                        else None
     val pc            = if (params.needPc)        Some(UInt(VAddrData().dataWidth.W)) else None
     val preDecode     = if (params.hasPredecode)  Some(new PreDecodeInfo)             else None

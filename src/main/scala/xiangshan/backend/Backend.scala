@@ -709,13 +709,13 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   csrio.vpu.set_vtype.bits := ZeroExt(vtype, XLEN)
   csrio.vpu.vl := ZeroExt(debugVl_s1, XLEN)
   csrio.vpu.dirty_vs := ctrlBlock.io.robio.csr.dirty_vs
-  csrio.matrix <> DontCare
-  csrio.matrix.set_mstart.valid := ctrlBlock.io.robio.csr.mstart.valid
-  csrio.matrix.set_mstart.bits := ctrlBlock.io.robio.csr.mstart.bits
-  csrio.matrix.set_mtype.valid := commitMType.valid
-  csrio.matrix.set_mtype.bits := ZeroExt(mtype, XLEN)
-  csrio.matrix.dirty_ms := ctrlBlock.io.robio.csr.dirty_ms
-  ctrlBlock.io.toDecode.mstart := csrio.matrix.mstart
+  csrio.mpu <> DontCare
+  csrio.mpu.set_mstart.valid := ctrlBlock.io.robio.csr.mstart.valid
+  csrio.mpu.set_mstart.bits := ctrlBlock.io.robio.csr.mstart.bits
+  csrio.mpu.set_mtype.valid := commitMType.valid
+  csrio.mpu.set_mtype.bits := ZeroExt(mtype, XLEN)
+  csrio.mpu.dirty_ms := ctrlBlock.io.robio.csr.dirty_ms
+  ctrlBlock.io.toDecode.mstart := csrio.mpu.mstart
   csrio.exception := ctrlBlock.io.robio.exception
   csrio.robDeqPtr := ctrlBlock.io.robio.robDeqPtr
   csrio.memExceptionVAddr := io.mem.exceptionAddr.vaddr
@@ -826,6 +826,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.trigger.foreach(_ := source.bits.uop.trigger)
   }
   wbDataPath.io.fromCSR.vstart := csrio.vpu.vstart
+  wbDataPath.io.fromCSR.mstart := csrio.mpu.mstart
 
   vecExcpMod.i.fromExceptionGen := ctrlBlock.io.toVecExcpMod.excpInfo
   vecExcpMod.i.fromRab.logicPhyRegMap := ctrlBlock.io.toVecExcpMod.logicPhyRegMap

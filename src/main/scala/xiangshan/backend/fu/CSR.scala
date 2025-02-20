@@ -56,7 +56,7 @@ class VpuCsrIO(implicit p: Parameters) extends XSBundle {
   val dirty_vs = Output(Bool())
 }
 
-class MatrixCsrIO(implicit p: Parameters) extends XSBundle {
+class MpuCsrIO(implicit p: Parameters) extends XSBundle {
   val mstart = Input(UInt(XLEN.W))
 
   val mtilem = Output(UInt(XLEN.W))
@@ -105,8 +105,8 @@ class CSRFileIO(implicit p: Parameters) extends XSBundle {
   val fpu = Flipped(new FpuCsrIO)
   // to VPU
   val vpu = Flipped(new VpuCsrIO)
-  // to Matrix
-  val matrix = Flipped(new MatrixCsrIO)
+  // to MPU
+  val mpu = Flipped(new MpuCsrIO)
   // from rob
   val exception = Flipped(ValidIO(new ExceptionInfo))
   val robDeqPtr = Input(new RobPtr)

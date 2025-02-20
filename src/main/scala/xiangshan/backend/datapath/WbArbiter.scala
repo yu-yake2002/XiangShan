@@ -12,6 +12,7 @@ import xiangshan.backend.regfile.RfWritePortWithConfig
 import xiangshan.{Redirect, XSBundle, XSModule}
 import xiangshan.SrcType.v0
 import xiangshan.backend.fu.vector.Bundles.Vstart
+import xiangshan.backend.fu.matrix.Bundles.Mstart
 
 class WbArbiterDispatcherIO[T <: Data](private val gen: T, n: Int) extends Bundle {
   val in = Flipped(DecoupledIO(gen))
@@ -101,6 +102,7 @@ class WbDataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBu
 
   val fromCSR = Input(new Bundle {
     val vstart = Vstart()
+    val mstart = Mstart()
   })
 
   val toIntPreg = Flipped(MixedVec(Vec(params.numPregWb(IntData()),
