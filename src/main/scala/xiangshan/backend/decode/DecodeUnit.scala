@@ -1132,10 +1132,24 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   decodedInst.mpu.mint8 := io.enq.mtype.mint8
   decodedInst.mpu.msew := io.enq.mtype.msew
 
+  decodedInst.mpu.specMill := io.enq.mtype.illegal
+  decodedInst.mpu.specMba := io.enq.mtype.mba
+  decodedInst.mpu.specMfp64 := io.enq.mtype.mfp64
+  decodedInst.mpu.specMfp32 := io.enq.mtype.mfp32
+  decodedInst.mpu.specMfp16 := io.enq.mtype.mfp16
+  decodedInst.mpu.specMfp8 := io.enq.mtype.mfp8
+  decodedInst.mpu.specMint64 := io.enq.mtype.mint64
+  decodedInst.mpu.specMint32 := io.enq.mtype.mint32
+  decodedInst.mpu.specMint16 := io.enq.mtype.mint16
+  decodedInst.mpu.specMint8 := io.enq.mtype.mint8
+  decodedInst.mpu.specMint4 := io.enq.mtype.mint4
+  decodedInst.mpu.specMsew := io.enq.mtype.msew
+
   val uopInfoGen = Module(new UopInfoGen)
   uopInfoGen.io.in.preInfo.isVecArith := inst.isVecArith
   uopInfoGen.io.in.preInfo.isVecMem := inst.isVecStore || inst.isVecLoad
   uopInfoGen.io.in.preInfo.isAmoCAS := inst.isAMOCAS
+  uopInfoGen.io.in.preInfo.isMatrixConfig := inst.isMatrixConfig
 
   uopInfoGen.io.in.preInfo.typeOfSplit := decodedInst.uopSplitType
   uopInfoGen.io.in.preInfo.vsew := decodedInst.vpu.vsew

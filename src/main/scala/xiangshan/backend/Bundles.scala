@@ -550,7 +550,7 @@ object Bundles {
     val specMint16   = Bool()
     val specMint8    = Bool()
     val specMint4    = Bool()
-    val sepcMsew     = MSew()
+    val specMsew     = MSew()
 
     def mtype: MType = {
       val res = Wire(MType())
@@ -582,7 +582,7 @@ object Bundles {
       res.mint16  := this.specMint16
       res.mint8   := this.specMint8
       res.mint4   := this.specMint4
-      res.msew    := this.sepcMsew
+      res.msew    := this.specMsew
       res
     }
 

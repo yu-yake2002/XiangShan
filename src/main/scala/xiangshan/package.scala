@@ -452,8 +452,6 @@ package object xiangshan {
   }
 
   object MSETtypeOpType {
-    def placeholder = "b1100_0000".U
-
     def msetsew    = "b0_000_0000".U
     def msetint4   = "b0_000_0001".U
     def msetint8   = "b0_000_0010".U
@@ -469,6 +467,9 @@ package object xiangshan {
     def msettype   = "b1_001_0000".U
     def msettypei  = "b0_001_0001".U
     def msettypehi = "b0_001_0010".U
+
+    def isMsetTypeFromReg = (func: UInt) => func(7)
+    def isMsetTypeFromImm = (func: UInt) => !func(7)
   }
 
   object MSETtilexOpType {
@@ -541,13 +542,13 @@ package object xiangshan {
 
     // msettype's uop
     //   uop0: r(mtype), w(mtype) | imm -> mtype
-    def umsettype_xx  = "b0_000_0011".U
+    // def umsettype_xx  = "b0_000_0011".U
     //   uop1: r(mtype), w(rd)    | imm -> x[rd]
     // TODO: 
     
     // msettype{h}i's uop
-    def umsettypel_xi = "b0_010_0011".U
-    def umsettypeh_xi = "b0_011_0011".U
+    // def umsettypel_xi = "b0_010_0011".U
+    // def umsettypeh_xi = "b0_011_0011".U
     // TODO: mset's uop
     
     def isMsettilem (func: UInt)  = isSetX(func)         && isTileM(func)
@@ -573,9 +574,9 @@ package object xiangshan {
     def isMreadMtilek (func: UInt) = isRead(func) && isTileK(func)
     def isMreadMtilex (func: UInt) = isRead(func) && (isTileM(func) || isTileN(func) || isTileK(func))
 
-    def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
+    // def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
 
-    def isMsettype (func: UInt) = false.B // TODO: Implement me!
+    // def isMsettype (func: UInt) = false.B // TODO: Implement me!
   }
 
   object MlduType {

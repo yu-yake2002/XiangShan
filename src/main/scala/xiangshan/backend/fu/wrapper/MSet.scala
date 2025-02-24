@@ -122,7 +122,7 @@ class MSetMtypeBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit
   protected val flushed = io.in.bits.ctrl.robIdx.needFlush(io.flush)
 
   protected val newMtypeImm: UInt = Imm_MSET().getAtx(in.data.src(0))
-  protected val newMtype: UInt = Mux(MSETtilexOpType.isMsetMtypeFromImm(in.ctrl.fuOpType), newMtypeImm, in.data.src(0))
+  protected val newMtype: UInt = Mux(MSETtypeOpType.isMsetTypeFromImm(in.ctrl.fuOpType), newMtypeImm, in.data.src(0))
 
   protected val oldMtype = MType.toMsetMType(io.in.bits.ctrl.mpu.get.mtype)
 
