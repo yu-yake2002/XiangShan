@@ -194,7 +194,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
   decoderComp.io.mtypeBypass := mtypeGen.io.mtype
   // The input inst of decoderComp is latched last cycle.
   // Set input empty, if there is no complex inst latched last cycle.
-  decoderComp.io.in.valid := complexValid && !io.fromRob.isResumeVType
+  decoderComp.io.in.valid := complexValid && !io.fromRob.isResumeVType && !io.fromRob.isResumeMType
   decoderComp.io.in.bits.simpleDecodedInst := complexInst
   decoderComp.io.in.bits.uopInfo := complexUopInfo
   decoderComp.io.out.complexDecodedInsts.zipWithIndex.foreach { case (out, i) => out.ready := io.out(i).ready }

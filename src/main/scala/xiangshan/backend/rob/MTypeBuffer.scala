@@ -9,7 +9,7 @@ import xiangshan.backend.Bundles.DynInst
 import xiangshan.backend.fu.matrix.Bundles.MType
 import xiangshan.backend.rename.SnapshotGenerator
 import xiangshan.{SnapshotPort, XSBundle, XSCoreParamsKey, XSModule}
-import xiangshan.MSETtilexOpType
+import xiangshan.MSETtypeOpType
 
 class MTypeBufferPtr(size: Int) extends CircularQueuePtr[MTypeBufferPtr](size) {
   def this()(implicit p: Parameters) = this(p(XSCoreParamsKey).MTypeBufferSize)
@@ -26,7 +26,7 @@ object MTypeBufferPtr {
 
 class MTypeBufferEntry(implicit p: Parameters) extends Bundle {
   val mtype = new MType()
-  val isMsettype = Bool() // TODO: actually not isVetvl, but a matrix instruction
+  val isMsettype = Bool() // new mtype value comes from int register file
 }
 
 class MTypeBufferIO(size: Int)(implicit p: Parameters) extends XSBundle {
@@ -51,7 +51,7 @@ class MTypeBufferIO(size: Int)(implicit p: Parameters) extends XSBundle {
     val walkMType = ValidIO(MType())
     val commitMType = new Bundle {
       val mtype = ValidIO(MType())
-      val hasMsettype = Bool() // TODO: actually not isVetvl, but a matrix instruction
+      val hasMsettype = Bool()
     }
   })
 
@@ -105,7 +105,7 @@ class MTypeBuffer(size: Int)(implicit p: Parameters) extends XSModule with HasCi
   private val walkPtrNext = Wire(new MTypeBufferPtr)
   private val walkPtrVecNext = VecInit((0 until CommitWidth).map(x => walkPtrNext + x.U))
 
-  // get enque vtypes in io.req
+  // get enque mtypes in io.req
   private val enqMTypes = VecInit(io.req.map(req => req.bits.mpu.specMType))
   private val enqValids = VecInit(io.req.map(_.valid))
   private val enqMType = PriorityMux(enqValids.zip(enqMTypes).map { case (valid, mtype) => valid -> mtype })
@@ -203,13 +203,13 @@ class MTypeBuffer(size: Int)(implicit p: Parameters) extends XSModule with HasCi
   ))
 
   /**
-   * connection of [[vtypeBuffer]]
+   * connection of [[mtypeBuffer]]
    */
   mtypeBufferWriteAddrVec := allocPtrVec.map(_.value)
   mtypeBufferWriteEnVec := needAllocVec
   mtypeBufferWriteDataVec.zip(io.req.map(_.bits)).foreach { case (entry: MTypeBufferEntry, inst) =>
     entry.mtype := inst.mpu.mtype
-    entry.isMsettype := MSETtilexOpType.isMsettype(inst.fuOpType)
+    entry.isMsettype := MSETtypeOpType.isMsetTypeFromReg(inst.fuOpType)
   }
   mtypeBufferReadAddrVec := mtypeBufferReadPtrVecNext.map(_.value)
 
@@ -278,18 +278,18 @@ class MTypeBuffer(size: Int)(implicit p: Parameters) extends XSModule with HasCi
   walkToArchMType := false.B
 
   when (state === s_spcl_walk) {
-    // special walk use commit vtype
+    // special walk use commit mtype
     decodeResumeMType.valid := commitMTypeValid
     decodeResumeMType.bits := newestArchMType
   }.elsewhen (useSnapshot) {
-    // use snapshot vtype
+    // use snapshot mtype
     decodeResumeMType.valid := true.B
     decodeResumeMType.bits := snapshotMType
   }.elsewhen (state === s_walk && walkCount =/= 0.U) {
     decodeResumeMType.valid := true.B
     decodeResumeMType.bits := newestMType
   }.elsewhen (state === s_walk && stateLastCycle =/= s_walk) {
-    // walk start with arch vtype
+    // walk start with arch mtype
     decodeResumeMType.valid := false.B
     walkToArchMType := true.B
   }.otherwise {

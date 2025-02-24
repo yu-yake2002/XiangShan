@@ -64,7 +64,6 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
     is ("b1010".U) { instMfieldOp := MSETtypeOpType.msetba }
   }
   
-  // TODO: use correct oldmtype
   private val msettypeModule = Module(new MsetMtypeModule)
   msettypeModule.io.in.oldmtype := MType.toMsetMType(mtypeSpec)
   msettypeModule.io.in.newmtype := Mux(instUse10bits, Cat(instMsetval, instMfield), instMsetval)
