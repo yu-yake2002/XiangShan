@@ -388,7 +388,7 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
       compressMasksVec(i) & Cat(io.in.map(in =>
         // vector instructions' uopSplitType cannot be UopSplitType.SCA_SIM
         in.bits.uopSplitType =/= UopSplitType.SCA_SIM &&
-        !UopSplitType.isAMOCAS(in.bits.uopSplitType) &&
+        UopSplitType.isVEC(in.bits.uopSplitType) &&
         // vfmv.f.s, vcpop.m, vfirst.m and vmv.x.s don't change vector state
         !Seq(
           (FuType.vfalu, VfaluType.vfmv_f_s), // vfmv.f.s
@@ -398,6 +398,8 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
         ).map(x => FuTypeOrR(in.bits.fuType, x._1) && in.bits.fuOpType === x._2).reduce(_ || _)
       ).reverse)
     ).orR
+    // TODO: implement dirtyMs
+    uops(i).dirtyMs := false.B
     uops(i).debug_sim_trig.foreach(_ := (compressMasksVec(i) & Cat(io.in.map(_.bits.instr === XSDebugDecode.SIM_TRIG).reverse)).orR)
     // psrc0,psrc1,psrc2 don't require v0ReadPorts because their srcType can distinguish whether they are V0 or not
     uops(i).psrc(0) := Mux1H(uops(i).srcType(0)(2, 0), Seq(io.intReadPorts(i)(0), io.fpReadPorts(i)(0), io.vecReadPorts(i)(0)))

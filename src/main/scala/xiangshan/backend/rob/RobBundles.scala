@@ -54,6 +54,7 @@ object RobBundles extends HasCircularQueuePtrHelper {
     val rfWen = Bool()
     val wflags = Bool()
     val dirtyVs = Bool()
+    val dirtyMs = Bool()
     val commitType = CommitType()
     val ftqIdx = new FtqPtr
     val ftqOffset = UInt(log2Up(PredictWidth).W)
@@ -145,6 +146,7 @@ object RobBundles extends HasCircularQueuePtrHelper {
     robEntry.rfWen := robEnq.rfWen
     robEntry.fpWen := robEnq.dirtyFs
     robEntry.dirtyVs := robEnq.dirtyVs
+    robEntry.dirtyMs := robEnq.dirtyMs
     // flushPipe needFlush but not exception
     robEntry.needFlush := robEnq.hasException || robEnq.flushPipe
     // trace
@@ -181,6 +183,7 @@ object RobBundles extends HasCircularQueuePtrHelper {
     robCommitEntry.instrSize := robEntry.instrSize
     robCommitEntry.dirtyFs := robEntry.fpWen || robEntry.wflags
     robCommitEntry.dirtyVs := robEntry.dirtyVs
+    robCommitEntry.dirtyMs := robEntry.dirtyMs
     robCommitEntry.needFlush := robEntry.needFlush
     robCommitEntry.traceBlockInPipe := robEntry.traceBlockInPipe
     robCommitEntry.debug_pc.foreach(_ := robEntry.debug_pc.get)

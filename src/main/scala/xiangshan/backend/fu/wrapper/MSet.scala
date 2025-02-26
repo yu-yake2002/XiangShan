@@ -7,7 +7,8 @@ import xiangshan.{MSETtilexOpType, MSETtypeOpType, CSROpType}
 import xiangshan.backend.decode.{Imm_MSET, Imm_VSETIVLI, Imm_VSETVLI}
 import xiangshan.backend.decode.isa.bitfield.InstMType
 import xiangshan.backend.fu.matrix.Bundles.MsetMType
-import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit, MsetMtilexModule, MsetMtypeModule, MtypeStruct}
+import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit}
+import xiangshan.backend.fu.{MsetMtilexModule, MsetMtypeBaseModule, MsetMtypeDummyModule, MsetMtypeModule, MtypeStruct}
 import xiangshan.backend.fu.matrix.Bundles.MConfig
 import xiangshan.backend.fu.matrix.Bundles.MType
 import chisel3.util.switch
@@ -117,7 +118,11 @@ class MSetMtypeBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit
   protected val in = io.in.bits
   protected val out = io.out.bits
 
-  protected val msetMtypeModule = Module(new MsetMtypeModule)
+  protected val msetMtypeModule: MsetMtypeBaseModule = if (DEV_FIXED_MTYPE) {
+    Module(new MsetMtypeDummyModule)
+  } else {
+    Module(new MsetMtypeModule)
+  }
 
   protected val flushed = io.in.bits.ctrl.robIdx.needFlush(io.flush)
 

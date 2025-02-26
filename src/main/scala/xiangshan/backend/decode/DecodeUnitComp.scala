@@ -430,8 +430,15 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
     is(UopSplitType.dummy) {
       when (isMsettypeSimple) {
         // use bypass mtype from mtypeGen
+        csBundle(0).fuType := FuType.msetmtypeiwi.U
+        csBundle(0).fuOpType := latchedInst.fuOpType
+        csBundle(0).lsrc(0) := src1
+        csBundle(0).srcType(0) := Mux(latchedInst.fuOpType === MSETtypeOpType.msettype, SrcType.xp, SrcType.imm)
+        csBundle(0).ldest := dest
+        csBundle(0).rfWen := true.B
+        csBundle(0).vlWen := false.B
+        csBundle(0).instr := latchedInst.instr
         csBundle(0).mpu.connectMType(io.mtypeBypass)
-        csBundle(1).mpu.connectMType(io.mtypeBypass)
       }
     }
     is(UopSplitType.VEC_VVV) {

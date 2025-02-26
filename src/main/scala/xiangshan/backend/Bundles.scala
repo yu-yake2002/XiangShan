@@ -239,6 +239,7 @@ object Bundles {
     val instrSize       = UInt(log2Ceil(RenameWidth + 1).W)
     val dirtyFs         = Bool()
     val dirtyVs         = Bool()
+    val dirtyMs         = Bool()
     val traceBlockInPipe = new TracePipe(IretireWidthInPipe)
 
     val eliminatedMove  = Bool()
