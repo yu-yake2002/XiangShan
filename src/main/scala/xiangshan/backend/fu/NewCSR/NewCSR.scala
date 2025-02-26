@@ -53,7 +53,7 @@ object CSRConfig {
   // TODO: use XSParams to configure them
   final val MLEN = 128
   final val RLEN = 128
-  final val AMUL = 1
+  final val AMUL = 4
 
   final val MlWidth = 8
 

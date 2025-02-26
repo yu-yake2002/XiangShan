@@ -67,7 +67,7 @@ case class XSCoreParameters
   HasBitmapCheckDefault: Boolean = false,
   MLEN: Int = 64,
   RLEN: Int = 64,
-  AMUL: Int = 1,
+  AMUL: Int = 4,
   HasMExtension: Boolean = true,
   HasCExtension: Boolean = true,
   HasHExtension: Boolean = true,
@@ -645,6 +645,9 @@ trait HasXSParameter {
   def MLEN = coreParams.MLEN
   def RLEN = coreParams.RLEN
   def AMUL = coreParams.AMUL
+
+  def DEV_FIXED_MTYPE = false
+
   def HSXLEN = coreParams.HSXLEN
   val minFLen = 32
   val fLen = 64

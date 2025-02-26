@@ -160,7 +160,7 @@ object FuType extends OHEnumeration {
 
   def apply() = UInt(num.W)
 
-  def isInt(fuType: UInt): Bool = FuTypeOrR(fuType, intArithAll) || FuTypeOrR(fuType, vsetiwi, vsetiwf)
+  def isInt(fuType: UInt): Bool = FuTypeOrR(fuType, intArithAll) || FuTypeOrR(fuType, vsetiwi, vsetiwf) || FuTypeOrR(fuType, msetmtypeiwi, msetmtypeiwf)
   def isIntDq0(fuType: UInt)(implicit p: Parameters): Bool = FuTypeOrR(fuType, intDq0All)
   def isIntDq1(fuType: UInt)(implicit p: Parameters): Bool = FuTypeOrR(fuType, intDq1All)
   def isIntDq0Deq0(fuType: UInt)(implicit p: Parameters): Bool = FuTypeOrR(fuType, intDq0Deq0)
@@ -279,7 +279,9 @@ object FuType extends OHEnumeration {
     vfalu -> "vfalu",
     vfma -> "vfma",
     vfdiv -> "vfdiv",
-    vfcvt -> "vfcvt"
+    vfcvt -> "vfcvt",
+    msetmtypeiwi -> "msetmtypeiwi",
+    msetmtypeiwf -> "msetmtypeiwf",
   )
 }
 

@@ -103,9 +103,19 @@ class MsetMtypeModuleIO(implicit p: Parameters) extends XSBundle {
   })
 }
 
-class MsetMtypeModule(implicit p: Parameters) extends XSModule {
+class MsetMtypeBaseModule(implicit p: Parameters) extends XSModule {
   val io = IO(new MsetMtypeModuleIO)
+}
 
+class MsetMtypeDummyModule(implicit p: Parameters) extends MsetMtypeBaseModule {
+  val updatemtype = WireInit(0.U.asTypeOf(io.in.oldmtype))
+  updatemtype.msew := "b001".U
+  updatemtype.mfp16 := "b01".U
+
+  io.out.mtype := updatemtype
+}
+
+class MsetMtypeModule(implicit p: Parameters) extends MsetMtypeBaseModule {
   val updatemtype = WireInit(io.in.oldmtype)
   switch(io.in.func) {
     is (MSETtypeOpType.msetsew)    { updatemtype.msew   := io.in.newmtype(2, 0) }

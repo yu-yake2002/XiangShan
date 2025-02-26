@@ -4,7 +4,7 @@ import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import xiangshan._
-import xiangshan.backend.fu.{MsetMtilexModule, MsetMtypeModule}
+import xiangshan.backend.fu.{MsetMtilexModule, MsetMtypeBaseModule, MsetMtypeModule, MsetMtypeDummyModule}
 import xiangshan.backend.fu.matrix.Bundles.{MType, MsetMType}
 import xiangshan.backend.decode.isa.bitfield.{InstMType, Riscv32BitInst, XSInstBitFields}
 
@@ -64,7 +64,11 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
     is ("b1010".U) { instMfieldOp := MSETtypeOpType.msetba }
   }
   
-  private val msettypeModule = Module(new MsetMtypeModule)
+  private val msettypeModule: MsetMtypeBaseModule = if (DEV_FIXED_MTYPE) {
+    Module(new MsetMtypeDummyModule)
+  } else {
+    Module(new MsetMtypeModule)
+  }
   msettypeModule.io.in.oldmtype := MType.toMsetMType(mtypeSpec)
   msettypeModule.io.in.newmtype := Mux(instUse10bits, Cat(instMsetval, instMfield), instMsetval)
   msettypeModule.io.in.func := 0.U

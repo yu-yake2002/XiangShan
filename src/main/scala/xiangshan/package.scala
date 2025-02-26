@@ -945,62 +945,65 @@ package object xiangshan {
   }
 
   object UopSplitType {
-    def SCA_SIM          = "b000000".U //
-    def VSET             = "b010001".U // dirty: vset
-    def VEC_VVV          = "b010010".U // VEC_VVV
-    def VEC_VXV          = "b010011".U // VEC_VXV
-    def VEC_0XV          = "b010100".U // VEC_0XV
-    def VEC_VVW          = "b010101".U // VEC_VVW
-    def VEC_WVW          = "b010110".U // VEC_WVW
-    def VEC_VXW          = "b010111".U // VEC_VXW
-    def VEC_WXW          = "b011000".U // VEC_WXW
-    def VEC_WVV          = "b011001".U // VEC_WVV
-    def VEC_WXV          = "b011010".U // VEC_WXV
-    def VEC_EXT2         = "b011011".U // VF2 0 -> V
-    def VEC_EXT4         = "b011100".U // VF4 0 -> V
-    def VEC_EXT8         = "b011101".U // VF8 0 -> V
-    def VEC_VVM          = "b011110".U // VEC_VVM
-    def VEC_VXM          = "b011111".U // VEC_VXM
-    def VEC_SLIDE1UP     = "b100000".U // vslide1up.vx
-    def VEC_FSLIDE1UP    = "b100001".U // vfslide1up.vf
-    def VEC_SLIDE1DOWN   = "b100010".U // vslide1down.vx
-    def VEC_FSLIDE1DOWN  = "b100011".U // vfslide1down.vf
-    def VEC_VRED         = "b100100".U // VEC_VRED
-    def VEC_SLIDEUP      = "b100101".U // VEC_SLIDEUP
-    def VEC_SLIDEDOWN    = "b100111".U // VEC_SLIDEDOWN
-    def VEC_M0X          = "b101001".U // VEC_M0X  0MV
-    def VEC_MVV          = "b101010".U // VEC_MVV  VMV
-    def VEC_VWW          = "b101100".U //
-    def VEC_RGATHER      = "b101101".U // vrgather.vv, vrgather.vi
-    def VEC_RGATHER_VX   = "b101110".U // vrgather.vx
-    def VEC_RGATHEREI16  = "b101111".U // vrgatherei16.vv
-    def VEC_COMPRESS     = "b110000".U // vcompress.vm
-    def VEC_US_LDST      = "b110001".U // vector unit-strided load/store
-    def VEC_S_LDST       = "b110010".U // vector strided load/store
-    def VEC_I_LDST       = "b110011".U // vector indexed load/store
-    def VEC_US_FF_LD     = "b110100".U // vector unit-stride fault-only-first load
-    def VEC_VFV          = "b111000".U // VEC_VFV
-    def VEC_VFW          = "b111001".U // VEC_VFW
-    def VEC_WFW          = "b111010".U // VEC_WVW
-    def VEC_VFM          = "b111011".U // VEC_VFM
-    def VEC_VFRED        = "b111100".U // VEC_VFRED
-    def VEC_VFREDOSUM    = "b111101".U // VEC_VFREDOSUM
-    def VEC_MVNR         = "b000100".U // vmvnr
+    def SCA_SIM          = "b0000000".U //
+    def VSET             = "b0010001".U // dirty: vset
+    def VEC_VVV          = "b0010010".U // VEC_VVV
+    def VEC_VXV          = "b0010011".U // VEC_VXV
+    def VEC_0XV          = "b0010100".U // VEC_0XV
+    def VEC_VVW          = "b0010101".U // VEC_VVW
+    def VEC_WVW          = "b0010110".U // VEC_WVW
+    def VEC_VXW          = "b0010111".U // VEC_VXW
+    def VEC_WXW          = "b0011000".U // VEC_WXW
+    def VEC_WVV          = "b0011001".U // VEC_WVV
+    def VEC_WXV          = "b0011010".U // VEC_WXV
+    def VEC_EXT2         = "b0011011".U // VF2 0 -> V
+    def VEC_EXT4         = "b0011100".U // VF4 0 -> V
+    def VEC_EXT8         = "b0011101".U // VF8 0 -> V
+    def VEC_VVM          = "b0011110".U // VEC_VVM
+    def VEC_VXM          = "b0011111".U // VEC_VXM
+    def VEC_SLIDE1UP     = "b0100000".U // vslide1up.vx
+    def VEC_FSLIDE1UP    = "b0100001".U // vfslide1up.vf
+    def VEC_SLIDE1DOWN   = "b0100010".U // vslide1down.vx
+    def VEC_FSLIDE1DOWN  = "b0100011".U // vfslide1down.vf
+    def VEC_VRED         = "b0100100".U // VEC_VRED
+    def VEC_SLIDEUP      = "b0100101".U // VEC_SLIDEUP
+    def VEC_SLIDEDOWN    = "b0100111".U // VEC_SLIDEDOWN
+    def VEC_M0X          = "b0101001".U // VEC_M0X  0MV
+    def VEC_MVV          = "b0101010".U // VEC_MVV  VMV
+    def VEC_VWW          = "b0101100".U //
+    def VEC_RGATHER      = "b0101101".U // vrgather.vv, vrgather.vi
+    def VEC_RGATHER_VX   = "b0101110".U // vrgather.vx
+    def VEC_RGATHEREI16  = "b0101111".U // vrgatherei16.vv
+    def VEC_COMPRESS     = "b0110000".U // vcompress.vm
+    def VEC_US_LDST      = "b0110001".U // vector unit-strided load/store
+    def VEC_S_LDST       = "b0110010".U // vector strided load/store
+    def VEC_I_LDST       = "b0110011".U // vector indexed load/store
+    def VEC_US_FF_LD     = "b0110100".U // vector unit-stride fault-only-first load
+    def VEC_VFV          = "b0111000".U // VEC_VFV
+    def VEC_VFW          = "b0111001".U // VEC_VFW
+    def VEC_WFW          = "b0111010".U // VEC_WVW
+    def VEC_VFM          = "b0111011".U // VEC_VFM
+    def VEC_VFRED        = "b0111100".U // VEC_VFRED
+    def VEC_VFREDOSUM    = "b0111101".U // VEC_VFREDOSUM
+    def VEC_MVNR         = "b0000100".U // vmvnr
 
-    def AMO_CAS_W        = "b110101".U // amocas_w
-    def AMO_CAS_D        = "b110110".U // amocas_d
-    def AMO_CAS_Q        = "b110111".U // amocas_q
+    def AMO_CAS_W        = "b0110101".U // amocas_w
+    def AMO_CAS_D        = "b0110110".U // amocas_d
+    def AMO_CAS_Q        = "b0110111".U // amocas_q
 
-    def MSET             = "b111110".U // mset
+    def MSET             = "b1000001".U // mset
     // dummy means that the instruction is a complex instruction but uop number is 1
-    def dummy     = "b111111".U
+    def dummy     = "b1111111".U
 
-    def X = BitPat("b000000")
+    def X = BitPat("b0000000")
 
-    def apply() = UInt(6.W)
+    def apply() = UInt(7.W)
     def needSplit(UopSplitType: UInt) = UopSplitType(4) || UopSplitType(5)
 
     def isAMOCAS(UopSplitType: UInt): Bool = UopSplitType === AMO_CAS_W || UopSplitType === AMO_CAS_D || UopSplitType === AMO_CAS_Q
+
+    def isVEC(UopSplitType: UInt): Bool = UopSplitType(6) === "b0".U && !isAMOCAS(UopSplitType)
+    def isMATRIX(UopSplitType: UInt): Bool = UopSplitType(6) === "b1".U
   }
 
   object ExceptionNO {
