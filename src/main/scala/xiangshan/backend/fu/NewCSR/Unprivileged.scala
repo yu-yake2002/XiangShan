@@ -130,12 +130,21 @@ trait Unprivileged { self: NewCSR with MachineLevel with SupervisorLevel =>
   }))
     .setAddr(CSRs.vlenb)
 
-  val mtype = Module(new CSRModule("Mtype", new CSRMTypeBundle) with HasRobCommitBundle {
-    when(robCommit.mtype.valid) {
-      reg := robCommit.mtype.bits
-    }
-  })
-    .setAddr(CSRs.mtype)
+  val mtype = 
+    if (DEV_FIXED_MTYPE) {
+      // Use a fixed value for mtype temporarily
+      Module(new CSRModule("Mtype", new CSRBundle {
+        // val MTYPE = RO(63, 0).withReset(0x0000000000000100.U)
+        val MTYPE = RO(63, 0).withReset(0.U)
+      }))
+        .setAddr(CSRs.mtype)
+    } else {
+      Module(new CSRModule("Mtype", new CSRMTypeBundle) with HasRobCommitBundle {
+        when(robCommit.mtype.valid) {
+          reg := robCommit.mtype.bits
+        }
+      })
+        .setAddr(CSRs.mtype)}
 
   // Matrix tile size registers, read-only.
   // They can be updated only by msettilem/n/k instructions.
