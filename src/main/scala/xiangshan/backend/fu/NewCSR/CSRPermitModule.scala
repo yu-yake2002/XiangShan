@@ -210,6 +210,7 @@ class MLevelPermitModule extends Module {
   private val csrIsFp = Seq(CSRs.fflags, CSRs.frm, CSRs.fcsr).map(_.U === addr).reduce(_ || _)
   private val csrIsVec = Seq(CSRs.vstart, CSRs.vxsat, CSRs.vxrm, CSRs.vcsr, CSRs.vtype).map(_.U === addr).reduce(_ || _)
   private val csrIsWritableVec = Seq(CSRs.vstart, CSRs.vxsat, CSRs.vxrm, CSRs.vcsr).map(_.U === addr).reduce(_ || _)
+
   private val counterAddr = addr(4, 0) // 32 counters
 
   private val rwIllegal = csrIsRO && wen
@@ -661,6 +662,7 @@ class CSRPermitIO extends Bundle {
     val hasLegalDret  = Bool()
     val hasLegalWriteFcsr = Bool()
     val hasLegalWriteVcsr = Bool()
+    // val hasLegalWriteMcsr = Bool()
     val EX_II = Bool()
     val EX_VI = Bool()
   })

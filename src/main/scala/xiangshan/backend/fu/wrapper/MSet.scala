@@ -26,7 +26,7 @@ class MSetMtilexBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUni
   protected val atx = Mux(MSETtilexOpType.isMsettilexi(in.ctrl.fuOpType), atxImm, in.data.src(0))
   
   // Get old mtype
-  val oldMtype = in.data.src(1).asTypeOf(MsetMType())
+  val oldMtype = MType.toMsetMType(in.ctrl.mpu.get.mtype)
 
   msetModule.io.in.func := in.ctrl.fuOpType
   connect0LatencyCtrlSingal
@@ -96,7 +96,7 @@ class MSetMtilexRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexB
   * @param p [[Parameters]]
   */
 class MSetMtilexRmfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
-  val oldMtilex = in.data.src(2)
+  val oldMtilex = in.data.src(1)
   msetModule.io.in.atx := oldMtilex
   msetModule.io.in.mtype := oldMtype
 
