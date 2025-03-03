@@ -170,7 +170,10 @@ case class XSCoreParameters
   MtilexLogicRegs: Int = 3, // Mtilem, Mtilen, Mtilek
   V0_IDX: Int = 0,
   Vl_IDX: Int = 0,
-  Mtilex_IDX: Int = 0,
+  Mtilex_IDX: Int = 0, // TODO: remove me!
+  Mtilem_IDX: Int = 0,
+  Mtilen_IDX: Int = 1,
+  Mtilek_IDX: Int = 2,
   NRPhyRegs: Int = 192,
   VirtualLoadQueueSize: Int = 72,
   LoadQueueRARSize: Int = 72,
@@ -433,8 +436,8 @@ case class XSCoreParameters
         ExeUnitParams("BJU3", Seq(CsrCfg, FenceCfg, DivCfg), Seq(IntWB(port = 4, 1)), Seq(Seq(IntRD(0, 1)), Seq(IntRD(1, 1)))),
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)), Seq(IntRD(1, 2)))),
-        ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2)), Seq(IntRD(4, 2))))
+        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)))),
+        ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2))))
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
     ),
       numPregs = intPreg.numEntries,
@@ -492,7 +495,7 @@ case class XSCoreParameters
     implicit val schdType: SchedulerType = MfScheduler()
     SchdBlockParams(Seq(
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 3)), Seq(IntRD(1, 3)), Seq(MtilexRD(0, 0))))
+        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 3)), Seq(MtilexRD(0, 0))))
       ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
       //   ExeUnitParams("MSTA", Seq(MStuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
@@ -798,7 +801,10 @@ trait HasXSParameter {
   def LogicRegsWidth = log2Ceil(MaxLogicRegs)
   def V0_IDX = coreParams.V0_IDX
   def Vl_IDX = coreParams.Vl_IDX
-  def Mtilex_IDX = coreParams.Mtilex_IDX
+  def Mtilex_IDX = coreParams.Mtilex_IDX // TODO: remove me
+  def Mtilem_IDX = coreParams.Mtilem_IDX
+  def Mtilen_IDX = coreParams.Mtilen_IDX
+  def Mtilek_IDX = coreParams.Mtilen_IDX
   def IntPhyRegs = coreParams.intPreg.numEntries
   def FpPhyRegs = coreParams.fpPreg.numEntries
   def VfPhyRegs = coreParams.vfPreg.numEntries

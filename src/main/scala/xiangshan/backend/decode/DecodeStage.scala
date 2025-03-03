@@ -24,7 +24,7 @@ import utils._
 import xiangshan._
 import xiangshan.backend.rename.RatReadPort
 import xiangshan.backend.Bundles._
-import xiangshan.backend.fu.matrix.Bundles.{MType}
+import xiangshan.backend.fu.matrix.Bundles.{MType, Mtilex}
 import xiangshan.backend.fu.vector.Bundles.{VType, Vl}
 import xiangshan.backend.fu.FuType
 import xiangshan.backend.fu.wrapper.CSRToDecode
@@ -83,7 +83,7 @@ class DecodeStageIO(implicit p: Parameters) extends XSBundle {
   val vsetvlVType = Input(VType())
   val vstart = Input(Vl())
   val msettypeMType = Input(MType())
-  val mstart = Input(Vl()) // FIXME: don't use Vl here
+  val mstart = Input(Mtilex()) // FIXME: don't use Mtilex here
 
   val toCSR = new Bundle {
     val trapInstInfo = ValidIO(new TrapInstInfo)
@@ -131,6 +131,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
     dst.io.enq.vtype := vtypeGen.io.vtype
     dst.io.enq.vstart := io.vstart
     dst.io.enq.mtype := mtypeGen.io.mtype
+    dst.io.enq.mstart := io.mstart
   }
 
   /** whether instructions decoded by simple decoders require complex decoding */
@@ -219,8 +220,8 @@ class DecodeStage(implicit p: Parameters) extends XSModule
   //       The same goes for hasMatrixInst.
   val hasMatrixInst = false.B
 
-  /** condition of acceptation: no redirection, ready from rename/complex decoder, no resumeVType */
-  canAccept := !io.redirect && (io.out.head.ready || decoderComp.io.in.ready) && !io.fromRob.isResumeVType
+  /** condition of acceptation: no redirection, ready from rename/complex decoder, no resumeVType/resumeMType */
+  canAccept := !io.redirect && (io.out.head.ready || decoderComp.io.in.ready) && !io.fromRob.isResumeVType && !io.fromRob.isResumeMType
 
   io.canAccept := canAccept
 
@@ -237,7 +238,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
     in.ready := !io.redirect && (
       simplePrefixVec(i) && (i.U +& complexNum) < readyCounter ||
       firstComplexOH(i) && (i.U +& complexNum) <= readyCounter && decoderComp.io.in.ready
-    ) && !io.fromRob.isResumeVType
+    ) && !io.fromRob.isResumeVType && !io.fromRob.isResumeMType
   }
 
   /** final instruction decoding result */
@@ -259,7 +260,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
    * Note that finalDecodedInst is generated in order.
    */
   io.out.zipWithIndex.foreach { case (inst, i) =>
-    inst.valid := finalDecodedInstValid(i) && !io.fromRob.isResumeVType
+    inst.valid := finalDecodedInstValid(i) && !io.fromRob.isResumeVType && !io.fromRob.isResumeMType
     inst.bits := finalDecodedInst(i)
     inst.bits.lsrc(0) := Mux(finalDecodedInst(i).vpu.isReverse, finalDecodedInst(i).lsrc(1), finalDecodedInst(i).lsrc(0))
     inst.bits.lsrc(1) := Mux(finalDecodedInst(i).vpu.isReverse, finalDecodedInst(i).lsrc(0), finalDecodedInst(i).lsrc(1))

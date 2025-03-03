@@ -461,6 +461,12 @@ class CSRToDecode(implicit p: Parameters) extends XSBundle {
     val vsIsOff = Bool()
 
     /**
+     * decode all matrix inst
+     * raise EX_II when MS=Off
+     */
+    // val msIsOff = Bool()
+
+    /**
      * illegal wfi
      * raise EX_II when isModeHU || !isModeM && mstatus.TW=1
      */

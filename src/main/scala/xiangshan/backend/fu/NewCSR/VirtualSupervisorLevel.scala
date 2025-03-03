@@ -37,6 +37,11 @@ trait VirtualSupervisorLevel { self: NewCSR with SupervisorLevel with Hypervisor
         assert(reg.VS =/= ContextStatus.Off, "The vsstatus.VS should not be Off when set dirty, please check decode")
         reg.VS := ContextStatus.Dirty
       }
+
+      // when ((robCommit.msDirty || writeMCSR) && isVirtMode) {
+      //   assert(reg.MS =/= ContextStatus.Off, "The vsstatus.MS should not be Off when set dirty, please check decode")
+      //   reg.MS := ContextStatus.Dirty
+      // }
       // when menvcfg or henvcfg.DTE close,  vsstatus.SDT is read-only
       val writeSDT = Wire(Bool())
       writeSDT := Mux(this.menvcfg.DTE && this.henvcfg.DTE, w.wdataFields.SDT.asBool, 0.U)

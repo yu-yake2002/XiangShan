@@ -433,8 +433,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWi(cfg)(p).suggestName("MSetMtilexRiWi")),
     srcData = Seq(
       // src(0): atx
-      // src(1): old mtype
-      Seq(IntData(), IntData())
+      Seq(IntData())
     ),
     piped = true,
     writeIntRf = true,
@@ -448,8 +447,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRiWmf(cfg)(p).suggestName("MSetMtilexRiWmf")),
     srcData = Seq(
       // src(0): atx
-      // src(1): old mtype
-      Seq(IntData(), IntData())
+      Seq(IntData())
     ),
     piped = true,
     writeMtilexRf = true,
@@ -463,9 +461,8 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRmfWmf")),
     srcData = Seq(
       // src(0): atx
-      // src(2): old mtype
-      // src(3): old mtilex
-      Seq(IntData(), IntData(), MtilexData()),
+      // src(1): old mtilex
+      Seq(IntData(), MtilexData()),
     ),
     piped = true,
     writeIntRf = true,
@@ -480,8 +477,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtypeRiWi(cfg)(p).suggestName("MSetMtypeRiWi")),
     srcData = Seq(
       // src(0): new mtype
-      // src(1): old mtype
-      Seq(IntData(), IntData()),
+      Seq(IntData()),
     ),
     piped = true,
     writeIntRf = true,
@@ -496,8 +492,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtypeRiWmf(cfg)(p).suggestName("MSetMtypeRiWmf")),
     srcData = Seq(
       // src(0): new mtype
-      // src(1): old mtype
-      Seq(IntData(), IntData()),
+      Seq(IntData()),
     ),
     piped = true,
     writeIntRf = true,
