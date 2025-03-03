@@ -489,6 +489,7 @@ class MstatusBundle extends CSRBundle {
   val VS   = ContextStatus  (10,  9).withReset(ContextStatus.Off)
   val MPP  = PrivMode       (12, 11).withReset(PrivMode.U)
   val FS   = ContextStatus  (14, 13).withReset(ContextStatus.Off)
+  // val MS   = ContextStatus  (24, 23).withReset(ContextStatus.Off)
   val XS   = ContextStatusRO(16, 15).withReset(0.U)
   val MPRV = CSRRWField     (17).withReset(0.U)
   val SUM  = CSRRWField     (18).withReset(0.U)
@@ -543,6 +544,11 @@ class MstatusModule(implicit override val p: Parameters) extends CSRModule("MSta
     assert(reg.VS =/= ContextStatus.Off, "The [m|s]status.VS should not be Off when set dirty, please check decode")
     reg.VS := ContextStatus.Dirty
   }
+
+  // when (robCommit.msDirty || writeMCSR) {
+  //   assert(reg.MS =/= ContextStatus.Off, "The [m|s]status.MS should not be Off when set dirty, please check decode")
+  //   reg.MS := ContextStatus.Dirty
+  // }
   // when MDT is explicitly written by 1, clear MIE
   // only when reg.MDT is zero or wdata.MDT is zero , MIE can be explicitly written by 1
   when (w.wdataFields.MDT && w.wen) {
@@ -800,6 +806,7 @@ trait HasRobCommitBundle { self: CSRModule[_] =>
   val robCommit = IO(Input(new RobCommitCSR))
   val writeFCSR = IO(Input(Bool()))
   val writeVCSR = IO(Input(Bool()))
+  // val writeMCSR = IO(Input(Bool()))
   val isVirtMode = IO(Input(Bool()))
 }
 

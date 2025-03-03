@@ -102,12 +102,6 @@ object Bundles {
       res.msew := MSew.e8
       res
     }
-
-    // TODO: What's their meaning?
-    def mu: UInt = 0.U(1.W)
-    def ma: UInt = 1.U(1.W)
-    def tu: UInt = 0.U(1.W)
-    def ta: UInt = 1.U(1.W)
   }
 
   object MsetMType {

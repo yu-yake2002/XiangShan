@@ -475,24 +475,20 @@ package object xiangshan {
   object MSETtilexOpType {
     def placeholder = "b1100_0000".U
 
-    def isSet (func: UInt) = func(7) === "b0".U
+    def isSet  (func: UInt) = func(7) === "b0".U
     def isRead (func: UInt) = func(7) === "b1".U
 
     def isTileM (func: UInt) = func(3, 0) === "b0000".U
     def isTileN (func: UInt) = func(3, 0) === "b0001".U
     def isTileK (func: UInt) = func(3, 0) === "b0010".U
-    def isMType (func: UInt) = func(3, 0) === "b0011".U
-    def isMRd (func: UInt)   = func(3, 0) === "b0100".U
-    // TODO: Sparse and Img2Col
+    def isMRd   (func: UInt) = func(3, 0) === "b0100".U
     
-    def isSetX (func: UInt)         = isSet(func) && func(6, 4) === "b000".U
-    def isSetImm (func: UInt)       = isSet(func) && func(6, 4) === "b001".U
-    def isSetImmL (func: UInt)      = isSet(func) && func(6, 4) === "b010".U
-    def isSetImmH (func: UInt)      = isSet(func) && func(6, 4) === "b011".U
+    def isSetX         (func: UInt) = isSet(func) && func(6, 4) === "b000".U
+    def isSetImm       (func: UInt) = isSet(func) && func(6, 4) === "b001".U
     def isSetMaxMtilem (func: UInt) = isSet(func) && func(6, 4) === "b100".U
     def isSetMaxMtilen (func: UInt) = isSet(func) && func(6, 4) === "b101".U
     def isSetMaxMtilek (func: UInt) = isSet(func) && func(6, 4) === "b110".U
-    def isSetKeep (func: UInt)      = isSet(func) && func(6, 4) === "b111".U
+    def isSetKeep      (func: UInt) = isSet(func) && func(6, 4) === "b111".U
 
     // msettilex's uop
     //   case1: rs1!=x0, normal
@@ -501,7 +497,7 @@ package object xiangshan {
     def umsettilen_x = "b0_000_0001".U
     def umsettilek_x = "b0_000_0010".U
     //     uop1: r(rs1), w(rd)     | x[rs1] -> x[rd]
-    def umsetrd_xx    = "b0_000_0100".U
+    def umsetrd_xx   = "b0_000_0100".U
     //   case2: rs1==x0, rd!=x0, set mtilex to max, set rd to max
     //     uop0: w(mconfig)        | mtilexmax -> mconfig
     def umsetmtilem_mtilemmax = "b0_100_0000".U
@@ -539,17 +535,6 @@ package object xiangshan {
     def csrrmtilem    = "b1_000_0000".U
     def csrrmtilen    = "b1_000_0001".U
     def csrrmtilek    = "b1_000_0010".U
-
-    // msettype's uop
-    //   uop0: r(mtype), w(mtype) | imm -> mtype
-    // def umsettype_xx  = "b0_000_0011".U
-    //   uop1: r(mtype), w(rd)    | imm -> x[rd]
-    // TODO: 
-    
-    // msettype{h}i's uop
-    // def umsettypel_xi = "b0_010_0011".U
-    // def umsettypeh_xi = "b0_011_0011".U
-    // TODO: mset's uop
     
     def isMsettilem (func: UInt)  = isSetX(func)         && isTileM(func)
     def isMsettilemi (func: UInt) = isSetImm(func)       && isTileM(func)
@@ -576,7 +561,7 @@ package object xiangshan {
 
     // def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
 
-    // def isMsettype (func: UInt) = false.B // TODO: Implement me!
+    def toMtilexIdx (func: UInt) = func(1, 0)
   }
 
   object MlduType {

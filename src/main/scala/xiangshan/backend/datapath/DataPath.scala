@@ -901,7 +901,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   fromIQ.foreach(iq => iq.foreach{exu => 
     val exuParams = exu.bits.exuParams
     if (exuParams.isIntExeUnit) {
-      for (i <- 0 until 2) {
+      for (i <- 0 until exu.bits.common.dataSources.size) {
         XSPerfAccumulate(s"INT_ExuId${exuParams.exuIdx}_src${i}_dataSource_forward",  exu.fire && exu.bits.common.dataSources(i).readForward)
         XSPerfAccumulate(s"INT_ExuId${exuParams.exuIdx}_src${i}_dataSource_bypass",   exu.fire && exu.bits.common.dataSources(i).readBypass)
         XSPerfAccumulate(s"INT_ExuId${exuParams.exuIdx}_src${i}_dataSource_regcache", exu.fire && exu.bits.common.dataSources(i).readRegCache)

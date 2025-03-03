@@ -239,6 +239,8 @@ class UopInfoGen (implicit p: Parameters) extends XSModule {
     UopSplitType.AMO_CAS_W -> 2.U,
     UopSplitType.AMO_CAS_D -> 2.U,
     UopSplitType.AMO_CAS_Q -> 4.U,
+    UopSplitType.MSET -> 2.U,
+    UopSplitType.dummy -> 1.U
   ))
 
   // number of writeback num

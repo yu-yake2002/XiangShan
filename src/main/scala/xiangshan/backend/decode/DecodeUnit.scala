@@ -31,11 +31,12 @@ import xiangshan.backend.fu.FuType
 import xiangshan.backend.Bundles.{DecodedInst, DynInst, StaticInst}
 import xiangshan.backend.decode.isa.PseudoInstructions
 import xiangshan.backend.decode.isa.bitfield.{InstVType, OPCODE5Bit, XSInstBitFields}
-import xiangshan.backend.fu.matrix.Bundles.MType
+import xiangshan.backend.fu.matrix.Bundles.{MType, Mtilex}
 import xiangshan.backend.fu.vector.Bundles.{VType, Vl}
 import xiangshan.backend.fu.wrapper.CSRToDecode
 import xiangshan.backend.decode.Zimop._
 import yunsuan.{VfaluType, VfcvtType}
+import xiangshan.backend.decode
 
 /**
  * Abstract trait giving defaults and other relevant values to different Decode constants/
@@ -819,6 +820,7 @@ class DecodeUnitEnqIO(implicit p: Parameters) extends XSBundle {
   val vtype = Input(new VType)
   val vstart = Input(Vl())
   val mtype = Input(new MType)
+  val mstart = Input(Mtilex())
 }
 
 class DecodeUnitDeqIO(implicit p: Parameters) extends XSBundle {
@@ -941,6 +943,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
       inst.isOPFVF || inst.isOPFVV
     ) ||
     io.fromCSR.illegalInst.vsIsOff    && FuType.FuTypeOrR(decodedInst.fuType, FuType.vecAll) ||
+    // io.fromCSR.illegalInst.msIsOff    && FuType.FuTypeOrR(decodedInst.fuType, FuType.matrixAll) ||
     io.fromCSR.illegalInst.wfi        && FuType.FuTypeOrR(decodedInst.fuType, FuType.csr)   && CSROpType.isWfi(decodedInst.fuOpType) ||
     io.fromCSR.illegalInst.wrs_nto    && FuType.FuTypeOrR(decodedInst.fuType, FuType.csr)   && CSROpType.isWrsNto(decodedInst.fuOpType) ||
     (decodedInst.needFrm.scalaNeedFrm || FuType.isScalaNeedFrm(decodedInst.fuType)) && (((decodedInst.fpu.rm === 5.U) || (decodedInst.fpu.rm === 6.U)) || ((decodedInst.fpu.rm === 7.U) && io.fromCSR.illegalInst.frm)) ||
@@ -1131,7 +1134,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   decodedInst.mpu.mint16 := io.enq.mtype.mint16
   decodedInst.mpu.mint8 := io.enq.mtype.mint8
   decodedInst.mpu.msew := io.enq.mtype.msew
-
+  decodedInst.mpu.mstart := io.enq.mstart
   decodedInst.mpu.specMill := io.enq.mtype.illegal
   decodedInst.mpu.specMba := io.enq.mtype.mba
   decodedInst.mpu.specMfp64 := io.enq.mtype.mfp64
@@ -1202,6 +1205,36 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
+  }.elsewhen (isCsrrMtilem) {
+    decodedInst.srcType(0) := SrcType.no
+    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(3) := SrcType.no
+    decodedInst.srcType(4) := SrcType.mp
+    decodedInst.lsrc(4)    := Mtilem_IDX.U
+    decodedInst.waitForward   := false.B
+    decodedInst.blockBackward := false.B
+    // decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
+  }.elsewhen (isCsrrMtilen) {
+    decodedInst.srcType(0) := SrcType.no
+    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(3) := SrcType.no
+    decodedInst.srcType(4) := SrcType.mp
+    decodedInst.lsrc(4)    := Mtilen_IDX.U
+    decodedInst.waitForward   := false.B
+    decodedInst.blockBackward := false.B
+    // decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
+  }.elsewhen (isCsrrMtilek) {
+    decodedInst.srcType(0) := SrcType.no
+    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(3) := SrcType.no
+    decodedInst.srcType(4) := SrcType.mp
+    decodedInst.lsrc(4)    := Mtilek_IDX.U
+    decodedInst.waitForward   := false.B
+    decodedInst.blockBackward := false.B
+    // decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrVlenb) {
     // convert to addi instruction
     decodedInst.srcType(0) := SrcType.reg
@@ -1214,6 +1247,18 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.canRobCompress := true.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
+  }.elsewhen (isCsrrMlenb || isCsrrMrlenb || isCsrrMamul) {
+    // convert to addi instruction
+    decodedInst.srcType(0) := SrcType.reg
+    decodedInst.srcType(1) := SrcType.imm
+    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(3) := SrcType.no
+    decodedInst.srcType(4) := SrcType.no
+    decodedInst.selImm := SelImm.IMM_I
+    decodedInst.waitForward := false.B
+    decodedInst.blockBackward := false.B
+    decodedInst.canRobCompress := true.B
+    // decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isPreW || isPreR || isPreI) {
     decodedInst.selImm := SelImm.IMM_S
     decodedInst.fuType := FuType.ldu.U
@@ -1230,9 +1275,13 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   io.deq.decodedInst.rfWen := (decodedInst.ldest =/= 0.U) && decodedInst.rfWen
   io.deq.decodedInst.fuType := Mux1H(Seq(
     // keep condition
-    (!FuType.FuTypeOrR(decodedInst.fuType, FuType.vldu, FuType.vstu) && !isCsrrVl && !isCsrrVlenb) -> decodedInst.fuType,
+    (!FuType.FuTypeOrR(decodedInst.fuType, FuType.vldu, FuType.vstu) && 
+      !isCsrrVl && !isCsrrVlenb && !isCsrrMlenb && !isCsrrMrlenb && !isCsrrMamul) -> decodedInst.fuType,
     (isCsrrVl) -> FuType.vsetfwf.U,
     (isCsrrVlenb) -> FuType.alu.U,
+    (isCsrrMlenb) -> FuType.alu.U,
+    (isCsrrMrlenb) -> FuType.alu.U,
+    (isCsrrMamul) -> FuType.alu.U,
 
     // change vlsu to vseglsu when NF =/= 0.U
     ( FuType.FuTypeOrR(decodedInst.fuType, FuType.vldu, FuType.vstu) && inst.NF === 0.U || (inst.NF =/= 0.U && (inst.MOP === "b00".U && inst.SUMOP === "b01000".U))) -> decodedInst.fuType,
@@ -1244,9 +1293,11 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     ( FuType.FuTypeOrR(decodedInst.fuType, FuType.vldu)              && inst.NF =/= 0.U && ((inst.MOP === "b00".U && inst.LUMOP =/= "b01000".U) || inst.MOP =/= "b00".U)) -> FuType.vsegldu.U,
   ))
   io.deq.decodedInst.imm := MuxCase(decodedInst.imm, Seq(
-    isCsrrVlenb -> (VLEN / 8).U,
-    isZimop     -> 0.U,
-    // TODO: add imm for mlenb, mrlenb, mamul
+    isCsrrVlenb  -> (VLEN / 8).U,
+    isZimop      -> 0.U,
+    isCsrrMlenb  -> (MLEN / 8).U,
+    isCsrrMrlenb -> (RLEN / 8).U,
+    isCsrrMamul  -> AMUL.U,
   ))
 
   io.deq.decodedInst.fuOpType := MuxCase(decodedInst.fuOpType, Seq(

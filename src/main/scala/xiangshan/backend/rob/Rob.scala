@@ -1720,6 +1720,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     dontTouch(io.commits)
     dontTouch(commitIsVTypeVec)
     dontTouch(walkIsVTypeVec)
+    dontTouch(commitIsMTypeVec)
+    dontTouch(walkIsMTypeVec)
     dontTouch(commitValidThisLine)
     dontTouch(commitReadAddr_next)
     dontTouch(donotNeedWalk)

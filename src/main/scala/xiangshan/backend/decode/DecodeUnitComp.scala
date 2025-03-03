@@ -162,6 +162,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
 
   isMsettilexSimple := latchedInst.isMsettilex
   isMsettypeSimple := latchedInst.isMsettype
+  val mstartReg = latchedInst.mpu.mstart
 
   //Type of uop Div
   val typeOfSplit = latchedInst.uopSplitType
@@ -364,56 +365,38 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
       when(isMsettilexSimple) {
         // Default
         // uop0 set rd
-        // csBundle(0).fuType := 
-        // csBundle(0).flushPipe := Mux(VSETOpType.isVsetvl(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
+        csBundle(0).fuType := FuType.msetmtilexiwi.U
+        csBundle(0).flushPipe := Mux(MSETtilexOpType.isMsettilex(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
         csBundle(0).blockBackward := false.B
         csBundle(0).rfWen := true.B
+        csBundle(0).fpWen := false.B
+        csBundle(0).vecWen := false.B
+        csBundle(0).vlWen := false.B
+        csBundle(0).mtilexWen := false.B
+        csBundle(0).ldest := dest
         // uop1 set mtilex
-        // csBundle(1).ldest := 
+        csBundle(1).fuType := FuType.msetmtilexiwf.U
+        // select ldest idx of mtilex
+        csBundle(1).ldest := MSETtilexOpType.toMtilexIdx(latchedInst.fuOpType)
+        csBundle(1).rfWen := false.B
+        csBundle(1).fpWen := false.B
         csBundle(1).vecWen := false.B
+        csBundle(1).vlWen := false.B
         csBundle(1).mtilexWen := true.B
         csBundle(1).flushPipe := false.B
-        // csBundle(1).blockBackward := Mux(VSETOpType.isVsetvl(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
-        when(MSETtilexOpType.isMsettilexi(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
-          // write nothing, uop0 is a nop instruction
-          csBundle(0).rfWen := false.B
-          csBundle(0).fpWen := false.B
-          csBundle(0).vecWen := false.B
-          csBundle(0).vlWen := false.B
-          csBundle(0).mtilexWen := false.B
-          // csBundle(1).fuType := FuType.vsetfwf.U
-          csBundle(1).srcType(0) := SrcType.no
-          csBundle(1).srcType(2) := SrcType.no
-          csBundle(1).srcType(3) := SrcType.no
-          csBundle(1).srcType(4) := SrcType.mp
-          // csBundle(1).lsrc(4) := Vl_IDX.U
+        csBundle(1).blockBackward := Mux(MSETtilexOpType.isMsettilex(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
+        when(MSETtilexOpType.isMsettilexi(latchedInst.fuOpType)) {
+          // atx
+          csBundle(0).srcType(0) := SrcType.imm
+          // atx
+          csBundle(1).srcType(0) := SrcType.imm
         }.elsewhen(MSETtilexOpType.isMsettilex(latchedInst.fuOpType) && dest === 0.U && src1 === 0.U) {
-          // uop0: mv vtype gpr to vector region
-          csBundle(0).srcType(0) := SrcType.xp
-          csBundle(0).srcType(1) := SrcType.no
-          csBundle(0).lsrc(0) := src2
-          csBundle(0).lsrc(1) := 0.U
-          csBundle(0).ldest := VECTOR_TMP_REG_LMUL.U
-          csBundle(0).fuType := FuType.i2v.U
-          csBundle(0).fuOpType := Cat(IF2VectorType.i2Vec(2, 0), e64)
+          // write nothing, uop0 is actually a nop instruction
           csBundle(0).rfWen := false.B
-          csBundle(0).fpWen := false.B
-          csBundle(0).vecWen := true.B
-          csBundle(0).vlWen := false.B
-          // uop1: uvsetvcfg_vv
-          csBundle(1).fuType := FuType.vsetfwf.U
-          // vl
-          csBundle(1).srcType(0) := SrcType.no
-          csBundle(1).srcType(2) := SrcType.no
-          csBundle(1).srcType(3) := SrcType.no
-          csBundle(1).srcType(4) := SrcType.mp
-          // csBundle(1).lsrc(4) := Vl_IDX.U
-          // vtype
-          csBundle(1).srcType(1) := SrcType.mp
-          csBundle(1).lsrc(1) := VECTOR_TMP_REG_LMUL.U
-          csBundle(1).vecWen := false.B
-          csBundle(1).vlWen := true.B
-          // csBundle(1).ldest := Vl_IDX.U
+          // uop1
+          csBundle(1).fuType := FuType.msetmtilexfwf.U
+          csBundle(1).srcType(0) := SrcType.xp
+          csBundle(1).srcType(1) := SrcType.no
         }.elsewhen(dest === 0.U) {
           // write nothing, uop0 is a nop instruction
           csBundle(0).rfWen := false.B
