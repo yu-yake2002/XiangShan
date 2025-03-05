@@ -465,7 +465,7 @@ class CSRToDecode(implicit p: Parameters) extends XSBundle {
      * decode all matrix inst
      * raise EX_II when MS=Off
      */
-    // val msIsOff = Bool()
+    val msIsOff = Bool()
 
     /**
      * illegal wfi

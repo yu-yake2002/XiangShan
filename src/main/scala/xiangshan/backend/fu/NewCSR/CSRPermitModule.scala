@@ -196,11 +196,13 @@ class MLevelPermitModule extends Module {
 
   private val menvcfgSTCE = menvcfg(63)
 
-  private val (sFSIsOff, sVSIsOff, sOrVsFSIsOff, sOrVsVSIsOff) = (
+  private val (sFSIsOff, sVSIsOff, sMSIsOff, sOrVsFSIsOff, sOrVsVSIsOff, sOrVsMSIsOff) = (
     io.in.status.mstatusFSOff,
     io.in.status.mstatusVSOff,
+    io.in.status.mstatusMSOff,
     io.in.status.mstatusFSOff || io.in.status.vsstatusFSOff,
     io.in.status.mstatusVSOff || io.in.status.vsstatusVSOff,
+    io.in.status.mstatusMSOff || io.in.status.vsstatusMSOff
   )
 
   private val mvienSEIE = io.in.aia.mvienSEIE
@@ -210,6 +212,8 @@ class MLevelPermitModule extends Module {
   private val csrIsFp = Seq(CSRs.fflags, CSRs.frm, CSRs.fcsr).map(_.U === addr).reduce(_ || _)
   private val csrIsVec = Seq(CSRs.vstart, CSRs.vxsat, CSRs.vxrm, CSRs.vcsr, CSRs.vtype).map(_.U === addr).reduce(_ || _)
   private val csrIsWritableVec = Seq(CSRs.vstart, CSRs.vxsat, CSRs.vxrm, CSRs.vcsr).map(_.U === addr).reduce(_ || _)
+  private val csrIsMatrix = Seq(CSRs.mstart, CSRs.mtype, CSRs.mcsr).map(_.U === addr).reduce(_ || _)
+  private val csrIsWritableMatrix = Seq(CSRs.mstart, CSRs.mcsr).map(_.U === addr).reduce(_ || _)
 
   private val counterAddr = addr(4, 0) // 32 counters
 
@@ -217,11 +221,13 @@ class MLevelPermitModule extends Module {
 
   private val fsEffectiveOff = sFSIsOff && !privState.isVirtual || sOrVsFSIsOff && privState.isVirtual
   private val vsEffectiveOff = sVSIsOff && !privState.isVirtual || sOrVsVSIsOff && privState.isVirtual
+  private val msEffectiveOff = sMSIsOff && !privState.isVirtual || sOrVsMSIsOff && privState.isVirtual
 
   private val fpOff_EX_II  = csrIsFp  && fsEffectiveOff
   private val vecOff_EX_II = csrIsVec && vsEffectiveOff
+  private val matrixOff_EX_II = csrIsMatrix && msEffectiveOff
 
-  private val fpVec_EX_II = fpOff_EX_II || vecOff_EX_II
+  private val fpVecMatrix_EX_II = fpOff_EX_II || vecOff_EX_II || matrixOff_EX_II
 
   private val rwStimecmp_EX_II = !privState.isModeM && (!mcounterenTM || !menvcfgSTCE) && (addr === CSRs.vstimecmp.U || addr === CSRs.stimecmp.U)
 
@@ -294,10 +300,11 @@ class MLevelPermitModule extends Module {
    * Sm/Ssstateen end
    */
 
-  io.out.mLevelPermit_EX_II := rwIllegal || fpVec_EX_II || rwStimecmp_EX_II ||
+  io.out.mLevelPermit_EX_II := rwIllegal || fpVecMatrix_EX_II || rwStimecmp_EX_II ||
     accessHPM_EX_II || rwSatp_EX_II || rwStopei_EX_II || xstateControlAccess_EX_II
   io.out.hasLegalWriteFcsr := wen && csrIsFp && !fsEffectiveOff
   io.out.hasLegalWriteVcsr := wen && csrIsWritableVec && !vsEffectiveOff
+  io.out.hasLegalWriteMcsr := wen && csrIsWritableMatrix && !msEffectiveOff
 }
 
 class SLevelPermitModule extends Module {
@@ -597,6 +604,8 @@ class statusIO extends Bundle {
   val vsstatusFSOff = Bool()
   val mstatusVSOff = Bool()
   val vsstatusVSOff = Bool()
+  val mstatusMSOff = Bool()
+  val vsstatusMSOff = Bool()
 }
 
 class xcounterenIO extends Bundle {
@@ -662,7 +671,7 @@ class CSRPermitIO extends Bundle {
     val hasLegalDret  = Bool()
     val hasLegalWriteFcsr = Bool()
     val hasLegalWriteVcsr = Bool()
-    // val hasLegalWriteMcsr = Bool()
+    val hasLegalWriteMcsr = Bool()
     val EX_II = Bool()
     val EX_VI = Bool()
   })

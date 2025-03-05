@@ -199,7 +199,7 @@ class NewCSR(implicit val p: Parameters) extends Module
         val mrlenb = UInt(XLEN.W)
         val mamul = UInt(XLEN.W)
         val mcsr = UInt(XLEN.W)
-        // val off = Bool()
+        val off = Bool()
       }
       // debug
       val debugMode = Bool()
@@ -488,7 +488,7 @@ class NewCSR(implicit val p: Parameters) extends Module
 
   private val writeFpLegal  = permitMod.io.out.hasLegalWriteFcsr
   private val writeVecLegal = permitMod.io.out.hasLegalWriteVcsr
-  // private val writeMatrixLegal = permitMod.io.out.hasLegalWriteMcsr
+  private val writeMatrixLegal = permitMod.io.out.hasLegalWriteMcsr
 
   permitMod.io.in.csrAccess.ren := ren && valid
   permitMod.io.in.csrAccess.wen := wen
@@ -529,10 +529,10 @@ class NewCSR(implicit val p: Parameters) extends Module
 
   permitMod.io.in.status.mstatusFSOff  := mstatus.regOut.FS === ContextStatus.Off
   permitMod.io.in.status.mstatusVSOff  := mstatus.regOut.VS === ContextStatus.Off
-  // permitMod.io.in.status.mstatusMSOff  := mstatus.regOut.MS === ContextStatus.Off
+  permitMod.io.in.status.mstatusMSOff  := mstatus.regOut.MS === ContextStatus.Off
   permitMod.io.in.status.vsstatusFSOff := vsstatus.regOut.FS === ContextStatus.Off
   permitMod.io.in.status.vsstatusVSOff := vsstatus.regOut.VS === ContextStatus.Off
-  // permitMod.io.in.status.vsstatusMSOff := vsstatus.regOut.MS === ContextStatus.Off
+  permitMod.io.in.status.vsstatusMSOff := vsstatus.regOut.MS === ContextStatus.Off
 
   permitMod.io.in.aia.miselect := miselect.rdata
   permitMod.io.in.aia.siselect := siselect.rdata
@@ -639,7 +639,7 @@ class NewCSR(implicit val p: Parameters) extends Module
         m.robCommit.mtilek  := RegNext          (io.fromRob.commit.mtilek)
         m.writeFCSR         := writeFpLegal
         m.writeVCSR         := writeVecLegal
-        // m.writeMCSR         := writeMatrixLegal
+        m.writeMCSR         := writeMatrixLegal
         m.isVirtMode        := V.asUInt.asBool
       case _ =>
     }
@@ -1001,16 +1001,16 @@ class NewCSR(implicit val p: Parameters) extends Module
     vsstatus.w.wdataFields.VS =/= ContextStatus.Off && vsstatus.regOut.VS === ContextStatus.Off
   )
 
-  // val matrixStatusOnOff = mstatus.w.wen && (
-  //   mstatus.w.wdataFields.MS === ContextStatus.Off && mstatus.regOut.MS =/= ContextStatus.Off ||
-  //   mstatus.w.wdataFields.MS =/= ContextStatus.Off && mstatus.regOut.MS === ContextStatus.Off
-  // ) || mstatus.wAliasSstatus.wen && (
-  //   mstatus.wAliasSstatus.wdataFields.MS === ContextStatus.Off && mstatus.regOut.MS =/= ContextStatus.Off ||
-  //   mstatus.wAliasSstatus.wdataFields.MS =/= ContextStatus.Off && mstatus.regOut.MS === ContextStatus.Off
-  // ) || vsstatus.w.wen && (
-  //   vsstatus.w.wdataFields.MS === ContextStatus.Off && vsstatus.regOut.MS =/= ContextStatus.Off ||
-  //   vsstatus.w.wdataFields.MS =/= ContextStatus.Off && vsstatus.regOut.MS === ContextStatus.Off
-  // )
+  val matrixStatusOnOff = mstatus.w.wen && (
+    mstatus.w.wdataFields.MS === ContextStatus.Off && mstatus.regOut.MS =/= ContextStatus.Off ||
+    mstatus.w.wdataFields.MS =/= ContextStatus.Off && mstatus.regOut.MS === ContextStatus.Off
+  ) || mstatus.wAliasSstatus.wen && (
+    mstatus.wAliasSstatus.wdataFields.MS === ContextStatus.Off && mstatus.regOut.MS =/= ContextStatus.Off ||
+    mstatus.wAliasSstatus.wdataFields.MS =/= ContextStatus.Off && mstatus.regOut.MS === ContextStatus.Off
+  ) || vsstatus.w.wen && (
+    vsstatus.w.wdataFields.MS === ContextStatus.Off && vsstatus.regOut.MS =/= ContextStatus.Off ||
+    vsstatus.w.wdataFields.MS =/= ContextStatus.Off && vsstatus.regOut.MS === ContextStatus.Off
+  )
 
   val triggerFrontendChange = Wire(Bool())
 
@@ -1195,7 +1195,7 @@ class NewCSR(implicit val p: Parameters) extends Module
   io.status.matrixState.mrlenb := mrlenb.rdata.asUInt
   io.status.matrixState.mamul := mamul.rdata.asUInt
   io.status.matrixState.mcsr := mcsr.rdata.asUInt
-  // io.status.matrixState.off := mstatus.regOut.MS === ContextStatus.Off
+  io.status.matrixState.off := mstatus.regOut.MS === ContextStatus.Off
   io.status.interrupt := intrMod.io.out.interruptVec.valid
   io.status.wfiEvent := debugIntr || (mie.rdata.asUInt & mip.rdata.asUInt).orR || nmip.asUInt.orR
   io.status.debugMode := debugMode
@@ -1509,7 +1509,7 @@ class NewCSR(implicit val p: Parameters) extends Module
   io.toDecode.virtualInst.hlsv       := isModeVS || isModeVU
   io.toDecode.illegalInst.fsIsOff    := mstatus.regOut.FS === ContextStatus.Off || (isModeVS || isModeVU) && vsstatus.regOut.FS === ContextStatus.Off
   io.toDecode.illegalInst.vsIsOff    := mstatus.regOut.VS === ContextStatus.Off || (isModeVS || isModeVU) && vsstatus.regOut.VS === ContextStatus.Off
-  // io.toDecode.illegalInst.msIsOff    := mstatus.regOut.MS === ContextStatus.Off || (isModeVS || isModeVU) && vsstatus.regOut.MS === ContextStatus.Off
+  io.toDecode.illegalInst.msIsOff    := mstatus.regOut.MS === ContextStatus.Off || (isModeVS || isModeVU) && vsstatus.regOut.MS === ContextStatus.Off
   io.toDecode.illegalInst.wfi        := isModeHU || !isModeM && mstatus.regOut.TW
   io.toDecode.virtualInst.wfi        := isModeVS && !mstatus.regOut.TW && hstatus.regOut.VTW || isModeVU && !mstatus.regOut.TW
   io.toDecode.illegalInst.wrs_nto    := !isModeM && mstatus.regOut.TW

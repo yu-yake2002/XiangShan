@@ -51,20 +51,54 @@ object Bundles {
       new MType
     }
 
-    // TODO: implement me
     def fromInstMType(instMType: InstMType)(implicit p: Parameters) : MType = {
       val res = Wire(MType())
+      res.mba := instMType.mba
+      res.mfp64 := instMType.mfp64
+      res.mfp32 := instMType.mfp32
+      res.mfp16 := instMType.mfp16
+      res.mfp8 := instMType.mfp8
+      res.mint64 := instMType.mint64
+      res.mint32 := instMType.mint32
+      res.mint16 := instMType.mint16
+      res.mint8 := instMType.mint8
+      res.mint4 := instMType.mint4
+      res.msew := instMType.msew
       res.illegal := false.B // Todo: add illegal check function
       res
     }
 
     def fromMtypeStruct(mtypeStruct: MtypeStruct)(implicit p: Parameters): MType = {
       val res = Wire(MType())
+      res.illegal := mtypeStruct.mill
+      res.mba := mtypeStruct.mba
+      res.mfp64 := mtypeStruct.mfp64
+      res.mfp32 := mtypeStruct.mfp32
+      res.mfp16 := mtypeStruct.mfp16
+      res.mfp8 := mtypeStruct.mfp8
+      res.mint64 := mtypeStruct.mint64
+      res.mint32 := mtypeStruct.mint32
+      res.mint16 := mtypeStruct.mint16
+      res.mint8 := mtypeStruct.mint8
+      res.mint4 := mtypeStruct.mint4
+      res.msew := mtypeStruct.msew
       res
     }
 
     def toMtypeStruct(mtype: MType)(implicit p: Parameters) : MtypeStruct = {
       val res = WireInit(0.U.asTypeOf(new MtypeStruct))
+      res.mill := mtype.illegal
+      res.mba := mtype.mba
+      res.mfp64 := mtype.mfp64
+      res.mfp32 := mtype.mfp32
+      res.mfp16 := mtype.mfp16
+      res.mfp8 := mtype.mfp8
+      res.mint64 := mtype.mint64
+      res.mint32 := mtype.mint32
+      res.mint16 := mtype.mint16
+      res.mint8 := mtype.mint8
+      res.mint4 := mtype.mint4
+      res.msew := mtype.msew
       res
     }
 

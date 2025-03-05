@@ -324,8 +324,8 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     OptionWrapper(backendParams.basicDebugEn, Wire(Vec(64, UInt(64.W)))) // v0 = Cat(Vec(1), Vec(0))
   private val vlDiffReadData: Option[UInt] =
     OptionWrapper(backendParams.basicDebugEn, Wire(UInt(VlData().dataWidth.W)))
-  private val mtilexDiffReadData: Option[UInt] =
-    OptionWrapper(backendParams.basicDebugEn, Wire(UInt(MtilexData().dataWidth.W)))
+  private val mtilexDiffReadData: Option[Vec[UInt]] =
+    OptionWrapper(backendParams.basicDebugEn, Wire(Vec(3, UInt(MtilexData().dataWidth.W))))
 
   fpDiffReadData.foreach(_ := fpDiffRead
     .get._2
@@ -346,7 +346,9 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     .get._2(0)
   )
   mtilexDiffReadData.foreach(_ := mtilexDiffRead
-    .get._2(0)
+    .get._2
+    .slice(0, 3)
+    .map(_(2, 0))
   )
 
   io.diffVl.foreach(_ := vlDiffReadData.get)
@@ -1059,7 +1061,7 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
   val diffVlRat  = if (params.basicDebugEn) Some(Input(Vec(1, UInt(log2Up(VlPhyRegs).W)))) else None
   val diffVl     = if (params.basicDebugEn) Some(Output(UInt(VlData().dataWidth.W))) else None
   val diffMtilexRat = if (params.basicDebugEn) Some(Input(Vec(3, UInt(log2Up(MtilexPhyRegs).W)))) else None
-  val diffMtilex = if (params.basicDebugEn) Some(Output(UInt(MtilexData().dataWidth.W))) else None
+  val diffMtilex = if (params.basicDebugEn) Some(Output(Vec(3, UInt(MtilexData().dataWidth.W)))) else None
 
   val topDownInfo = new TopDownInfo
 }
