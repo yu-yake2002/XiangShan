@@ -709,13 +709,35 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   csrio.vpu.set_vtype.bits := ZeroExt(vtype, XLEN)
   csrio.vpu.vl := ZeroExt(debugVl_s1, XLEN)
   csrio.vpu.dirty_vs := ctrlBlock.io.robio.csr.dirty_vs
-  csrio.mpu <> DontCare
+
+  val debugMtilem_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  val debugMtilem_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  val debugMtilen_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  val debugMtilen_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  val debugMtilek_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  val debugMtilek_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
+  if (dataPath.io.diffMtilex.isDefined) {
+    debugMtilem_s0 := dataPath.io.diffMtilex.get(0)
+    debugMtilen_s0 := dataPath.io.diffMtilex.get(1)
+    debugMtilek_s0 := dataPath.io.diffMtilex.get(2)
+  } else {
+    debugMtilem_s0 := 0.U.asTypeOf(UInt(VlData().dataWidth.W))
+    debugMtilen_s0 := 0.U.asTypeOf(UInt(VlData().dataWidth.W))
+    debugMtilek_s0 := 0.U.asTypeOf(UInt(VlData().dataWidth.W))
+  }
+  debugMtilem_s1 := RegNext(debugMtilem_s0)
+  debugMtilen_s1 := RegNext(debugMtilen_s0)
+  debugMtilek_s1 := RegNext(debugMtilek_s0)
+  ctrlBlock.io.toDecode.mstart := csrio.mpu.mstart
   csrio.mpu.set_mstart.valid := ctrlBlock.io.robio.csr.mstart.valid
   csrio.mpu.set_mstart.bits := ctrlBlock.io.robio.csr.mstart.bits
   csrio.mpu.set_mtype.valid := commitMType.valid
   csrio.mpu.set_mtype.bits := ZeroExt(mtype, XLEN)
+  csrio.mpu.mtilem := ZeroExt(debugMtilem_s1, XLEN)
+  csrio.mpu.mtilen := ZeroExt(debugMtilen_s1, XLEN)
+  csrio.mpu.mtilek := ZeroExt(debugMtilek_s1, XLEN)
   csrio.mpu.dirty_ms := ctrlBlock.io.robio.csr.dirty_ms
-  ctrlBlock.io.toDecode.mstart := csrio.mpu.mstart
+
   csrio.exception := ctrlBlock.io.robio.exception
   csrio.robDeqPtr := ctrlBlock.io.robio.robDeqPtr
   csrio.memExceptionVAddr := io.mem.exceptionAddr.vaddr
