@@ -25,6 +25,8 @@ case class SchdBlockParams(
 
   def isVfSchd: Boolean = schdType == VfScheduler()
 
+  def isMfSchd: Boolean = schdType == MfScheduler()
+
   def JmpCnt: Int = issueBlockParams.map(_.JmpCnt).sum
 
   def BrhCnt: Int = issueBlockParams.map(_.BrhCnt).sum
