@@ -570,7 +570,9 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   dataPath.io.ldCancel := io.mem.ldCancel
 
   println(s"[Backend] wbDataPath.io.toIntPreg: ${wbDataPath.io.toIntPreg.size}, dataPath.io.fromIntWb: ${dataPath.io.fromIntWb.size}")
-  println(s"[Backend] wbDataPath.io.toVfPreg: ${wbDataPath.io.toVfPreg.size}, dataPath.io.fromFpWb: ${dataPath.io.fromVfWb.size}")
+  println(s"[Backend] wbDataPath.io.toFpPreg: ${wbDataPath.io.toFpPreg.size}, dataPath.io.fromFpWb: ${dataPath.io.fromFpWb.size}")
+  println(s"[Backend] wbDataPath.io.toVfPreg: ${wbDataPath.io.toVfPreg.size}, dataPath.io.fromVfWb: ${dataPath.io.fromVfWb.size}")
+  println(s"[Backend] wbDataPath.io.toMtilexPreg: ${wbDataPath.io.toMtilexPreg.size}, dataPath.io.fromMtilexWb: ${dataPath.io.fromMtilexWb.size}")
   dataPath.io.fromIntWb := wbDataPath.io.toIntPreg
   dataPath.io.fromFpWb := wbDataPath.io.toFpPreg
   dataPath.io.fromVfWb := wbDataPath.io.toVfPreg

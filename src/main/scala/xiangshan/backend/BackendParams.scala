@@ -143,6 +143,10 @@ case class BackendParams(
     this.fpSchdParams.get.issueBlockParams.map(x => Vec(x.numDeq, UInt((x.numEntries).U.getWidth.W)))
   }
 
+  def genMfIQValidNumBundle(implicit p: Parameters) = {
+    this.mfSchdParams.get.issueBlockParams.map(x => Vec(x.numDeq, UInt((x.numEntries).U.getWidth.W)))
+  }
+
   def genIntWriteBackBundle(implicit p: Parameters) = {
     Seq.fill(this.getIntRfWriteSize)(new RfWritePortWithConfig(IntData(), intPregParams.addrWidth))
   }

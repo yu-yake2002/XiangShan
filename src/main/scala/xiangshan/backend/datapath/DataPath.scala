@@ -295,6 +295,13 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val mtilexRfWen = Wire(Vec(io.fromMtilexWb.length, Bool()))
   private val mtilexRfWaddr = Wire(Vec(io.fromMtilexWb.length, UInt(log2Up(MtilexPhyRegs).W)))
   private val mtilexRfWdata = Wire(Vec(io.fromMtilexWb.length, UInt(MtilexData().dataWidth.W)))
+  if (backendParams.debugEn) {
+    dontTouch(mtilexRfRaddr)
+    dontTouch(mtilexRfRdata)
+    dontTouch(mtilexRfWen)
+    dontTouch(mtilexRfWaddr)
+    dontTouch(mtilexRfWdata)
+  }
 
   val pcReadFtqPtrFormIQ = (fromIntIQ ++ fromMemIQ).flatten.filter(x => x.bits.exuParams.needPc)
   assert(pcReadFtqPtrFormIQ.size == pcReadFtqPtr.size, s"pcReadFtqPtrFormIQ.size ${pcReadFtqPtrFormIQ.size} not equal pcReadFtqPtr.size ${pcReadFtqPtr.size}")
@@ -787,6 +794,9 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
             :+
             OptionWrapper(s1_fpPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(FpRegSrcDataSet).nonEmpty, 
               (SrcType.isFp(s1_srcType(i)(j)(k)) -> s1_fpPregRData(i)(j)(k)))
+            :+
+            OptionWrapper(s1_mtilexPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(MtilexRegSrcDataSet).nonEmpty, 
+              (SrcType.isMp(s1_srcType(i)(j)(k)) -> s1_mtilexPregRData(i)(j)(k)))
           )}
         ).filter(_.nonEmpty).map(_.get)
 

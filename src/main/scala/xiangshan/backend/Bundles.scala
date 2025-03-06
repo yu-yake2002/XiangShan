@@ -334,7 +334,8 @@ object Bundles {
         pdestMatch && (
           SrcType.isFp(srcType) && this.fpWen ||
             SrcType.isXp(srcType) && this.rfWen ||
-            SrcType.isVp(srcType) && this.vecWen
+            SrcType.isVp(srcType) && this.vecWen ||
+            SrcType.isMp(srcType) && this.mtilexWen
           ) && valid
       }
     }
@@ -350,13 +351,6 @@ object Bundles {
       val pdestMatch = pdest === thatPsrc
       pdestMatch && (
         SrcType.isVp(srcType) && this.vlWen
-      ) && valid
-    }
-    def wakeUpMtilex(successor: (UInt, UInt), valid: Bool): Bool = {
-      val (thatPsrc, srcType) = successor
-      val pdestMatch = pdest === thatPsrc
-      pdestMatch && (
-        SrcType.isMp(srcType) && this.mtilexWen
       ) && valid
     }
     def wakeUpFromIQ(successor: Seq[(UInt, UInt)]): Seq[Bool] = {
