@@ -315,7 +315,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
     io.vlRat(i).hold := !io.out(i).ready
 
     // TODO: Select mtilem/n/k
-    io.mtilexRat(i).addr := Mtilex_IDX.U // mtilex
+    io.mtilexRat(i).addr := io.out(i).bits.lsrc(1)
     io.mtilexRat(i).hold := !io.out(i).ready
   }
 

@@ -82,7 +82,7 @@ object FuType extends OHEnumeration {
   val mstu = addType(name = "mstu")
   val mmul   = addType(name = "mmul")   // mul (dense/sparse)
   val marith = addType(name = "marith") // arith, mve (for matrix), cvt, logic
-  val mmvei  = addType(name = "mmvei")  // mve (for integer)
+  // val mmvei  = addType(name = "mmvei")  // mve (for integer)
   val mmvef  = addType(name = "mmvef")  // mve (for float)
 
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)

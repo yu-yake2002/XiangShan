@@ -189,10 +189,6 @@ object EntryBundles extends HasCircularQueuePtrHelper {
                                       bundle.bits.wakeUpV0(psrcSrcTypeVec(3), bundle.valid) :+
                                       bundle.bits.wakeUpVl(psrcSrcTypeVec(4), bundle.valid)
                                     }
-                                    else if (params.numRegSrc == 4) {
-                                      bundle.bits.wakeUp(psrcSrcTypeVec.take(3), bundle.valid) :+ 
-                                      bundle.bits.wakeUpMtilex(psrcSrcTypeVec(3), bundle.valid)
-                                    }
                                     else
                                       bundle.bits.wakeUp(psrcSrcTypeVec, bundle.valid)
                                  }.transpose.map(x => VecInit(x.toSeq).asUInt.orR).toSeq

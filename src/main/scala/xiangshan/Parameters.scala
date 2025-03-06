@@ -170,7 +170,6 @@ case class XSCoreParameters
   MtilexLogicRegs: Int = 3, // Mtilem, Mtilen, Mtilek
   V0_IDX: Int = 0,
   Vl_IDX: Int = 0,
-  Mtilex_IDX: Int = 0, // TODO: remove me!
   Mtilem_IDX: Int = 0,
   Mtilen_IDX: Int = 1,
   Mtilek_IDX: Int = 2,
@@ -501,7 +500,7 @@ case class XSCoreParameters
       //   ExeUnitParams("MSTA", Seq(MStuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
-      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(), Seq(Seq(IntRD(8, 2)), Seq(IntRD(9, 2)))),
+      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(), Seq(Seq(IntRD(8, 2)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
     ),
       numPregs = mfPreg.numEntries,
@@ -801,10 +800,9 @@ trait HasXSParameter {
   def LogicRegsWidth = log2Ceil(MaxLogicRegs)
   def V0_IDX = coreParams.V0_IDX
   def Vl_IDX = coreParams.Vl_IDX
-  def Mtilex_IDX = coreParams.Mtilex_IDX // TODO: remove me
   def Mtilem_IDX = coreParams.Mtilem_IDX
   def Mtilen_IDX = coreParams.Mtilen_IDX
-  def Mtilek_IDX = coreParams.Mtilen_IDX
+  def Mtilek_IDX = coreParams.Mtilek_IDX
   def IntPhyRegs = coreParams.intPreg.numEntries
   def FpPhyRegs = coreParams.fpPreg.numEntries
   def VfPhyRegs = coreParams.vfPreg.numEntries

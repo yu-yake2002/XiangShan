@@ -1118,7 +1118,6 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
 
   decodedInst.vlsInstr := isVls
 
-  // TODO: connect mtype
   decodedInst.srcType(3) := Mux(inst.VM === 0.U, SrcType.vp, SrcType.DC) // mask src
   decodedInst.srcType(4) := SrcType.vp // vconfig
 
@@ -1207,31 +1206,31 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
   }.elsewhen (isCsrrMtilem) {
     decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(1) := SrcType.mp
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
-    decodedInst.srcType(4) := SrcType.mp
-    decodedInst.lsrc(4)    := Mtilem_IDX.U
+    decodedInst.srcType(4) := SrcType.no
+    decodedInst.lsrc(1)    := Mtilem_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilen) {
     decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(1) := SrcType.mp
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
-    decodedInst.srcType(4) := SrcType.mp
-    decodedInst.lsrc(4)    := Mtilen_IDX.U
+    decodedInst.srcType(4) := SrcType.no
+    decodedInst.lsrc(1)    := Mtilen_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilek) {
     decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.no
+    decodedInst.srcType(1) := SrcType.mp
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
-    decodedInst.srcType(4) := SrcType.mp
-    decodedInst.lsrc(4)    := Mtilek_IDX.U
+    decodedInst.srcType(4) := SrcType.no
+    decodedInst.lsrc(1)    := Mtilek_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
@@ -1276,9 +1275,13 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   io.deq.decodedInst.fuType := Mux1H(Seq(
     // keep condition
     (!FuType.FuTypeOrR(decodedInst.fuType, FuType.vldu, FuType.vstu) && 
-      !isCsrrVl && !isCsrrVlenb && !isCsrrMlenb && !isCsrrMrlenb && !isCsrrMamul) -> decodedInst.fuType,
+      !isCsrrVl && !isCsrrVlenb && !isCsrrMlenb && !isCsrrMrlenb && !isCsrrMamul &&
+      !isCsrrMtilem && !isCsrrMtilen && !isCsrrMtilek) -> decodedInst.fuType,
     (isCsrrVl) -> FuType.vsetfwf.U,
     (isCsrrVlenb) -> FuType.alu.U,
+    (isCsrrMtilem) -> FuType.msetmtilexfwf.U,
+    (isCsrrMtilen) -> FuType.msetmtilexfwf.U,
+    (isCsrrMtilek) -> FuType.msetmtilexfwf.U,
     (isCsrrMlenb) -> FuType.alu.U,
     (isCsrrMrlenb) -> FuType.alu.U,
     (isCsrrMamul) -> FuType.alu.U,
