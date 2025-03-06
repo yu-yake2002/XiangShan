@@ -564,7 +564,7 @@ package object xiangshan {
     def toMtilexIdx (func: UInt) = func(1, 0)
   }
 
-  object MlduType {
+  object MlduOpType {
     // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
     // matrix type [1:0]
     // 0 0 0 0 1 : output matrix, C
@@ -582,7 +582,7 @@ package object xiangshan {
     def mlacce = "b10000_0_000".U
   }
 
-  object MstuType {
+  object MstuOpType {
     // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
     // matrix type [1:0]
     // 0 0 0 0 1 : output matrix, C
@@ -600,8 +600,156 @@ package object xiangshan {
     def msacce = "b10000_0_000".U
   }
 
-  object MmulType {
+  object MmulOpType {
     def placeholder = "b0000_0000".U
+  }
+
+  object MarithOpType {
+    def placeholder = "b111_111_111".U
+
+    // Type Convert
+    def isCvt      (func: UInt) = func(8, 6) === "b000".U
+
+    def isFromE4M3 (func: UInt) = func(5, 3) === "b000".U
+    def isFromE5M2 (func: UInt) = func(5, 3) === "b001".U
+    def isFromE3M4 (func: UInt) = func(5, 3) === "b010".U
+    def isFromFp16 (func: UInt) = func(5, 3) === "b011".U // E5M10
+    def isFromBf16 (func: UInt) = func(5, 3) === "b100".U // E8M7
+    def isFromFp32 (func: UInt) = func(5, 3) === "b101".U // E8M23
+    def isFromTf32 (func: UInt) = func(5, 3) === "b110".U // E8M10
+    def isFromFp64 (func: UInt) = func(5, 3) === "b111".U
+
+    def isToE4M3 (func: UInt) = func(2, 0) === "b000".U
+    def isToE5M2 (func: UInt) = func(2, 0) === "b001".U
+    def isToE3M4 (func: UInt) = func(2, 0) === "b010".U
+    def isToFp16 (func: UInt) = func(2, 0) === "b011".U // E5M10
+    def isToBf16 (func: UInt) = func(2, 0) === "b100".U // E8M7
+    def isToFp32 (func: UInt) = func(2, 0) === "b101".U // E8M23
+    def isToTf32 (func: UInt) = func(2, 0) === "b110".U // E8M10
+    def isToFp64 (func: UInt) = func(2, 0) === "b111".U
+    
+    // TODO: Support more type convert
+
+    def mcvtFp8ToFp8   = "b000_000_000".U
+    def mcvtFp8ToFp16  = "b000_000_011".U
+    def mcvtFp16ToFp8  = "b000_011_000".U
+    def mcvtFp16ToBf16 = "b000_011_100".U
+    def mcvtFp16ToFp32 = "b000_011_101".U
+    def mcvtBf16ToFp16 = "b000_100_011".U
+    def mcvtFp32ToFp16 = "b000_101_011".U
+    def mcvtFp32ToFp64 = "b000_101_111".U
+    def mcvtFp64ToFp32 = "b000_111_101".U
+
+    def isCvtDouble (func: UInt) = func(8, 6) === "b001".U
+    def mcvtDoubleWidth = "b001_000_000".U
+    def isCvtHalf   (func: UInt) = func(8, 6) === "b010".U
+    def mcvtHalfWidth   = "b010_000_000".U
+
+    // Data Broadcast
+    def isBroadcast (func: UInt) = func(8, 6) === "b011".U
+
+    // Broadcast the first row of a matrix register to fill the whole matrix.
+    def isFromRow (func: UInt) = func(5, 4) === "b00".U
+    // Broadcast the first column of a matrix register to fill the whole matrix.
+    def isFromCol (func: UInt) = func(5, 4) === "b01".U
+    // Broadcast the first element of a matrix register to fill the whole matrix.
+    def isFromEle (func: UInt) = func(5, 4) === "b10".U
+    
+    def isFromA   (func: UInt) = func(3, 2) === "b00".U
+    def isFromB   (func: UInt) = func(3, 2) === "b01".U
+    def isFromC   (func: UInt) = func(3, 2) === "b10".U
+    
+    def isWidth8  (func: UInt) = func(1, 0) === "b00".U
+    def isWidth16 (func: UInt) = func(1, 0) === "b01".U
+    def isWidth32 (func: UInt) = func(1, 0) === "b10".U
+    def isWidth64 (func: UInt) = func(1, 0) === "b11".U
+
+    def mbcARow = "b011_00_00_00".U
+    def mbcBRow = "b011_00_01_00".U
+    def mbcCRow = "b011_00_10_00".U
+    
+    def mbcACol8  = "b011_01_00_00".U
+    def mbcACol16 = "b011_01_00_01".U
+    def mbcACol32 = "b011_01_00_10".U
+    def mbcACol64 = "b011_01_00_11".U
+    def mbcBCol8  = "b011_01_01_00".U
+    def mbcBCol16 = "b011_01_01_01".U
+    def mbcBCol32 = "b011_01_01_10".U
+    def mbcBCol64 = "b011_01_01_11".U
+    def mbcCCol8  = "b011_01_10_00".U
+    def mbcCCol16 = "b011_01_10_01".U
+    def mbcCCol32 = "b011_01_10_10".U
+    def mbcCCol64 = "b011_01_10_11".U
+
+    def mbcAEle8  = "b011_10_00_00".U
+    def mbcAEle16 = "b011_10_00_01".U
+    def mbcAEle32 = "b011_10_00_10".U
+    def mbcAEle64 = "b011_10_00_11".U
+    def mbcBEle8  = "b011_10_01_00".U
+    def mbcBEle16 = "b011_10_01_01".U
+    def mbcBEle32 = "b011_10_01_10".U
+    def mbcBEle64 = "b011_10_01_11".U
+    def mbcCEle8  = "b011_10_10_00".U
+    def mbcCEle16 = "b011_10_10_01".U
+    def mbcCEle32 = "b011_10_10_10".U
+    def mbcCEle64 = "b011_10_10_11".U
+
+    // Matrix Transpose / SingleMove
+    def isTranspose (func: UInt) = func(8, 4) === "b100_00".U
+    // The same as the broadcast
+    // def isFromA   (func: UInt) = func(3, 2) === "b00".U
+    // def isFromB   (func: UInt) = func(3, 2) === "b01".U
+    // def isFromC   (func: UInt) = func(3, 2) === "b10".U
+    // def isWidth8  (func: UInt) = func(1, 0) === "b00".U
+    // def isWidth16 (func: UInt) = func(1, 0) === "b01".U
+    // def isWidth32 (func: UInt) = func(1, 0) === "b10".U
+    // def isWidth64 (func: UInt) = func(1, 0) === "b11".U
+    def mtransA8  = "b100_00_00_00".U
+    def mtransA16 = "b100_00_00_01".U
+    def mtransA32 = "b100_00_00_10".U
+    def mtransA64 = "b100_00_00_11".U
+    def mtransB8  = "b100_00_01_00".U
+    def mtransB16 = "b100_00_01_01".U
+    def mtransB32 = "b100_00_01_10".U
+    def mtransB64 = "b100_00_01_11".U
+    def mtransC8  = "b100_00_10_00".U
+    def mtransC16 = "b100_00_10_01".U
+    def mtransC32 = "b100_00_10_10".U
+    def mtransC64 = "b100_00_10_11".U
+
+    // Data Move
+    def isMove (func: UInt) = func(8, 6) === "b101".U
+    def isMoveFromA (func: UInt) = func(5) === "b0".U
+    def isMoveFromT (func: UInt) = func(5) === "b1".U
+    def isMoveToA (func: UInt) = func(4) === "b0".U
+    def isMoveToT (func: UInt) = func(4) === "b1".U
+    // The same as the broadcast
+    // def isWidth8  (func: UInt) = func(1, 0) === "b00".U
+    // def isWidth16 (func: UInt) = func(1, 0) === "b01".U
+    // def isWidth32 (func: UInt) = func(1, 0) === "b10".U
+    // def isWidth64 (func: UInt) = func(1, 0) === "b11".U
+
+    def mmove8AA  = "b101_00_00_00".U
+    def mmove16AA = "b101_00_00_01".U
+    def mmove32AA = "b101_00_00_10".U
+    def mmove64AA = "b101_00_00_11".U
+    def mmove8TT  = "b101_11_00_00".U
+    def mmove16TT = "b101_11_00_01".U
+    def mmove32TT = "b101_11_00_10".U
+    def mmove64TT = "b101_11_00_11".U
+
+    def mmove8AT   = "b101_10_00_00".U
+    def mmove16AT  = "b101_10_00_01".U
+    def mmove32AT  = "b101_10_00_10".U
+    def mmove64AT  = "b101_10_00_11".U
+    def mmove8TA   = "b101_01_00_00".U
+    def mmove16TA  = "b101_01_00_01".U
+    def mmove32TA  = "b101_01_00_10".U
+    def mmove64TA  = "b101_01_00_11".U
+  }
+
+  object MmvefOpType {
+    def placeholder = "b111_111_111".U
   }
 
   object BRUOpType {
