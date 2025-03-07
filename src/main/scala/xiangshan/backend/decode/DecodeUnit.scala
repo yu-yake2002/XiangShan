@@ -1204,8 +1204,8 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
   }.elsewhen (isCsrrMtilem) {
-    decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
@@ -1214,22 +1214,22 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilen) {
-    decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
-    decodedInst.lsrc(1)    := Mtilen_IDX.U
+    decodedInst.lsrc(0)    := Mtilen_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilek) {
-    decodedInst.srcType(0) := SrcType.no
-    decodedInst.srcType(1) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
-    decodedInst.lsrc(1)    := Mtilek_IDX.U
+    decodedInst.lsrc(0)    := Mtilek_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff

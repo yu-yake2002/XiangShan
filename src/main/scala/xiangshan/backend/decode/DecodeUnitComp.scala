@@ -395,8 +395,9 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(0).rfWen := false.B
           // uop1
           csBundle(1).fuType := FuType.msetmtilexfwf.U
-          csBundle(1).srcType(0) := SrcType.xp
+          csBundle(1).srcType(0) := SrcType.mp
           csBundle(1).srcType(1) := SrcType.no
+          csBundle(1).lsrc(0) := MSETtilexOpType.toMtilexIdx(latchedInst.fuOpType)
         }.elsewhen(dest === 0.U) {
           // write nothing, uop0 is a nop instruction
           csBundle(0).rfWen := false.B

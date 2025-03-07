@@ -397,7 +397,7 @@ case class IssueBlockParams(
       case _ => Seq()
     }
     val mtilexBundle = schdType match {
-      case MfScheduler() | MemScheduler() => needWakeupFromMtilexWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
+      case MfScheduler() => needWakeupFromMtilexWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
       case _ => Seq()
     }
     MixedVec(intBundle ++ fpBundle ++ vfBundle ++ v0Bundle ++ vlBundle ++ mtilexBundle)

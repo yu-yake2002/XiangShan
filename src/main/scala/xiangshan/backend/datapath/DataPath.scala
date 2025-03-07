@@ -49,6 +49,10 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val (fromVecExcp, toVecExcp)       = (io.fromVecExcpMod, io.toVecExcpMod)
   private val (fromMfIQ,  toMfIQ,  toMfExu)  = (io.fromMfIQ,  io.toMfIQ,  io.toMfExu)
 
+  dontTouch(io.fromMfIQ)
+  dontTouch(io.toMfIQ)
+  dontTouch(io.toMfExu)
+
   println(s"[DataPath] IntIQ(${fromIntIQ.size}), FpIQ(${fromFpIQ.size}), VecIQ(${fromVfIQ.size}), MatrixIQ(${fromMfIQ.size}), MemIQ(${fromMemIQ.size})")
   println(s"[DataPath] IntExu(${fromIntIQ.map(_.size).sum}), FpExu(${fromFpIQ.map(_.size).sum}), VecExu(${fromVfIQ.map(_.size).sum}), MatrixExu(${fromMfIQ.map(_.size).sum}), MemExu(${fromMemIQ.map(_.size).sum})")
 
