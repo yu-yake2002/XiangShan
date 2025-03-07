@@ -402,10 +402,10 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
     uops(i).dirtyMs := false.B
     uops(i).debug_sim_trig.foreach(_ := (compressMasksVec(i) & Cat(io.in.map(_.bits.instr === XSDebugDecode.SIM_TRIG).reverse)).orR)
     // psrc0,psrc1,psrc2 don't require v0ReadPorts because their srcType can distinguish whether they are V0 or not
-    uops(i).psrc(0) := Mux1H(uops(i).srcType(0)(2, 0), Seq(io.intReadPorts(i)(0), io.fpReadPorts(i)(0), io.vecReadPorts(i)(0)))
+    uops(i).psrc(0) := Mux1H(Cat(uops(i).srcType(0)(4), uops(i).srcType(0)(2, 0)), Seq(io.intReadPorts(i)(0), io.fpReadPorts(i)(0), io.vecReadPorts(i)(0), io.mtilexReadPorts(i)(0)))
     uops(i).psrc(1) := Mux1H(uops(i).srcType(1)(2, 0), Seq(io.intReadPorts(i)(1), io.fpReadPorts(i)(1), io.vecReadPorts(i)(1)))
     uops(i).psrc(2) := Mux1H(uops(i).srcType(2)(2, 1), Seq(io.fpReadPorts(i)(2), io.vecReadPorts(i)(2)))
-    uops(i).psrc(3) := Mux1H(uops(i).srcType(3)(4, 3), Seq(io.v0ReadPorts(i)(0), io.mtilexReadPorts(i)(0)))
+    uops(i).psrc(3) := io.v0ReadPorts(i)(0)
     uops(i).psrc(4) := io.vlReadPorts(i)(0)
 
     // int psrc2 should be bypassed from next instruction if it is fused
@@ -424,15 +424,18 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
       needIntDest(i)    ->  intFreeList.io.allocatePhyReg(i),
       needFpDest(i)     ->  fpFreeList.io.allocatePhyReg(i),
       needVecDest(i)    ->  vecFreeList.io.allocatePhyReg(i),
-      needV0Dest(i)    ->  v0FreeList.io.allocatePhyReg(i),
-      needVlDest(i)    ->  vlFreeList.io.allocatePhyReg(i),
+      needV0Dest(i)     ->  v0FreeList.io.allocatePhyReg(i),
+      needVlDest(i)     ->  vlFreeList.io.allocatePhyReg(i),
       needMtilexDest(i) ->  mtilexFreeList.io.allocatePhyReg(i)
     ))
 
     // Assign performance counters
     uops(i).debugInfo.renameTime := GTimer()
 
-    io.out(i).valid := io.in(i).valid && intFreeList.io.canAllocate && fpFreeList.io.canAllocate && vecFreeList.io.canAllocate && v0FreeList.io.canAllocate && vlFreeList.io.canAllocate && !io.rabCommits.isWalk
+    io.out(i).valid := io.in(i).valid && intFreeList.io.canAllocate && 
+                       fpFreeList.io.canAllocate && vecFreeList.io.canAllocate && 
+                       v0FreeList.io.canAllocate && vlFreeList.io.canAllocate &&
+                       mtilexFreeList.io.canAllocate && !io.rabCommits.isWalk
     io.out(i).bits := uops(i)
     // dirty code
     if (i == 0) {
@@ -567,14 +570,18 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
       if (i == 4) s === SrcType.vp
       else false.B
     }
+    val mtilexCond = io.in(i).bits.srcType.zipWithIndex.map{ case (s, i) =>
+      if (i == 0) s === SrcType.mp
+      else false.B
+    }
     val vecCond = io.in(i).bits.srcType.map(_ === SrcType.vp)
     val fpCond  = io.in(i).bits.srcType.map(_ === SrcType.fp)
-    val intCond = io.in(i).bits.srcType.map(_ === SrcType.xp)
+    val intCond = io.in(i).bits.srcType.map(_ === SrcType.xp)    
     val target = io.in(i).bits.lsrc
-    for ((((((cond1, (condV0, condVl)), cond2), cond3), t), j) <- vecCond.zip(v0Cond.zip(vlCond)).zip(fpCond).zip(intCond).zip(target).zipWithIndex) {
+    for ((((((cond1, ((condV0, condVl), condMtilex)), cond2), cond3), t), j) <- vecCond.zip(v0Cond.zip(vlCond).zip(mtilexCond)).zip(fpCond).zip(intCond).zip(target).zipWithIndex) {
       val destToSrc = io.in.take(i).zipWithIndex.map { case (in, j) =>
         val indexMatch = in.bits.ldest === t
-        val writeMatch =  cond3 && needIntDest(j) || cond2 && needFpDest(j) || cond1 && needVecDest(j)
+        val writeMatch =  cond3 && needIntDest(j) || cond2 && needFpDest(j) || cond1 && needVecDest(j) || condMtilex && needMtilexDest(j)
         val v0vlMatch = condV0 && needV0Dest(j) || condVl && needVlDest(j)
         indexMatch && writeMatch || v0vlMatch
       }

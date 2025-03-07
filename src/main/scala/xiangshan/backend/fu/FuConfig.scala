@@ -460,9 +460,8 @@ object FuConfig {
     fuType = FuType.msetmtilexfwf,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRmfWmf")),
     srcData = Seq(
-      // src(0): atx
-      // src(1): old mtilex
-      Seq(IntData(), MtilexData()),
+      // src(0): old mtilex
+      Seq(MtilexData()),
     ),
     piped = true,
     writeIntRf = true,

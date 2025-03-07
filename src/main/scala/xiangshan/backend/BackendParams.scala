@@ -86,7 +86,6 @@ case class BackendParams(
   def vfPregParams: VfPregParams = pregParams.collectFirst { case x: VfPregParams => x }.get
   def v0PregParams: V0PregParams = pregParams.collectFirst { case x: V0PregParams => x }.get
   def vlPregParams: VlPregParams = pregParams.collectFirst { case x: VlPregParams => x }.get
-  def mfPregParams: MfPregParams = pregParams.collectFirst { case x: MfPregParams => x }.get
   def mtilexPregParams: MtilexPregParams = pregParams.collectFirst { case x: MtilexPregParams => x }.get
   def getPregParams: Map[DataConfig, PregParams] = {
     pregParams.map(x => (x.dataCfg, x)).toMap
@@ -402,7 +401,6 @@ case class BackendParams(
   def getV0WBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getV0WBPort.getOrElse(V0WB(port = -1)).port).filter(_._1 != -1)
   def getVlWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
   def getMtilexWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMtilexWBPort.getOrElse(MtilexWB(port = -1)).port).filter(_._1 != -1)
-  def getMfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMfWBPort.getOrElse(MfWB(port = -1)).port).filter(_._1 != -1)
 
   private def isContinuous(portIndices: Seq[Int]): Boolean = {
     val portIndicesSet = portIndices.toSet

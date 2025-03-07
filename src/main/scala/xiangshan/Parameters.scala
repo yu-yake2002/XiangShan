@@ -221,11 +221,6 @@ case class XSCoreParameters
     numRead = None,
     numWrite = None,
   ),
-  mfPreg: MfPregParams = MfPregParams(
-    numEntries = 32,
-    numRead = None,
-    numWrite = None,
-  ),
   IntRegCacheSize: Int = 16,
   MemRegCacheSize: Int = 12,
   intSchdVlWbPort: Int = 0,
@@ -494,19 +489,19 @@ case class XSCoreParameters
     implicit val schdType: SchedulerType = MfScheduler()
     SchdBlockParams(Seq(
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 3)), Seq(MtilexRD(0, 0))))
+        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(MtilexRD(0, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
-      //   ExeUnitParams("MSTA", Seq(MStuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
+      //   ExeUnitParams("MSTU", Seq(MStuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
-      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(), Seq(Seq(IntRD(8, 2)))),
+      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 2)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
     ),
-      numPregs = mfPreg.numEntries,
+      numPregs = mtilexPreg.numEntries,
       numDeqOutside = 0,
       schdType = schdType,
-      rfDataWidth = mfPreg.dataCfg.dataWidth,
+      rfDataWidth = mtilexPreg.dataCfg.dataWidth,
       numUopIn = dpParams.VecDqDeqWidth,
     )
   }

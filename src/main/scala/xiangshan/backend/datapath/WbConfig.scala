@@ -103,16 +103,6 @@ object WbConfig {
     def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(MtilexData()).numEntries
   }
 
-  case class MfWB(
-    port    : Int = -1,
-    priority: Int = Int.MaxValue,
-  ) extends PregWB {
-
-    def dataCfg: DataConfig = MatrixData()
-
-    def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(MatrixData()).numEntries
-  }
-
   case class NoWB(
     port    : Int = -1,
     priority: Int = Int.MaxValue,
