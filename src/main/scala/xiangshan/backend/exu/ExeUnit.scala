@@ -65,8 +65,9 @@ class ExeUnitImp(
   private val fuCfgs = exuParams.fuConfigs
 
   val io = IO(new ExeUnitIO(exuParams))
-
   val funcUnits = fuCfgs.map(cfg => {
+    // print cfg.name
+    println(s"[XSdebug]${exuParams.name}: ${cfg.name}")
     assert(cfg.fuGen != null, cfg.name + "Cfg'fuGen is null !!!")
     val module = cfg.fuGen(p, cfg)
     module

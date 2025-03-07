@@ -131,7 +131,6 @@ case class ExeUnitParams(
   val wbMtilexIndex: Int = wbIndexeds.getOrElse("mtilex", 0)
   val wbIndex: Seq[Int] = Seq(wbIntIndex, wbFpIndex, wbVecIndex, wbV0Index, wbVlIndex, wbMtilexIndex)
 
-
   def copyNum: Int = {
     val setIQ = mutable.Set[IssueBlockParams]()
     iqWakeUpSourcePairs.map(_.sink).foreach{ wakeupSink =>
@@ -399,12 +398,6 @@ case class ExeUnitParams(
   def getMtilexWBPort = {
     wbPortConfigs.collectFirst {
       case x: MtilexWB => x
-    }
-  }
-
-  def getMfWBPort = {
-    wbPortConfigs.collectFirst {
-      case x: MfWB => x
     }
   }
 

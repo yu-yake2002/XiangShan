@@ -96,7 +96,7 @@ class MSetMtilexRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexB
   * @param p [[Parameters]]
   */
 class MSetMtilexRmfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
-  val oldMtilex = in.data.src(1)
+  val oldMtilex = in.data.src(0)
   msetModule.io.in.atx := oldMtilex
   msetModule.io.in.mtype := oldMtype
 

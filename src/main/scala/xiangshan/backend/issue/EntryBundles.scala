@@ -227,20 +227,16 @@ object EntryBundles extends HasCircularQueuePtrHelper {
       common.vlWakeupByVfWb   := false.B
     }
 
-    if (params.numRegSrc == 4) {
-      // // only when numRegSrc == 4 need mtilex
-      // val wakeUpFromMtilex = VecInit(commonIn.wakeUpFromWB.map{ bundle => 
-      //   val psrcSrcTypeVec = status.srcStatus.map(_.psrc) zip status.srcStatus.map(_.srcType)
-      //   bundle.bits.wakeUpMtilex(psrcSrcTypeVec(3), bundle.valid)
-      // })
-      // var numMtilexWb = params.backendParam.getMtilexWBExeGroup.size
-      // var intSchdMtilexWbPort = p(XSCoreParamsKey).intSchdMtilexWbPort
-      // var mfSchdMtilexWbPort = p(XSCoreParamsKey).mfSchdMtilexWbPort
-      // common.mtilexWakeupByIntWb  := wakeUpFromMtilex(numMtilexWb + intSchdMtilexWbPort)
-      // common.mtilexWakeupByMfWb   := wakeUpFromMtilex(numMtilexWb + mfSchdMtilexWbPort)
-      // FIXME: implement wakeup from mtilex
-      common.mtilexWakeupByIntWb  := false.B
-      common.mtilexWakeupByMfWb   := false.B
+    if (params.numMtilexSrc != 0) {
+      val wakeUpFromMtilex = VecInit(commonIn.wakeUpFromWB.map{ bundle => 
+        val psrcSrcTypeVec = status.srcStatus.map(_.psrc) zip status.srcStatus.map(_.srcType)
+        bundle.bits.wakeUpMtilex(psrcSrcTypeVec(0), bundle.valid)
+      })
+      var numMtilexWb = params.backendParam.getMtilexWBExeGroup.size
+      var intSchdMtilexWbPort = p(XSCoreParamsKey).intSchdMtilexWbPort
+      var mfSchdMtilexWbPort = p(XSCoreParamsKey).mfSchdMtilexWbPort
+      common.mtilexWakeupByIntWb  := wakeUpFromMtilex(intSchdMtilexWbPort)
+      common.mtilexWakeupByMfWb   := wakeUpFromMtilex(mfSchdMtilexWbPort)
     } else {
       common.mtilexWakeupByIntWb  := false.B
       common.mtilexWakeupByMfWb   := false.B
