@@ -607,7 +607,7 @@ package object xiangshan {
   object MarithOpType {
     def placeholder = "b111_111_111".U
 
-    // Type Convert
+    // 4.6 Type Convert
     def isCvt      (func: UInt) = func(8, 6) === "b000".U
 
     def isFromE4M3 (func: UInt) = func(5, 3) === "b000".U
@@ -640,12 +640,42 @@ package object xiangshan {
     def mcvtFp32ToFp64 = "b000_101_111".U
     def mcvtFp64ToFp32 = "b000_111_101".U
 
-    def isCvtDouble (func: UInt) = func(8, 6) === "b001".U
-    def mcvtDoubleWidth = "b001_000_000".U
-    def isCvtHalf   (func: UInt) = func(8, 6) === "b010".U
-    def mcvtHalfWidth   = "b010_000_000".U
+    def isCvtDouble (func: UInt) = func(8, 5) === "b001_0".U
+    def mcvtDoubleWidth = "b001_0_00000".U
+    def isCvtHalf   (func: UInt) = func(8, 6) === "b001_1".U
+    def mcvtHalfWidth   = "b001_1_00000".U
 
-    // Data Broadcast
+    // 4.5.1 Data Move between Matrix Registers
+    def isMove (func: UInt) = func(8, 6) === "b010".U
+    def isMoveFromA (func: UInt) = func(5) === "b0".U
+    def isMoveFromT (func: UInt) = func(5) === "b1".U
+    def isMoveToA (func: UInt) = func(4) === "b0".U
+    def isMoveToT (func: UInt) = func(4) === "b1".U
+    // The same as the broadcast
+    // def isWidth8  (func: UInt) = func(1, 0) === "b00".U
+    // def isWidth16 (func: UInt) = func(1, 0) === "b01".U
+    // def isWidth32 (func: UInt) = func(1, 0) === "b10".U
+    // def isWidth64 (func: UInt) = func(1, 0) === "b11".U
+
+    def mmove8AA  = "b010_00_00_00".U
+    def mmove16AA = "b010_00_00_01".U
+    def mmove32AA = "b010_00_00_10".U
+    def mmove64AA = "b010_00_00_11".U
+    def mmove8TT  = "b010_11_00_00".U
+    def mmove16TT = "b010_11_00_01".U
+    def mmove32TT = "b010_11_00_10".U
+    def mmove64TT = "b010_11_00_11".U
+
+    def mmove8AT   = "b010_10_00_00".U
+    def mmove16AT  = "b010_10_00_01".U
+    def mmove32AT  = "b010_10_00_10".U
+    def mmove64AT  = "b010_10_00_11".U
+    def mmove8TA   = "b010_01_00_00".U
+    def mmove16TA  = "b010_01_00_01".U
+    def mmove32TA  = "b010_01_00_10".U
+    def mmove64TA  = "b010_01_00_11".U
+
+    // 4.4.4 Data Broadcast
     def isBroadcast (func: UInt) = func(8, 6) === "b011".U
 
     // Broadcast the first row of a matrix register to fill the whole matrix.
@@ -694,7 +724,7 @@ package object xiangshan {
     def mbcCEle32 = "b011_10_10_10".U
     def mbcCEle64 = "b011_10_10_11".U
 
-    // Matrix Transpose / SingleMove
+    // 4.4.5 Matrix Transpose
     def isTranspose (func: UInt) = func(8, 4) === "b100_00".U
     // The same as the broadcast
     // def isFromA   (func: UInt) = func(3, 2) === "b00".U
@@ -717,35 +747,82 @@ package object xiangshan {
     def mtransC32 = "b100_00_10_10".U
     def mtransC64 = "b100_00_10_11".U
 
-    // Data Move
-    def isMove (func: UInt) = func(8, 6) === "b101".U
-    def isMoveFromA (func: UInt) = func(5) === "b0".U
-    def isMoveFromT (func: UInt) = func(5) === "b1".U
-    def isMoveToA (func: UInt) = func(4) === "b0".U
-    def isMoveToT (func: UInt) = func(4) === "b1".U
+    // 4.5.2 Element-Wise Instructions
+    // TODO: bit-wise logic and element-wise shift for integer matrix
+    // def isIntElewiseInst (func: UInt) = func(8, 6) === "b101".U
+    // def isAnd  (func: UInt) = func(5, 3) === "b000".U
+    // def isOr   (func: UInt) = func(5, 3) === "b001".U
+    // def isXor  (func: UInt) = func(5, 3) === "b010".U
+    // def isSll  (func: UInt) = func(5, 3) === "b011".U
+    // def isSrl  (func: UInt) = func(5, 3) === "b100".U
+    // def isSra  (func: UInt) = func(5, 3) === "b101".U
+    // def isAddu (func: UInt) = func(5, 3) === "b110".U
+    // def isSubu (func: UInt) = func(5, 3) === "b111".U
+
     // The same as the broadcast
     // def isWidth8  (func: UInt) = func(1, 0) === "b00".U
     // def isWidth16 (func: UInt) = func(1, 0) === "b01".U
     // def isWidth32 (func: UInt) = func(1, 0) === "b10".U
     // def isWidth64 (func: UInt) = func(1, 0) === "b11".U
 
-    def mmove8AA  = "b101_00_00_00".U
-    def mmove16AA = "b101_00_00_01".U
-    def mmove32AA = "b101_00_00_10".U
-    def mmove64AA = "b101_00_00_11".U
-    def mmove8TT  = "b101_11_00_00".U
-    def mmove16TT = "b101_11_00_01".U
-    def mmove32TT = "b101_11_00_10".U
-    def mmove64TT = "b101_11_00_11".U
+    def isIntFpElewiseInst (func: UInt) = func(8, 7) === "b11".U
+    
+    def isIntElewise (func: UInt) = func(6) === "b0".U
+    def isFpElewise  (func: UInt) = func(6) === "b1".U
+    
+    def isAdd  (func: UInt) = func(5, 3) === "b000".U
+    def isSub  (func: UInt) = func(5, 3) === "b001".U
+    def isMul  (func: UInt) = func(5, 3) === "b010".U
+    def isDiv  (func: UInt) = func(5, 3) === "b011".U
+    def isMax  (func: UInt) = func(5, 3) === "b100".U
+    def isMin  (func: UInt) = func(5, 3) === "b101".U
+    def isSqrt (func: UInt) = func(5, 3) === "b110".U
 
-    def mmove8AT   = "b101_10_00_00".U
-    def mmove16AT  = "b101_10_00_01".U
-    def mmove32AT  = "b101_10_00_10".U
-    def mmove64AT  = "b101_10_00_11".U
-    def mmove8TA   = "b101_01_00_00".U
-    def mmove16TA  = "b101_01_00_01".U
-    def mmove32TA  = "b101_01_00_10".U
-    def mmove64TA  = "b101_01_00_11".U
+    def isDoubleWiden (func: UInt) = func(2) === "b1".U
+    
+    // The same as the broadcast
+    // def isWidth8  (func: UInt) = func(1, 0) === "b00".U
+    // def isWidth16 (func: UInt) = func(1, 0) === "b01".U
+    // def isWidth32 (func: UInt) = func(1, 0) === "b10".U
+    // def isWidth64 (func: UInt) = func(1, 0) === "b11".U
+    
+    def mfadd8   = "b111_000_0_00".U
+    def mfadd16  = "b111_000_0_01".U
+    def mfadd32  = "b111_000_0_10".U
+    def mfadd64  = "b111_000_0_11".U
+    def mfwadd8  = "b111_000_1_00".U
+    def mfwadd16 = "b111_000_1_01".U
+    def mfwadd32 = "b111_000_1_10".U
+    def mfsub8   = "b111_001_0_00".U
+    def mfsub16  = "b111_001_0_01".U
+    def mfsub32  = "b111_001_0_10".U
+    def mfsub64  = "b111_001_0_11".U
+    def mfwsub8  = "b111_001_1_00".U
+    def mfwsub16 = "b111_001_1_01".U
+    def mfwsub32 = "b111_001_1_10".U
+    def mfmul8   = "b111_010_0_00".U
+    def mfmul16  = "b111_010_0_01".U
+    def mfmul32  = "b111_010_0_10".U
+    def mfmul64  = "b111_010_0_11".U
+    def mfwmul8  = "b111_010_1_00".U
+    def mfwmul16 = "b111_010_1_01".U
+    def mfwmul32 = "b111_010_1_10".U
+    def mfdiv8   = "b111_011_0_00".U
+    def mfdiv16  = "b111_011_0_01".U
+    def mfdiv32  = "b111_011_0_10".U
+    def mfdiv64  = "b111_011_0_11".U
+    def mfmax8   = "b111_100_0_00".U
+    def mfmax16  = "b111_100_0_01".U
+    def mfmax32  = "b111_100_0_10".U
+    def mfmax64  = "b111_100_0_11".U
+    def mfmin8   = "b111_101_0_00".U
+    def mfmin16  = "b111_101_0_01".U
+    def mfmin32  = "b111_101_0_10".U
+    def mfmin64  = "b111_101_0_11".U
+    def mfsqrt8  = "b111_110_0_00".U
+    def mfsqrt16 = "b111_110_0_01".U
+    def mfsqrt32 = "b111_110_0_10".U
+    def mfsqrt64 = "b111_110_0_11".U
   }
 
   object MmvefOpType {

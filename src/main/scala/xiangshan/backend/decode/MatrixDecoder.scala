@@ -14,8 +14,8 @@ import xiangshan.SrcType
 // Set a specific field in mtype
 case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.dummy) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1 = SrcType.imm
-    val src2 = SrcType.imm
+    val src1: BitPat = SrcType.imm
+    val src2: BitPat = SrcType.imm
     XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
@@ -24,8 +24,8 @@ case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm
 // Set the whole mtype
 case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.dummy) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1 = if (mtypei) SrcType.imm else SrcType.xp
-    val src2 = SrcType.imm
+    val src1: BitPat = if (mtypei) SrcType.imm else SrcType.xp
+    val src2: BitPat = SrcType.imm
     XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
@@ -34,8 +34,8 @@ case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, block
 // Set mtilem/n/k
 case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.MSET) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1 = if (txi) SrcType.imm else SrcType.xp
-    val src2 = SrcType.imm
+    val src1: BitPat = if (txi) SrcType.imm else SrcType.xp
+    val src2: BitPat = SrcType.imm
     XSDecode(src1, src2, SrcType.X, FuType.msetmtilexiwi, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
@@ -44,9 +44,9 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
 case class MLD(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.mldu
-    val src1 = SrcType.xp
-    val src2 = SrcType.xp
-    val src3 = SrcType.mp
+    val src1: BitPat = SrcType.xp
+    val src2: BitPat = SrcType.xp
+    val src3: BitPat = SrcType.mp
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -55,9 +55,9 @@ case class MLD(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
 case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.mstu
-    val src1 = SrcType.xp
-    val src2 = SrcType.xp
-    val src3 = SrcType.mp
+    val src1: BitPat = SrcType.xp
+    val src2: BitPat = SrcType.xp
+    val src3: BitPat = SrcType.mp
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -66,8 +66,8 @@ case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
 case class MMUL(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.mmul
-    val src1 = SrcType.xp
-    val src2 = SrcType.xp
+    val src1: BitPat = SrcType.xp
+    val src2: BitPat = SrcType.xp
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -76,8 +76,8 @@ case class MMUL(fuOp: BitPat) extends XSDecodeBase {
 case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, regStride: Boolean = false,
   fWen: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1 = SrcType.xp
-    val src2 = SrcType.xp
+    val src1: BitPat = SrcType.xp
+    val src2: BitPat = SrcType.xp
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = fWen, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -86,7 +86,7 @@ case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, reg
 case class MBC(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1 = SrcType.xp
+    val src1: BitPat = SrcType.xp
     XSDecode(src1, SrcType.X, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -95,17 +95,17 @@ case class MBC(fuOp: BitPat) extends XSDecodeBase {
 case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1 = SrcType.xp
+    val src1: BitPat = SrcType.xp
     XSDecode(src1, SrcType.X, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
 
-case class MARITH(fuOp: BitPat) extends XSDecodeBase {
+case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1 = SrcType.xp
-    val src2 = SrcType.xp
+    val src1: BitPat = SrcType.mp
+    val src2: BitPat = if (hasSrc2) SrcType.mp else SrcType.X
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -114,7 +114,7 @@ case class MARITH(fuOp: BitPat) extends XSDecodeBase {
 case class MCVT(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1 = SrcType.xp
+    val src1: BitPat = SrcType.xp
     XSDecode(src1, SrcType.X, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.X,
       xWen =F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -521,12 +521,70 @@ object MatrixDecoder extends DecodeConstants {
   )
 
   val msparsemul: Array[(BitPat, XSDecodeBase)] = Array(
+    // TODO: Sparse matrix multiplication instructions
   )
 
   val marith: Array[(BitPat, XSDecodeBase)] = Array(
-  )
+    // 4.5.2 Element-Wise Instructions
+    // TODO: Int matrix element-wise arithmetic instructions
 
-  val mlogic: Array[(BitPat, XSDecodeBase)] = Array(
+    // Fp matrix element-wise arithmetic instructions
+    MFADD_MM    -> MARITH(MarithOpType.mfadd8), // It will be overrided by msew in DecodeUnitComp
+    MFADD_CF_MM -> MARITH(MarithOpType.mfadd8),
+    MFADD_HF_MM -> MARITH(MarithOpType.mfadd16),
+    MFADD_F_MM  -> MARITH(MarithOpType.mfadd32),
+    MFADD_D_MM  -> MARITH(MarithOpType.mfadd64),
+
+    MFWADD_MM    -> MARITH(MarithOpType.mfwadd8), // It will be overrided by msew in DecodeUnitComp
+    MFWADD_CF_MM -> MARITH(MarithOpType.mfwadd8),
+    MFWADD_HF_MM -> MARITH(MarithOpType.mfwadd16),
+    MFWADD_F_MM  -> MARITH(MarithOpType.mfwadd32),
+
+    MFSUB_MM    -> MARITH(MarithOpType.mfsub8), // It will be overrided by msew in DecodeUnitComp
+    MFSUB_CF_MM -> MARITH(MarithOpType.mfsub8),
+    MFSUB_HF_MM -> MARITH(MarithOpType.mfsub16),
+    MFSUB_F_MM  -> MARITH(MarithOpType.mfsub32),
+    MFSUB_D_MM  -> MARITH(MarithOpType.mfsub64),
+
+    MFWSUB_MM    -> MARITH(MarithOpType.mfwsub8), // It will be overrided by msew in DecodeUnitComp
+    MFWSUB_CF_MM -> MARITH(MarithOpType.mfwsub8),
+    MFWSUB_HF_MM -> MARITH(MarithOpType.mfwsub16),
+    MFWSUB_F_MM  -> MARITH(MarithOpType.mfwsub32),
+
+    MFMIN_MM    -> MARITH(MarithOpType.mfmin8), // It will be overrided by msew in DecodeUnitComp
+    MFMIN_CF_MM -> MARITH(MarithOpType.mfmin8),
+    MFMIN_HF_MM -> MARITH(MarithOpType.mfmin16),
+    MFMIN_F_MM  -> MARITH(MarithOpType.mfmin32),
+    MFMIN_D_MM  -> MARITH(MarithOpType.mfmin64),
+
+    MFMAX_MM    -> MARITH(MarithOpType.mfmax8), // It will be overrided by msew in DecodeUnitComp
+    MFMAX_CF_MM -> MARITH(MarithOpType.mfmax8),
+    MFMAX_HF_MM -> MARITH(MarithOpType.mfmax16),
+    MFMAX_F_MM  -> MARITH(MarithOpType.mfmax32),
+    MFMAX_D_MM  -> MARITH(MarithOpType.mfmax64),
+
+    MFMUL_MM    -> MARITH(MarithOpType.mfmul8), // It will be overrided by msew in DecodeUnitComp
+    MFMUL_CF_MM -> MARITH(MarithOpType.mfmul8),
+    MFMUL_HF_MM -> MARITH(MarithOpType.mfmul16),
+    MFMUL_F_MM  -> MARITH(MarithOpType.mfmul32),
+    MFMUL_D_MM  -> MARITH(MarithOpType.mfmul64),
+
+    MFWMUL_MM    -> MARITH(MarithOpType.mfmul8), // It will be overrided by msew in DecodeUnitComp
+    MFWMUL_CF_MM -> MARITH(MarithOpType.mfmul8),
+    MFWMUL_HF_MM -> MARITH(MarithOpType.mfmul16),
+    MFWMUL_F_MM  -> MARITH(MarithOpType.mfmul32),
+
+    MFDIV_MM    -> MARITH(MarithOpType.mfdiv8), // It will be overrided by msew in DecodeUnitComp
+    MFDIV_CF_MM -> MARITH(MarithOpType.mfdiv8),
+    MFDIV_HF_MM -> MARITH(MarithOpType.mfdiv16),
+    MFDIV_F_MM  -> MARITH(MarithOpType.mfdiv32),
+    MFDIV_D_MM  -> MARITH(MarithOpType.mfdiv64),
+    
+    MFSQRT_MM    -> MARITH(MarithOpType.mfsqrt8), // It will be overrided by msew in DecodeUnitComp
+    MFSQRT_CF_MM -> MARITH(MarithOpType.mfsqrt8),
+    MFSQRT_HF_MM -> MARITH(MarithOpType.mfsqrt16),
+    MFSQRT_F_MM  -> MARITH(MarithOpType.mfsqrt32),
+    MFSQRT_D_MM  -> MARITH(MarithOpType.mfsqrt64),
   )
 
   // 4.6. Type-Convert Instructions
@@ -555,5 +613,5 @@ object MatrixDecoder extends DecodeConstants {
     // ...
   )
 
-  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls ++ mcvt
+  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls ++ mmve ++ mmul ++ marith ++ mcvt
 }
