@@ -491,11 +491,14 @@ case class XSCoreParameters
       IssueBlockParams(Seq(
         ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(MtilexRD(0, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
+      IssueBlockParams(Seq(
+        ExeUnitParams("MEX0", Seq(MmaCfg), Seq(FakeIntWB()), Seq(Seq(MtilexRD(0, 1)), Seq(MtilexRD(1, 0)), Seq(MtilexRD(2, 0)))),
+      ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
-      //   ExeUnitParams("MSTU", Seq(MStuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)))),
+      //   ExeUnitParams("MSTU", Seq(MStuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MtilexRD(3, 0)), Seq(MtilexRD(4, 0)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
       // IssueBlockParams(Seq(
-      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 2)))),
+      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 2)), Seq(IntRD(9, 2)), Seq(MtilexRD(3, 1)), Seq(MtilexRD(4, 1)))),
       // ), numEntries = 16, numEnq = 2, numComp = 12),
     ),
       numPregs = mtilexPreg.numEntries,
@@ -552,7 +555,7 @@ case class XSCoreParameters
     Seq(
       WakeUpConfig(
         Seq("ALU0", "ALU1", "ALU2", "ALU3", "LDU0", "LDU1", "LDU2") ->
-        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSET1", "MSETTYPE")
+        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSET1", "MSETTYPE", "MEX0")
       ),
       // TODO: add load -> fp slow wakeup
       WakeUpConfig(

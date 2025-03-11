@@ -197,29 +197,31 @@ object Bundles {
     }
   }
 
-  object MSew extends NamedUInt(2) {
+  object MSew extends NamedUInt(3) {
     def e8  : UInt = "b000".U(width.W)
     def e16 : UInt = "b001".U(width.W)
     def e32 : UInt = "b010".U(width.W)
     def e64 : UInt = "b011".U(width.W)
+    def e4  : UInt = "b111".U(width.W)
 
-    def reserved: BitPat = BitPat("b1??")
+    def reserved = Seq(BitPat("b100"), BitPat("b101"), BitPat("b110"))
 
     def isReserved(sew: UInt) : Bool = {
       require(sew.getWidth >= 2 && sew.getWidth <= 3)
       if (sew.getWidth == 3) {
-        sew === reserved
+        reserved.map(sew === _).reduce(_ || _)
       } else {
         false.B
       }
     }
   }
 
-  object MSewOH extends NamedUInt(4) {
-    def e8  : UInt = "b0001".U(width.W)
-    def e16 : UInt = "b0010".U(width.W)
-    def e32 : UInt = "b0100".U(width.W)
-    def e64 : UInt = "b1000".U(width.W)
+  object MSewOH extends NamedUInt(8) {
+    def e8  : UInt = "b00000001".U(width.W)
+    def e16 : UInt = "b00000010".U(width.W)
+    def e32 : UInt = "b00000100".U(width.W)
+    def e64 : UInt = "b00001000".U(width.W)
+    def e4  : UInt = "b10000000".U(width.W)
 
     def convertFromMSew(msew: UInt): UInt = {
       require(msew.getWidth >= 2 && msew.getWidth <= 3)
@@ -255,6 +257,24 @@ object Bundles {
   object MConfig {
     def apply()(implicit p: Parameters) : MConfig = {
       new MConfig()
+    }
+  }
+
+  class AmuMmaIO(implicit p: Parameters) extends XSBundle {
+    val ms1    = UInt(4.W)
+    val ms2    = UInt(4.W)
+    val md     = UInt(4.W)
+    val widths = MtypeMSew()
+    val widthd = MtypeMSew()
+    val sat    = Bool()
+    val mtilem = Mtilex()
+    val mtilen = Mtilex()
+    val mtilek = Mtilex()
+  }
+
+  object AmuMmaIO {
+    def apply()(implicit p: Parameters) : AmuMmaIO = {
+      new AmuMmaIO()
     }
   }
 }
