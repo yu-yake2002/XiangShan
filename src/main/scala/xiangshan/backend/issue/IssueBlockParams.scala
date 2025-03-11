@@ -208,9 +208,7 @@ case class IssueBlockParams(
 
   def VstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vstu)).sum
 
-  def MlduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mldu)).sum
-
-  def MstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mstu)).sum
+  def MlsuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mlsu)).sum
 
   def VseglduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vsegldu)).sum
 
@@ -377,7 +375,7 @@ case class IssueBlockParams(
 
   def genWBWakeUpSinkValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueWBWakeUpBundle]] = {
     val intBundle: Seq[ValidIO[IssueQueueWBWakeUpBundle]] = schdType match {
-      case IntScheduler() | MemScheduler() => needWakeupFromIntWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
+      case IntScheduler() | MemScheduler() | MfScheduler() => needWakeupFromIntWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
       case _ => Seq()
     }
     val fpBundle = schdType match {

@@ -140,6 +140,10 @@ trait BitFieldMatrix { this: Riscv32BitInst =>
   def LS             : UInt  = inst(25)
   def MA             : UInt  = inst(11)
 
+  def isMatrix = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS
+  }
+
   def isMatrixConfig = {
     this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
       this.MATRIX_FUNCT6(5, 2) === "b0000".U && this.FUNCT3(2) === "b1".U

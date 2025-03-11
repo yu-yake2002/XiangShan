@@ -176,7 +176,7 @@ case class FuConfig (
 
   def needMPUCtrl: Boolean = {
     import FuType._
-    Seq(mldu, mstu).contains(fuType)
+    Seq(mlsu, mma, marith, mmvef).contains(fuType)
   }
 
   def needCriticalErrors: Boolean = Seq(FuType.csr).contains(fuType)
@@ -522,6 +522,22 @@ object FuConfig {
     latency = CertainLatency(0)
   )
 
+  val MlsuCfg: FuConfig = FuConfig (
+    name = "mlsu",
+    fuType = FuType.mlsu,
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mlsu(cfg)(p).suggestName("Marith")),
+    srcData = Seq(
+      Seq(IntData(), IntData(), MtilexData(), MtilexData()),
+    ),
+    piped = false, // Todo: check it
+    // exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
+    // flushPipe = true,
+    // replayInst = true,
+    // hasLoadError = true,
+    // trigger = true,
+    latency = CertainLatency(0)
+  )
+
   val LduCfg: FuConfig = FuConfig (
     name = "ldu",
     fuType = FuType.ldu,
@@ -566,35 +582,6 @@ object FuConfig {
     ),
     piped = true,
     latency = CertainLatency(0)
-  )
-
-  val MLduCfg: FuConfig = FuConfig (
-    name = "mldu",
-    fuType = FuType.mldu,
-    fuGen = null,
-    srcData = Seq(
-      Seq(IntData()),
-      Seq(IntData()),
-    ),
-    piped = false, // Todo: check it
-    latency = UncertainLatency(),
-    exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
-    flushPipe = true,
-    replayInst = true,
-    hasLoadError = true,
-    trigger = true
-  )
-
-  val MStuCfg: FuConfig = FuConfig (
-    name = "mstu",
-    fuType = FuType.mstu,
-    fuGen = null, // Todo
-    srcData = Seq(
-      Seq(IntData()),
-    ),
-    piped = false,
-    latency = UncertainLatency(),
-    exceptionOut = Seq(storeAddrMisaligned, storeAccessFault, storePageFault, storeGuestPageFault, breakPoint)
   )
 
   val HyldaCfg = FuConfig (

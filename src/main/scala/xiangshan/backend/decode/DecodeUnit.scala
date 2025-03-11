@@ -1117,7 +1117,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
 
   decodedInst.vlsInstr := isVls
 
-  decodedInst.srcType(3) := Mux(inst.VM === 0.U, SrcType.vp, SrcType.DC) // mask src
+  decodedInst.srcType(3) := Mux(inst.isMatrixStore || inst.isMatrixLoad, SrcType.mtilex, Mux(inst.VM === 0.U, SrcType.vp, SrcType.DC)) // mtilex/mask src
   decodedInst.srcType(4) := SrcType.vp // vconfig
 
   decodedInst.mpu := 0.U.asTypeOf(decodedInst.mpu)

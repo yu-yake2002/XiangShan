@@ -71,9 +71,7 @@ case class SchdBlockParams(
 
   def VstuCnt: Int = issueBlockParams.map(_.VstuCnt).sum
 
-  def MlduCnt: Int = issueBlockParams.map(_.MlduCnt).sum
-
-  def MstuCnt: Int = issueBlockParams.map(_.MstuCnt).sum
+  def MlsuCnt: Int = issueBlockParams.map(_.MlsuCnt).sum
 
   def numExu: Int = issueBlockParams.map(_.exuBlockParams.count(!_.fakeUnit)).sum
 

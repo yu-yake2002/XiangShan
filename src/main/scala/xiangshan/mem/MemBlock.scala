@@ -62,8 +62,7 @@ trait HasMemBlockParameters extends HasXSParameter {
   val HyuCnt  = backendParams.HyuCnt
   val VlduCnt = backendParams.VlduCnt
   val VstuCnt = backendParams.VstuCnt
-  val MlduCnt = backendParams.MlduCnt
-  val MstuCnt = backendParams.MstuCnt
+  val MlsuCnt = backendParams.MlsuCnt
 
   val LdExuCnt  = LduCnt + HyuCnt
   val StAddrCnt = StaCnt + HyuCnt
@@ -71,7 +70,7 @@ trait HasMemBlockParameters extends HasXSParameter {
   val MemExuCnt = LduCnt + HyuCnt + StaCnt + StdCnt
   val MemAddrExtCnt = LdExuCnt + StaCnt
   val MemVExuCnt = VlduCnt + VstuCnt
-  val MemMExuCnt = MlduCnt + MstuCnt
+  val MemMExuCnt = MlsuCnt
 
   val AtomicWBPort   = 0
   val MisalignWBPort = 1
@@ -679,8 +678,8 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   }
 
   // dtlb
-  val dtlb_ld_tlb_ld = Module(new TLBNonBlock(LduCnt + HyuCnt + 1 + MlduCnt, 2, ldtlbParams))
-  val dtlb_st_tlb_st = Module(new TLBNonBlock(StaCnt + MstuCnt, 1, sttlbParams))
+  val dtlb_ld_tlb_ld = Module(new TLBNonBlock(LduCnt + HyuCnt + 1, 2, ldtlbParams))
+  val dtlb_st_tlb_st = Module(new TLBNonBlock(StaCnt, 1, sttlbParams))
   val dtlb_prefetch_tlb_prefetch = Module(new TLBNonBlock(2, 2, pftlbParams))
   val dtlb_ld = Seq(dtlb_ld_tlb_ld.io)
   val dtlb_st = Seq(dtlb_st_tlb_st.io)
