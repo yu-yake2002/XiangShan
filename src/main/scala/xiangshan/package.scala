@@ -29,14 +29,14 @@ import xiangshan.backend.decode.{Imm, ImmUnion}
 
 package object xiangshan {
   object SrcType {
-    def imm = "b00000".U
-    def pc  = "b00000".U
-    def xp  = "b00001".U
-    def fp  = "b00010".U
-    def vp  = "b00100".U
-    def v0  = "b01000".U
-    def mp  = "b10000".U
-    def no  = "b00000".U // this src read no reg but cannot be Any value
+    def imm    = "b00000".U
+    def pc     = "b00000".U
+    def xp     = "b00001".U
+    def fp     = "b00010".U
+    def vp     = "b00100".U
+    def v0     = "b01000".U
+    def mtilex = "b10000".U
+    def no     = "b00000".U // this src read no reg but cannot be Any value
 
     // alias
     def reg = this.xp
@@ -50,7 +50,7 @@ package object xiangshan {
     def isFp(srcType: UInt) = srcType(1)
     def isVp(srcType: UInt) = srcType(2)
     def isV0(srcType: UInt) = srcType(3)
-    def isMp(srcType: UInt) = srcType(4)
+    def isMtilex(srcType: UInt) = srcType(4)
     def isPcOrImm(srcType: UInt) = isPc(srcType) || isImm(srcType)
     def isNotReg(srcType: UInt): Bool = !srcType.orR
     def isVfp(srcType: UInt) = isVp(srcType) || isFp(srcType)
@@ -564,44 +564,119 @@ package object xiangshan {
     def toMtilexIdx (func: UInt) = func(1, 0)
   }
 
-  object MlduOpType {
-    // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
-    // matrix type [1:0]
-    // 0 0 0 0 1 : output matrix, C
-    // 0 0 0 1 0 : left matrix, A
-    // 0 0 1 0 0 : right matrix, B
-    // 0 1 0 0 0 : tile matrix without considering the size
-    // 1 0 0 0 0 : accumulation matrix without considering the size
-    def mlae   = "b00001_0_000".U
-    def mlate  = "b00001_1_000".U
-    def mlbe   = "b00010_0_000".U
-    def mlbte  = "b00010_1_000".U
-    def mlce   = "b00100_0_000".U
-    def mlcte  = "b00100_1_000".U
-    def mltre  = "b01000_0_000".U
-    def mlacce = "b10000_0_000".U
-  }
+  object MldstOpType {
+    def placeholder = "b0_00000_0_00".U
 
-  object MstuOpType {
-    // bit encoding: | matrix type (5b) | transposed (1b) | reserved (3b) |
-    // matrix type [1:0]
+    // bit encoding: ldst (1b) | matrix type (5b) | transposed (1b) | width (2b)
+    // matrix type [4:0]
     // 0 0 0 0 1 : output matrix, C
     // 0 0 0 1 0 : left matrix, A
     // 0 0 1 0 0 : right matrix, B
     // 0 1 0 0 0 : tile matrix without considering the size
     // 1 0 0 0 0 : accumulation matrix without considering the size
-    def msae   = "b00001_0_000".U
-    def msate  = "b00001_1_000".U
-    def msbe   = "b00010_0_000".U
-    def msbte  = "b00010_1_000".U
-    def msce   = "b00100_0_000".U
-    def mscte  = "b00100_1_000".U
-    def mstre  = "b01000_0_000".U
-    def msacce = "b10000_0_000".U
+    def isLoad (func: UInt) = func(8) === "b0".U
+    def isStore(func: UInt) = func(8) === "b1".U
+
+    def isMatrixC (func: UInt) = func(7, 3) === "b00001".U
+    def isMatrixA (func: UInt) = func(7, 3) === "b00010".U
+    def isMatrixB (func: UInt) = func(7, 3) === "b00100".U
+    def isTile    (func: UInt) = func(7, 3) === "b01000".U
+    def isAccum   (func: UInt) = func(7, 3) === "b10000".U
+
+    def isUntransposed (func: UInt) = func(2) === "b0".U
+    def isTransposed   (func: UInt) = func(2) === "b1".U
+    
+    def isFp8  (func: UInt) = func(1, 0) === "b00".U
+    def isFp16 (func: UInt) = func(1, 0) === "b01".U
+    def isFp32 (func: UInt) = func(1, 0) === "b10".U
+    // def isFp64 (func: UInt) = func(1, 0) === "b11".U
+    
+    def mlaeFp8    = "b0_00001_0_00".U
+    def mlaeFp16   = "b0_00001_0_01".U
+    def mlaeFp32   = "b0_00001_0_10".U
+    def mlateFp8   = "b0_00001_1_00".U
+    def mlateFp16  = "b0_00001_1_01".U
+    def mlateFp32  = "b0_00001_1_10".U
+    def mlbeFp8    = "b0_00010_0_00".U
+    def mlbeFp16   = "b0_00010_0_01".U
+    def mlbeFp32   = "b0_00010_0_10".U
+    def mlbteFp8   = "b0_00010_1_00".U
+    def mlbteFp16  = "b0_00010_1_01".U
+    def mlbteFp32  = "b0_00010_1_10".U
+    def mlceFp8    = "b0_00100_0_00".U
+    def mlceFp16   = "b0_00100_0_01".U
+    def mlceFp32   = "b0_00100_0_10".U
+    def mlcteFp8   = "b0_00100_1_00".U
+    def mlcteFp16  = "b0_00100_1_01".U
+    def mlcteFp32  = "b0_00100_1_10".U
+
+    def mltreFp8   = "b0_01000_0_00".U
+    def mltreFp16  = "b0_01000_0_01".U
+    def mltreFp32  = "b0_01000_0_10".U
+    def mlacceFp8  = "b0_10000_0_00".U
+    def mlacceFp16 = "b0_10000_0_01".U
+    def mlacceFp32 = "b0_10000_0_10".U
+
+    def msaeFp8    = "b1_00001_0_00".U
+    def msaeFp16   = "b1_00001_0_01".U
+    def msaeFp32   = "b1_00001_0_10".U
+    def msateFp8   = "b1_00001_1_00".U
+    def msateFp16  = "b1_00001_1_01".U
+    def msateFp32  = "b1_00001_1_10".U
+    def msbeFp8    = "b1_00010_0_00".U
+    def msbeFp16   = "b1_00010_0_01".U
+    def msbeFp32   = "b1_00010_0_10".U
+    def msbteFp8   = "b1_00010_1_00".U
+    def msbteFp16  = "b1_00010_1_01".U
+    def msbteFp32  = "b1_00010_1_10".U
+    def msceFp8    = "b1_00100_0_00".U
+    def msceFp16   = "b1_00100_0_01".U
+    def msceFp32   = "b1_00100_0_10".U
+    def mscteFp8   = "b1_00100_1_00".U
+    def mscteFp16  = "b1_00100_1_01".U
+    def mscteFp32  = "b1_00100_1_10".U
+
+    def mstreFp8   = "b1_01000_0_00".U
+    def mstreFp16  = "b1_01000_0_01".U
+    def mstreFp32  = "b1_01000_0_10".U
+    def msacceFp8  = "b1_10000_0_00".U
+    def msacceFp16 = "b1_10000_0_01".U
+    def msacceFp32 = "b1_10000_0_10".U
   }
 
   object MmulOpType {
     def placeholder = "b0000_0000".U
+
+    def isSignedInt   (func: UInt) = func(7, 6) === "b00".U
+    def isUnsignedInt (func: UInt) = func(7, 6) === "b01".U
+    def isFloat       (func: UInt) = func(7, 6) === "b10".U
+
+    def isFromE4M3 (func: UInt) = func(5, 3) === "b000".U
+    def isFromE5M2 (func: UInt) = func(5, 3) === "b001".U
+    def isFromE3M4 (func: UInt) = func(5, 3) === "b010".U
+    def isFromFp16 (func: UInt) = func(5, 3) === "b011".U // E5M10
+    def isFromBf16 (func: UInt) = func(5, 3) === "b100".U // E8M7
+    def isFromFp32 (func: UInt) = func(5, 3) === "b101".U // E8M23
+    def isFromTf32 (func: UInt) = func(5, 3) === "b110".U
+    def isFromFp64 (func: UInt) = func(5, 3) === "b111".U
+
+    def isToE4M3 (func: UInt) = func(2, 0) === "b000".U
+    def isToE5M2 (func: UInt) = func(2, 0) === "b001".U
+    def isToE3M4 (func: UInt) = func(2, 0) === "b010".U
+    def isToFp16 (func: UInt) = func(2, 0) === "b011".U
+    def isToBf16 (func: UInt) = func(2, 0) === "b100".U
+    def isToFp32 (func: UInt) = func(2, 0) === "b101".U
+    def isToTf32 (func: UInt) = func(2, 0) === "b110".U
+    def isToFp64 (func: UInt) = func(2, 0) === "b111".U
+
+    def hfmaFp8ToFp8  = "b10_000_000".U
+    def hfmaFp8ToFp16 = "b10_000_011".U
+    def hfmaFp8ToFp32 = "b10_000_101".U
+
+    def hfmaFp16ToFp16 = "b10_011_011".U
+    def hfmaFp16ToFp32 = "b10_011_101".U
+
+    def hfmaFp32ToFp32 = "b10_101_101".U
   }
 
   object MarithOpType {
@@ -679,15 +754,15 @@ package object xiangshan {
     def isBroadcast (func: UInt) = func(8, 6) === "b011".U
 
     // Broadcast the first row of a matrix register to fill the whole matrix.
-    def isFromRow (func: UInt) = func(5, 4) === "b00".U
+    def isBroadcastFromRow (func: UInt) = func(5, 4) === "b00".U
     // Broadcast the first column of a matrix register to fill the whole matrix.
-    def isFromCol (func: UInt) = func(5, 4) === "b01".U
+    def isBroadcastFromCol (func: UInt) = func(5, 4) === "b01".U
     // Broadcast the first element of a matrix register to fill the whole matrix.
-    def isFromEle (func: UInt) = func(5, 4) === "b10".U
+    def isBroadcastFromEle (func: UInt) = func(5, 4) === "b10".U
     
-    def isFromA   (func: UInt) = func(3, 2) === "b00".U
-    def isFromB   (func: UInt) = func(3, 2) === "b01".U
-    def isFromC   (func: UInt) = func(3, 2) === "b10".U
+    def isBroadcastFromA (func: UInt) = func(3, 2) === "b00".U
+    def isBroadcastFromB (func: UInt) = func(3, 2) === "b01".U
+    def isBroadcastFromC (func: UInt) = func(3, 2) === "b10".U
     
     def isWidth8  (func: UInt) = func(1, 0) === "b00".U
     def isWidth16 (func: UInt) = func(1, 0) === "b01".U
@@ -1201,11 +1276,17 @@ package object xiangshan {
     def AMO_CAS_D        = "b0110110".U // amocas_d
     def AMO_CAS_Q        = "b0110111".U // amocas_q
 
-    def MSET             = "b1000001".U // mset
+    def MSETTILEX        = "b1000001".U // msettilex
+    def MSETTYPE         = "b1000010".U // msettype
+    def MAT_MEM          = "b1100001".U // matrix load/store
+    def MAT_MUL          = "b1100010".U // matrix multiply
+    def MAT_ARITH        = "b1100011".U // matrix arithmetic
+    def MAT_CVT          = "b1100100".U // matrix type convert
+    def MAT_MBC          = "b1100101".U // matrix broadcast
     // dummy means that the instruction is a complex instruction but uop number is 1
     def dummy     = "b1111111".U
 
-    def X = BitPat("b0000000")
+    def X = BitPat("b00000000")
 
     def apply() = UInt(7.W)
     def needSplit(UopSplitType: UInt) = UopSplitType(4) || UopSplitType(5)

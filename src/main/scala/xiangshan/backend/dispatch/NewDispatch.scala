@@ -314,7 +314,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
             case 1 => SrcType.isFp(fromRename(i).bits.srcType(j))
             case 2 => SrcType.isVp(fromRename(i).bits.srcType(j))
             case 3 => SrcType.isV0(fromRename(i).bits.srcType(j))
-            case 4 => SrcType.isMp(fromRename(i).bits.srcType(j))
+            case 4 => SrcType.isMtilex(fromRename(i).bits.srcType(j))
             case 5 => true.B
           }
           allSrcState(i)(j)(k) := readEn && busyTables(k).io.read(readidx).resp || SrcType.isImm(fromRename(i).bits.srcType(j))

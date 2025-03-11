@@ -500,6 +500,28 @@ object FuConfig {
     immType = Set(SelImm.IMM_MSET, SelImm.IMM_MSETFIELD),
   )
 
+  val MmaCfg: FuConfig = FuConfig (
+    name = "mma",
+    fuType = FuType.mma,
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mma(cfg)(p).suggestName("Mma")),
+    srcData = Seq(
+      Seq(MtilexData(), MtilexData(), MtilexData()),
+    ),
+    piped = true,
+    latency = CertainLatency(0)
+  )
+
+  val MarithCfg: FuConfig = FuConfig (
+    name = "marith",
+    fuType = FuType.marith,
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Marith(cfg)(p).suggestName("Marith")),
+    srcData = Seq(
+      Seq(MtilexData(), MtilexData()),
+    ),
+    piped = true,
+    latency = CertainLatency(0)
+  )
+
   val LduCfg: FuConfig = FuConfig (
     name = "ldu",
     fuType = FuType.ldu,
