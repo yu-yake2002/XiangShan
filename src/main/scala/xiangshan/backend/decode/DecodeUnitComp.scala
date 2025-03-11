@@ -35,6 +35,7 @@ import xiangshan.backend.fu.matrix.Bundles.{MSew, MType}
 import xiangshan.backend.fu.vector.Bundles.{VSew, VType, VLmul, Vl}
 import yunsuan.VpermType
 import chisel3.util.experimental.decode.{QMCMinimizer, TruthTable, decoder}
+import freechips.rocketchip.rocket.CSRs.mtype
 
 class indexedLSUopTable(uopIdx:Int) extends Module {
   val src = IO(Input(UInt(4.W)))
@@ -361,7 +362,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
         csBundle(1).vpu.connectVType(io.vtypeBypass)
       }
     }
-    is(UopSplitType.MSET) {
+    is(UopSplitType.MSETTILEX) {
       when(isMsettilexSimple) {
         // Default
         // uop0 set rd
@@ -395,7 +396,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(0).rfWen := false.B
           // uop1
           csBundle(1).fuType := FuType.msetmtilexfwf.U
-          csBundle(1).srcType(0) := SrcType.mp
+          csBundle(1).srcType(0) := SrcType.mtilex
           csBundle(1).srcType(1) := SrcType.no
           csBundle(1).lsrc(0) := MSETtilexOpType.toMtilexIdx(latchedInst.fuOpType)
         }.elsewhen(dest === 0.U) {
@@ -411,19 +412,48 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
         csBundle(1).mpu.connectMType(io.mtypeBypass)
       }
     }
-    is(UopSplitType.dummy) {
-      when (isMsettypeSimple) {
-        // use bypass mtype from mtypeGen
-        csBundle(0).fuType := FuType.msetmtypeiwi.U
-        csBundle(0).fuOpType := latchedInst.fuOpType
-        csBundle(0).lsrc(0) := src1
-        csBundle(0).srcType(0) := Mux(latchedInst.fuOpType === MSETtypeOpType.msettype, SrcType.xp, SrcType.imm)
-        csBundle(0).ldest := dest
-        csBundle(0).rfWen := true.B
-        csBundle(0).vlWen := false.B
-        csBundle(0).instr := latchedInst.instr
-        csBundle(0).mpu.connectMType(io.mtypeBypass)
-      }
+    is(UopSplitType.MSETTYPE) {
+      // use bypass mtype from mtypeGen
+      csBundle(0).fuType := FuType.msetmtypeiwi.U
+      csBundle(0).fuOpType := latchedInst.fuOpType
+      csBundle(0).lsrc(0) := src1
+      csBundle(0).srcType(0) := Mux(latchedInst.fuOpType === MSETtypeOpType.msettype, SrcType.xp, SrcType.imm)
+      csBundle(0).ldest := dest
+      csBundle(0).rfWen := true.B
+      csBundle(0).vlWen := false.B
+      csBundle(0).instr := latchedInst.instr
+      csBundle(0).mpu.connectMType(io.mtypeBypass)
+    }
+    is(UopSplitType.MAT_MEM) {
+      val mType = io.mtypeBypass
+      // TODO: implement me
+    }
+    is(UopSplitType.MAT_MUL) {
+      csBundle(0).fuType := latchedInst.fuType
+      csBundle(0).fuOpType := latchedInst.fuOpType
+      csBundle(0).lsrc(0) := Mtilem_IDX.U
+      csBundle(0).lsrc(1) := Mtilen_IDX.U
+      csBundle(0).lsrc(2) := Mtilek_IDX.U
+      csBundle(0).instr := latchedInst.instr
+    }
+    is(UopSplitType.MAT_ARITH) {
+      val mType = io.mtypeBypass
+      // TODO: implement me
+    }
+    is(UopSplitType.MAT_MBC) {
+      val optype = latchedInst.fuOpType
+      csBundle(0).fuType := latchedInst.fuType
+      csBundle(0).fuOpType := optype
+      csBundle(0).lsrc(0) := Mux(MarithOpType.isBroadcastFromB(optype), Mtilek_IDX.U, Mtilem_IDX.U)
+      csBundle(0).lsrc(1) := Mux(MarithOpType.isBroadcastFromA(optype), Mtilek_IDX.U, Mtilen_IDX.U)
+      csBundle(0).instr := latchedInst.instr
+    }
+    is(UopSplitType.MAT_CVT) {
+      csBundle(0).fuType := latchedInst.fuType
+      csBundle(0).fuOpType := latchedInst.fuOpType
+      csBundle(0).lsrc(0) := Mtilem_IDX.U
+      csBundle(0).lsrc(1) := Mtilen_IDX.U
+      csBundle(0).instr := latchedInst.instr
     }
     is(UopSplitType.VEC_VVV) {
       for (i <- 0 until MAX_VLMUL) {

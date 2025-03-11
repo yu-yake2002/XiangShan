@@ -570,13 +570,10 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
       if (i == 4) s === SrcType.vp
       else false.B
     }
-    val mtilexCond = io.in(i).bits.srcType.zipWithIndex.map{ case (s, i) =>
-      if (i == 0) s === SrcType.mp
-      else false.B
-    }
     val vecCond = io.in(i).bits.srcType.map(_ === SrcType.vp)
     val fpCond  = io.in(i).bits.srcType.map(_ === SrcType.fp)
     val intCond = io.in(i).bits.srcType.map(_ === SrcType.xp)    
+    val mtilexCond = io.in(i).bits.srcType.map(_ === SrcType.mtilex)
     val target = io.in(i).bits.lsrc
     for ((((((cond1, ((condV0, condVl), condMtilex)), cond2), cond3), t), j) <- vecCond.zip(v0Cond.zip(vlCond).zip(mtilexCond)).zip(fpCond).zip(intCond).zip(target).zipWithIndex) {
       val destToSrc = io.in.take(i).zipWithIndex.map { case (in, j) =>

@@ -1152,6 +1152,9 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
   uopInfoGen.io.in.preInfo.isVecMem := inst.isVecStore || inst.isVecLoad
   uopInfoGen.io.in.preInfo.isAmoCAS := inst.isAMOCAS
   uopInfoGen.io.in.preInfo.isMatrixConfig := inst.isMatrixConfig
+  uopInfoGen.io.in.preInfo.isMatrixMem := inst.isMatrixStore || inst.isMatrixLoad
+  uopInfoGen.io.in.preInfo.isMatrixMul := inst.isMatrixMul || inst.isMatrixSparseMul
+  uopInfoGen.io.in.preInfo.isMatrixArith := inst.isMatrixArith || inst.isMatrixTypeConvert || inst.isMatrixMove
 
   uopInfoGen.io.in.preInfo.typeOfSplit := decodedInst.uopSplitType
   uopInfoGen.io.in.preInfo.vsew := decodedInst.vpu.vsew
@@ -1205,7 +1208,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
   }.elsewhen (isCsrrMtilem) {
-    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mtilex
     decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
@@ -1215,7 +1218,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilen) {
-    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mtilex
     decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no
@@ -1225,7 +1228,7 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilek) {
-    decodedInst.srcType(0) := SrcType.mp
+    decodedInst.srcType(0) := SrcType.mtilex
     decodedInst.srcType(1) := SrcType.no
     decodedInst.srcType(2) := SrcType.no
     decodedInst.srcType(3) := SrcType.no

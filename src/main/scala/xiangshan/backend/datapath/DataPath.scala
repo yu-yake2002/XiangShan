@@ -800,7 +800,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
               (SrcType.isFp(s1_srcType(i)(j)(k)) -> s1_fpPregRData(i)(j)(k)))
             :+
             OptionWrapper(s1_mtilexPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(MtilexRegSrcDataSet).nonEmpty, 
-              (SrcType.isMp(s1_srcType(i)(j)(k)) -> s1_mtilexPregRData(i)(j)(k)))
+              (SrcType.isMtilex(s1_srcType(i)(j)(k)) -> s1_mtilexPregRData(i)(j)(k)))
           )}
         ).filter(_.nonEmpty).map(_.get)
 
