@@ -41,24 +41,12 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
   }
 }
 
-case class MLD(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
+case class MLS(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val fu = FuType.mldu
+    val fu = FuType.mlsu
     val src1: BitPat = SrcType.xp
     val src2: BitPat = SrcType.xp
-    val src3: BitPat = SrcType.mtilex
-    // src4: BitPat = SrcType.mp
-    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MEM,
-      xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
-  }
-}
-
-case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
-  def generate(): List[BitPat] = {
-    val fu = FuType.mstu
-    val src1: BitPat = SrcType.xp
-    val src2: BitPat = SrcType.xp
-    val src3: BitPat = SrcType.mtilex
+    val src3: BitPat = SrcType.mx
     // src4: BitPat = SrcType.mp
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MEM,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
@@ -68,9 +56,9 @@ case class MST(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
 case class MMUL(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.mma
-    val src1: BitPat = SrcType.mtilex // always mtilem
-    val src2: BitPat = SrcType.mtilex // always mtilen
-    val src3: BitPat = SrcType.mtilex // always mtilek
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx // always mtilem
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MUL,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -79,9 +67,10 @@ case class MMUL(fuOp: BitPat) extends XSDecodeBase {
 case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, regStride: Boolean = false,
   fWen: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = fWen, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -89,9 +78,10 @@ case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, reg
 case class MBC(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -100,8 +90,8 @@ case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
     // min(src1, src2) will be used
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
+    val src1: BitPat = SrcType.mx
+    val src2: BitPat = SrcType.mx
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -110,8 +100,8 @@ case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
 case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = if (hasSrc2) SrcType.mtilex else SrcType.X
+    val src1: BitPat = SrcType.mx
+    val src2: BitPat = if (hasSrc2) SrcType.mx else SrcType.X
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -120,8 +110,8 @@ case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
 case class MCVT(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex // always mtilem
-    val src2: BitPat = SrcType.mtilex // always mtilen
+    val src1: BitPat = SrcType.mx // always mtilem
+    val src2: BitPat = SrcType.mx // always mtilen
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_CVT,
       xWen =F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -170,138 +160,138 @@ object MatrixDecoder extends DecodeConstants {
 
   val mls: Array[(BitPat, XSDecodeBase)] = Array(
     // Load left matrix, A
-    MLAE8_M -> MLD(MldstOpType.mlaeFp8),
-    MLAE16_M -> MLD(MldstOpType.mlaeFp16),
-    MLAE32_M -> MLD(MldstOpType.mlaeFp32),
-    // MLAE64_M -> MLD(MldstOpType.placeholder),
+    MLAE8_M -> MLS(MldstOpType.mlaeFp8),
+    MLAE16_M -> MLS(MldstOpType.mlaeFp16),
+    MLAE32_M -> MLS(MldstOpType.mlaeFp32),
+    // MLAE64_M -> MLS(MldstOpType.placeholder),
     // Load right matrix, B
-    MLBE8_M -> MLD(MldstOpType.mlbeFp8),
-    MLBE16_M -> MLD(MldstOpType.mlbeFp16),
-    MLBE32_M -> MLD(MldstOpType.mlbeFp32),
-    // MLBE64_M -> MLD(MldstOpType.placeholder),
+    MLBE8_M -> MLS(MldstOpType.mlbeFp8),
+    MLBE16_M -> MLS(MldstOpType.mlbeFp16),
+    MLBE32_M -> MLS(MldstOpType.mlbeFp32),
+    // MLBE64_M -> MLS(MldstOpType.placeholder),
     // Load output matrix, C
-    MLCE8_M -> MLD(MldstOpType.mlceFp8),
-    MLCE16_M -> MLD(MldstOpType.mlceFp16),
-    MLCE32_M -> MLD(MldstOpType.mlceFp32),
-    // MLCE64_M -> MLD(MldstOpType.placeholder),
+    MLCE8_M -> MLS(MldstOpType.mlceFp8),
+    MLCE16_M -> MLS(MldstOpType.mlceFp16),
+    MLCE32_M -> MLS(MldstOpType.mlceFp32),
+    // MLCE64_M -> MLS(MldstOpType.placeholder),
     // Load a whole tile matrix from memory without considering the size
-    MLTRE8_M -> MLD(MldstOpType.mltreFp8),
-    MLTRE16_M -> MLD(MldstOpType.mltreFp16),
-    MLTRE32_M -> MLD(MldstOpType.mltreFp32),
-    // MLTRE64_M -> MLD(MldstOpType.placeholder),
+    MLTRE8_M -> MLS(MldstOpType.mltreFp8),
+    MLTRE16_M -> MLS(MldstOpType.mltreFp16),
+    MLTRE32_M -> MLS(MldstOpType.mltreFp32),
+    // MLTRE64_M -> MLS(MldstOpType.placeholder),
     // Load transposed left matrix, A
-    MLATE8_M -> MLD(MldstOpType.mlateFp8),
-    MLATE16_M -> MLD(MldstOpType.mlateFp16),
-    MLATE32_M -> MLD(MldstOpType.mlateFp32),
-    // MLATE64_M -> MLD(MldstOpType.placeholder),
+    MLATE8_M -> MLS(MldstOpType.mlateFp8),
+    MLATE16_M -> MLS(MldstOpType.mlateFp16),
+    MLATE32_M -> MLS(MldstOpType.mlateFp32),
+    // MLATE64_M -> MLS(MldstOpType.placeholder),
     // Load transposed right matrix, B
-    MLBTE8_M -> MLD(MldstOpType.mlbteFp8),
-    MLBTE16_M -> MLD(MldstOpType.mlbteFp16),
-    MLBTE32_M -> MLD(MldstOpType.mlbteFp32),
-    // MLBTE64_M -> MLD(MldstOpType.placeholder),
+    MLBTE8_M -> MLS(MldstOpType.mlbteFp8),
+    MLBTE16_M -> MLS(MldstOpType.mlbteFp16),
+    MLBTE32_M -> MLS(MldstOpType.mlbteFp32),
+    // MLBTE64_M -> MLS(MldstOpType.placeholder),
     // Load transposed output matrix, C
-    MLCTE8_M -> MLD(MldstOpType.mlcteFp8),
-    MLCTE16_M -> MLD(MldstOpType.mlcteFp16),
-    MLCTE32_M -> MLD(MldstOpType.mlcteFp32),
-    // MLCTE64_M -> MLD(MldstOpType.placeholder),
+    MLCTE8_M -> MLS(MldstOpType.mlcteFp8),
+    MLCTE16_M -> MLS(MldstOpType.mlcteFp16),
+    MLCTE32_M -> MLS(MldstOpType.mlcteFp32),
+    // MLCTE64_M -> MLS(MldstOpType.placeholder),
     // Load a whole accumulation matrix from memory without considering the size
-    MLACCE8_M -> MLD(MldstOpType.mlacceFp8),
-    MLACCE16_M -> MLD(MldstOpType.mlacceFp16),
-    MLACCE32_M -> MLD(MldstOpType.mlacceFp32),
-    // MLACCE64_M -> MLD(MldstOpType.placeholder),
+    MLACCE8_M -> MLS(MldstOpType.mlacceFp8),
+    MLACCE16_M -> MLS(MldstOpType.mlacceFp16),
+    MLACCE32_M -> MLS(MldstOpType.mlacceFp32),
+    // MLACCE64_M -> MLS(MldstOpType.placeholder),
     // Store left matrix, A
-    MSAE8_M -> MST(MldstOpType.msaeFp8),
-    MSAE16_M -> MST(MldstOpType.msaeFp16),
-    MSAE32_M -> MST(MldstOpType.msaeFp32),
-    // MSAE64_M -> MST(MldstOpType.placeholder),
+    MSAE8_M -> MLS(MldstOpType.msaeFp8),
+    MSAE16_M -> MLS(MldstOpType.msaeFp16),
+    MSAE32_M -> MLS(MldstOpType.msaeFp32),
+    // MSAE64_M -> MLS(MldstOpType.placeholder),
     // Store right matrix, B
-    MSBE8_M -> MST(MldstOpType.msbeFp8),
-    MSBE16_M -> MST(MldstOpType.msbeFp16),
-    MSBE32_M -> MST(MldstOpType.msbeFp32),
-    // MSBE64_M -> MST(MldstOpType.placeholder),
+    MSBE8_M -> MLS(MldstOpType.msbeFp8),
+    MSBE16_M -> MLS(MldstOpType.msbeFp16),
+    MSBE32_M -> MLS(MldstOpType.msbeFp32),
+    // MSBE64_M -> MLS(MldstOpType.placeholder),
     // Store output matrix, C
-    MSCE8_M -> MST(MldstOpType.msceFp8),
-    MSCE16_M -> MST(MldstOpType.msceFp16),
-    MSCE32_M -> MST(MldstOpType.msceFp32),
-    // MSCE64_M -> MST(MldstOpType.placeholder),
+    MSCE8_M -> MLS(MldstOpType.msceFp8),
+    MSCE16_M -> MLS(MldstOpType.msceFp16),
+    MSCE32_M -> MLS(MldstOpType.msceFp32),
+    // MSCE64_M -> MLS(MldstOpType.placeholder),
     // Store a whole tile matrix to memory without considering the size
-    MSTRE8_M -> MST(MldstOpType.mstreFp8),
-    MSTRE16_M -> MST(MldstOpType.mstreFp16),
-    MSTRE32_M -> MST(MldstOpType.mstreFp32),
-    // MSTRE64_M -> MST(MldstOpType.placeholder),
+    MSTRE8_M -> MLS(MldstOpType.mstreFp8),
+    MSTRE16_M -> MLS(MldstOpType.mstreFp16),
+    MSTRE32_M -> MLS(MldstOpType.mstreFp32),
+    // MSTRE64_M -> MLS(MldstOpType.placeholder),
     // Store transposed left matrix, A
-    MSATE8_M -> MST(MldstOpType.msateFp8),
-    MSATE16_M -> MST(MldstOpType.msateFp16),
-    MSATE32_M -> MST(MldstOpType.msateFp32),
-    // MSATE64_M -> MST(MldstOpType.placeholder),
+    MSATE8_M -> MLS(MldstOpType.msateFp8),
+    MSATE16_M -> MLS(MldstOpType.msateFp16),
+    MSATE32_M -> MLS(MldstOpType.msateFp32),
+    // MSATE64_M -> MLS(MldstOpType.placeholder),
     // Store transposed right matrix, B
-    MSBTE8_M -> MST(MldstOpType.msbteFp8),
-    MSBTE16_M -> MST(MldstOpType.msbteFp16),
-    MSBTE32_M -> MST(MldstOpType.msbteFp32),
-    // MSBTE64_M -> MST(MldstOpType.placeholder),
+    MSBTE8_M -> MLS(MldstOpType.msbteFp8),
+    MSBTE16_M -> MLS(MldstOpType.msbteFp16),
+    MSBTE32_M -> MLS(MldstOpType.msbteFp32),
+    // MSBTE64_M -> MLS(MldstOpType.placeholder),
     // Store transposed output matrix, C
-    MSCTE8_M -> MST(MldstOpType.mscteFp8),
-    MSCTE16_M -> MST(MldstOpType.mscteFp16),
-    MSCTE32_M -> MST(MldstOpType.mscteFp32),
-    // MSCTE64_M -> MST(MldstOpType.placeholder),
+    MSCTE8_M -> MLS(MldstOpType.mscteFp8),
+    MSCTE16_M -> MLS(MldstOpType.mscteFp16),
+    MSCTE32_M -> MLS(MldstOpType.mscteFp32),
+    // MSCTE64_M -> MLS(MldstOpType.placeholder),
     // Store a whole accumulation matrix to memory without considering the size
-    MSACCE8_M -> MST(MldstOpType.msacceFp8),
-    MSACCE16_M -> MST(MldstOpType.msacceFp16),
-    MSACCE32_M -> MST(MldstOpType.msacceFp32),
-    // MSACCE64_M -> MST(MldstOpType.placeholder),
+    MSACCE8_M -> MLS(MldstOpType.msacceFp8),
+    MSACCE16_M -> MLS(MldstOpType.msacceFp16),
+    MSACCE32_M -> MLS(MldstOpType.msacceFp32),
+    // MSACCE64_M -> MLS(MldstOpType.placeholder),
 
     // TODO: Zmv: Matrix for Vector operations
-    // MLAE8_V -> MLD(),
-    // MLAE16_V -> MLD(),
-    // MLAE32_V -> MLD(),
-    // MLAE64_V -> MLD(),
-    // MLBE8_V -> MLD(),
-    // MLBE16_V -> MLD(),
-    // MLBE32_V -> MLD(),
-    // MLBE64_V -> MLD(),
-    // MLCE8_V -> MLD(),
-    // MLCE16_V -> MLD(),
-    // MLCE32_V -> MLD(),
-    // MLCE64_V -> MLD(),
-    // MSAE8_V -> MST(),
-    // MSAE16_V -> MST(),
-    // MSAE32_V -> MST(),
-    // MSAE64_V -> MST(),
-    // MSBE8_V -> MST(),
-    // MSBE16_V -> MST(),
-    // MSBE32_V -> MST(),
-    // MSBE64_V -> MST(),
-    // MSCE8_V -> MST(),
-    // MSCE16_V -> MST(),
-    // MSCE32_V -> MST(),
-    // MSCE64_V -> MST(),
+    // MLAE8_V -> MLS(),
+    // MLAE16_V -> MLS(),
+    // MLAE32_V -> MLS(),
+    // MLAE64_V -> MLS(),
+    // MLBE8_V -> MLS(),
+    // MLBE16_V -> MLS(),
+    // MLBE32_V -> MLS(),
+    // MLBE64_V -> MLS(),
+    // MLCE8_V -> MLS(),
+    // MLCE16_V -> MLS(),
+    // MLCE32_V -> MLS(),
+    // MLCE64_V -> MLS(),
+    // MSAE8_V -> MLS(),
+    // MSAE16_V -> MLS(),
+    // MSAE32_V -> MLS(),
+    // MSAE64_V -> MLS(),
+    // MSBE8_V -> MLS(),
+    // MSBE16_V -> MLS(),
+    // MSBE32_V -> MLS(),
+    // MSBE64_V -> MLS(),
+    // MSCE8_V -> MLS(),
+    // MSCE16_V -> MLS(),
+    // MSCE32_V -> MLS(),
+    // MSCE64_V -> MLS(),
 
     // TODO: Zmi2c: Im2col Extension
-    // MLUFAE8_M -> MLD(),
-    // MLUFAE16_M -> MLD(),
-    // MLUFAE32_M -> MLD(),
-    // MLUFAE64_M -> MLD(),
-    // MLUFBE8_M -> MLD(),
-    // MLUFBE16_M -> MLD(),
-    // MLUFBE32_M -> MLD(),
-    // MLUFBE64_M -> MLD(),
-    // MLUFCE8_M -> MLD(),
-    // MLUFCE16_M -> MLD(),
-    // MLUFCE32_M -> MLD(),
-    // MLUFCE64_M -> MLD(),
+    // MLUFAE8_M -> MLS(),
+    // MLUFAE16_M -> MLS(),
+    // MLUFAE32_M -> MLS(),
+    // MLUFAE64_M -> MLS(),
+    // MLUFBE8_M -> MLS(),
+    // MLUFBE16_M -> MLS(),
+    // MLUFBE32_M -> MLS(),
+    // MLUFBE64_M -> MLS(),
+    // MLUFCE8_M -> MLS(),
+    // MLUFCE16_M -> MLS(),
+    // MLUFCE32_M -> MLS(),
+    // MLUFCE64_M -> MLS(),
     // TODO: Zmc2i: Col2im Extension
-    // MSFDAE8_M -> MST(),
-    // MSFDAE16_M -> MST(),
-    // MSFDAE32_M -> MST(),
-    // MSFDAE64_M -> MST(),
-    // MSFDBE8_M -> MST(),
-    // MSFDBE16_M -> MST(),
-    // MSFDBE32_M -> MST(),
-    // MSFDBE64_M -> MST(),
-    // MSFDCE8_M -> MST(),
-    // MSFDCE16_M -> MST(),
-    // MSFDCE32_M -> MST(),
-    // MSFDCE64_M -> MST(),
+    // MSFDAE8_M -> MLS(),
+    // MSFDAE16_M -> MLS(),
+    // MSFDAE32_M -> MLS(),
+    // MSFDAE64_M -> MLS(),
+    // MSFDBE8_M -> MLS(),
+    // MSFDBE16_M -> MLS(),
+    // MSFDBE32_M -> MLS(),
+    // MSFDBE64_M -> MLS(),
+    // MSFDCE8_M -> MLS(),
+    // MSFDCE16_M -> MLS(),
+    // MSFDCE32_M -> MLS(),
+    // MSFDCE64_M -> MLS(),
   )
 
   val mmve: Array[(BitPat, XSDecodeBase)] = Array(
@@ -378,17 +368,17 @@ object MatrixDecoder extends DecodeConstants {
     // 4.4.3 Data Move Instructions between Matrix and Float-point
     // f[rd] = ms1[i, j], i = rs2[15:0], j = rs2[XLEN-1:16]
     // rd is a float-point register and ms1 is a tile register.
-    MFMVE8_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
-    MFMVE16_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
-    MFMVE32_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
-    MFMVE64_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
+    // MFMVE8_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
+    // MFMVE16_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
+    // MFMVE32_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
+    // MFMVE64_F_T -> MMVE(FuType.mmvef, MmvefOpType.placeholder, fWen = T),
 
     // md[i, j] = f[rs1], i = rs2[15:0], j = rs2[XLEN-1:16]
     // md is a tile register and rs1 is a float-point register.
-    MFMVE8_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
-    MFMVE16_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
-    MFMVE32_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
-    MFMVE64_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
+    // MFMVE8_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
+    // MFMVE16_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
+    // MFMVE32_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
+    // MFMVE64_T_F -> MMVE(FuType.mmvef, MmvefOpType.placeholder),
 
     // f[rd] = ms1[i, j], i = rs2[15:0], j = rs2[XLEN-1:16]
     // rd is a float-point register and ms1 is an accumulation register.

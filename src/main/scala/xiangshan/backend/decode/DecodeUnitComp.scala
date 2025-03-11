@@ -373,17 +373,17 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
         csBundle(0).fpWen := false.B
         csBundle(0).vecWen := false.B
         csBundle(0).vlWen := false.B
-        csBundle(0).mtilexWen := false.B
+        csBundle(0).mxWen := false.B
         csBundle(0).ldest := dest
         // uop1 set mtilex
         csBundle(1).fuType := FuType.msetmtilexiwf.U
-        // select ldest idx of mtilex
-        csBundle(1).ldest := MSETtilexOpType.toMtilexIdx(latchedInst.fuOpType)
+        // select ldest idx of mx
+        csBundle(1).ldest := MSETtilexOpType.toMxIdx(latchedInst.fuOpType)
         csBundle(1).rfWen := false.B
         csBundle(1).fpWen := false.B
         csBundle(1).vecWen := false.B
         csBundle(1).vlWen := false.B
-        csBundle(1).mtilexWen := true.B
+        csBundle(1).mxWen := true.B
         csBundle(1).flushPipe := false.B
         csBundle(1).blockBackward := Mux(MSETtilexOpType.isMsettilex(latchedInst.fuOpType), true.B, mstartReg =/= 0.U)
         when(MSETtilexOpType.isMsettilexi(latchedInst.fuOpType)) {
@@ -396,16 +396,17 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(0).rfWen := false.B
           // uop1
           csBundle(1).fuType := FuType.msetmtilexfwf.U
-          csBundle(1).srcType(0) := SrcType.mtilex
+          csBundle(1).srcType(0) := SrcType.no
           csBundle(1).srcType(1) := SrcType.no
-          csBundle(1).lsrc(0) := MSETtilexOpType.toMtilexIdx(latchedInst.fuOpType)
+          csBundle(1).srcType(2) := SrcType.mx
+          csBundle(1).lsrc(0) := MSETtilexOpType.toMxIdx(latchedInst.fuOpType)
         }.elsewhen(dest === 0.U) {
           // write nothing, uop0 is a nop instruction
           csBundle(0).rfWen := false.B
           csBundle(0).fpWen := false.B
           csBundle(0).vecWen := false.B
           csBundle(0).vlWen := false.B
-          csBundle(0).mtilexWen := false.B
+          csBundle(0).mxWen := false.B
         }
         // use bypass mtype from mtypeGen
         csBundle(0).mpu.connectMType(io.mtypeBypass)
@@ -426,14 +427,21 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
     }
     is(UopSplitType.MAT_MEM) {
       val mType = io.mtypeBypass
-      // TODO: implement me
+      csBundle(0).srcType(0) := SrcType.xp
+      csBundle(0).srcType(1) := SrcType.xp
+      csBundle(0).srcType(2) := SrcType.mx
+      csBundle(0).srcType(3) := SrcType.mx
+      csBundle(0).lsrc(2) := Mtilem_IDX.U
+      csBundle(0).lsrc(3) := Mtilen_IDX.U
     }
     is(UopSplitType.MAT_MUL) {
       csBundle(0).fuType := latchedInst.fuType
       csBundle(0).fuOpType := latchedInst.fuOpType
-      csBundle(0).lsrc(0) := Mtilem_IDX.U
-      csBundle(0).lsrc(1) := Mtilen_IDX.U
-      csBundle(0).lsrc(2) := Mtilek_IDX.U
+      csBundle(0).lsrc(0) := SrcType.no
+      csBundle(0).lsrc(1) := SrcType.no
+      csBundle(0).lsrc(2) := Mtilem_IDX.U
+      csBundle(0).lsrc(3) := Mtilen_IDX.U
+      csBundle(0).lsrc(4) := Mtilek_IDX.U
       csBundle(0).instr := latchedInst.instr
     }
     is(UopSplitType.MAT_ARITH) {
@@ -444,15 +452,19 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
       val optype = latchedInst.fuOpType
       csBundle(0).fuType := latchedInst.fuType
       csBundle(0).fuOpType := optype
-      csBundle(0).lsrc(0) := Mux(MarithOpType.isBroadcastFromB(optype), Mtilek_IDX.U, Mtilem_IDX.U)
-      csBundle(0).lsrc(1) := Mux(MarithOpType.isBroadcastFromA(optype), Mtilek_IDX.U, Mtilen_IDX.U)
+      csBundle(0).lsrc(0) := SrcType.no
+      csBundle(0).lsrc(1) := SrcType.no
+      csBundle(0).lsrc(2) := Mux(MarithOpType.isBroadcastFromB(optype), Mtilek_IDX.U, Mtilem_IDX.U)
+      csBundle(0).lsrc(3) := Mux(MarithOpType.isBroadcastFromA(optype), Mtilek_IDX.U, Mtilen_IDX.U)
       csBundle(0).instr := latchedInst.instr
     }
     is(UopSplitType.MAT_CVT) {
       csBundle(0).fuType := latchedInst.fuType
       csBundle(0).fuOpType := latchedInst.fuOpType
-      csBundle(0).lsrc(0) := Mtilem_IDX.U
-      csBundle(0).lsrc(1) := Mtilen_IDX.U
+      csBundle(0).lsrc(0) := SrcType.no
+      csBundle(0).lsrc(1) := SrcType.no
+      csBundle(0).lsrc(2) := Mtilem_IDX.U
+      csBundle(0).lsrc(3) := Mtilen_IDX.U
       csBundle(0).instr := latchedInst.instr
     }
     is(UopSplitType.VEC_VVV) {

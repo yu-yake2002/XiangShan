@@ -9,6 +9,7 @@ import xiangshan.backend.decode.isa.bitfield.InstMType
 import xiangshan.backend.fu.MtypeStruct
 import utility.ZeroExt
 import _root_.utils.NamedUInt
+import freechips.rocketchip.tile.XLen
 
 object Bundles {
 
@@ -264,8 +265,8 @@ object Bundles {
     val ms1    = UInt(4.W)
     val ms2    = UInt(4.W)
     val md     = UInt(4.W)
-    val widths = MtypeMSew()
-    val widthd = MtypeMSew()
+    val widths = UInt(3.W)
+    val widthd = UInt(3.W)
     val sat    = Bool()
     val mtilem = Mtilex()
     val mtilen = Mtilex()
@@ -275,6 +276,23 @@ object Bundles {
   object AmuMmaIO {
     def apply()(implicit p: Parameters) : AmuMmaIO = {
       new AmuMmaIO()
+    }
+  }
+
+  class AmuLsuIO(implicit p: Parameters) extends XSBundle {
+    val ls        = Bool()       // load/store
+    val ms        = UInt(4.W)    // src/dest matrix register
+    val widths    = MtypeMSew()  // matrix elements width
+    val baseAddr  = UInt(XLEN.W)
+    val stride    = UInt(XLEN.W)
+    val transpose = Bool()       // whether transposed
+    val row       = Mtilex()
+    val column    = Mtilex()
+  }
+
+  object AmuLsuIO {
+    def apply()(implicit p: Parameters) : AmuLsuIO = {
+      new AmuLsuIO()
     }
   }
 }
