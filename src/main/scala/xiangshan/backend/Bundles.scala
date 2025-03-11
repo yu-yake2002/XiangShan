@@ -100,7 +100,7 @@ object Bundles {
     val vecWen          = Bool()
     val v0Wen           = Bool()
     val vlWen           = Bool()
-    val mtilexWen       = Bool()
+    val mxWen       = Bool()
     val isXSTrap        = Bool()
     val waitForward     = Bool() // no speculate execution
     val blockBackward   = Bool()
@@ -203,7 +203,7 @@ object Bundles {
     val vecWen          = Bool()
     val v0Wen           = Bool()
     val vlWen           = Bool()
-    val mtilexWen       = Bool()
+    val mxWen       = Bool()
     val isXSTrap        = Bool()
     val waitForward     = Bool() // no speculate execution
     val blockBackward   = Bool()
@@ -304,7 +304,7 @@ object Bundles {
       this
     }
 
-    def needWriteRf: Bool = rfWen || fpWen || vecWen || v0Wen || vlWen || mtilexWen
+    def needWriteRf: Bool = rfWen || fpWen || vecWen || v0Wen || vlWen || mxWen
   }
 
   trait BundleSource {
@@ -323,7 +323,7 @@ object Bundles {
     val vecWen = Bool()
     val v0Wen = Bool()
     val vlWen = Bool()
-    val mtilexWen = Bool()
+    val mxWen = Bool()
     val pdest = UInt(pregIdxWidth.W)
 
     /**
@@ -337,7 +337,7 @@ object Bundles {
           SrcType.isFp(srcType) && this.fpWen ||
             SrcType.isXp(srcType) && this.rfWen ||
             SrcType.isVp(srcType) && this.vecWen ||
-            SrcType.isMtilex(srcType) && this.mtilexWen
+            SrcType.isMx(srcType) && this.mxWen
           ) && valid
       }
     }
@@ -355,11 +355,11 @@ object Bundles {
         SrcType.isVp(srcType) && this.vlWen
       ) && valid
     }
-    def wakeUpMtilex(successor: (UInt, UInt), valid: Bool): Bool = {
+    def wakeUpMx(successor: (UInt, UInt), valid: Bool): Bool = {
       val (thatPsrc, srcType) = successor
       val pdestMatch = pdest === thatPsrc
       pdestMatch && (
-        SrcType.isMtilex(srcType) && this.mtilexWen
+        SrcType.isMx(srcType) && this.mxWen
       ) && valid
     }
     def wakeUpFromIQ(successor: Seq[(UInt, UInt)]): Seq[Bool] = {
@@ -369,7 +369,7 @@ object Bundles {
           SrcType.isFp(srcType) && this.fpWen ||
             SrcType.isXp(srcType) && this.rfWen ||
             SrcType.isVp(srcType) && this.vecWen ||
-            SrcType.isMtilex(srcType) && this.mtilexWen
+            SrcType.isMx(srcType) && this.mxWen
           )
       }
     }
@@ -387,11 +387,11 @@ object Bundles {
         SrcType.isVp(srcType) && this.vlWen
       )
     }
-    def wakeUpMtilexFromIQ(successor: (UInt, UInt)): Bool = {
+    def wakeUpMxFromIQ(successor: (UInt, UInt)): Bool = {
       val (thatPsrc, srcType) = successor
       val pdestMatch = pdest === thatPsrc
       pdestMatch && (
-        SrcType.isMtilex(srcType) && this.mtilexWen
+        SrcType.isMx(srcType) && this.mxWen
       )
     }
 
@@ -429,7 +429,7 @@ object Bundles {
     val vecWenCopy = OptionWrapper(copyWakeupOut && params.needVecWen, Vec(copyNum, Bool()))
     val v0WenCopy = OptionWrapper(copyWakeupOut && params.needV0Wen, Vec(copyNum, Bool()))
     val vlWenCopy = OptionWrapper(copyWakeupOut && params.needVlWen, Vec(copyNum, Bool()))
-    val mtilexWenCopy = OptionWrapper(copyWakeupOut && params.needMtilexWen, Vec(copyNum, Bool()))
+    val mxWenCopy = OptionWrapper(copyWakeupOut && params.needMxWen, Vec(copyNum, Bool()))
     val loadDependencyCopy = OptionWrapper(copyWakeupOut && params.isIQWakeUpSink, Vec(copyNum, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W))))
 
     def fromExuInput(exuInput: ExuInput): Unit = {
@@ -438,7 +438,7 @@ object Bundles {
       this.vecWen := exuInput.vecWen.getOrElse(false.B)
       this.v0Wen := exuInput.v0Wen.getOrElse(false.B)
       this.vlWen := exuInput.vlWen.getOrElse(false.B)
-      this.mtilexWen := exuInput.mtilexWen.getOrElse(false.B)
+      this.mxWen := exuInput.mxWen.getOrElse(false.B)
       this.pdest := exuInput.pdest
     }
   }
@@ -656,26 +656,26 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
-    private val mtilexCertainLat = params.mtilexLatencyCertain
+    private val mxCertainLat = params.mxLatencyCertain
     private val intLat = params.intLatencyValMax
     private val fpLat = params.fpLatencyValMax
     private val vfLat = params.vfLatencyValMax
     private val v0Lat = params.v0LatencyValMax
     private val vlLat = params.vlLatencyValMax
-    private val mtilexLat = params.mtilexLatencyValMax
+    private val mxLat = params.mxLatencyValMax
 
     val intWbBusyTable = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpWbBusyTable = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfWbBusyTable = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0WbBusyTable = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlWbBusyTable = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
-    val mtilexWbBusyTable = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
+    val mxWbBusyTable = OptionWrapper(mxCertainLat, UInt((mxLat + 1).W))
     val intDeqRespSet = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpDeqRespSet = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfDeqRespSet = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0DeqRespSet = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlDeqRespSet = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
-    val mtilexDeqRespSet = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
+    val mxDeqRespSet = OptionWrapper(mxCertainLat, UInt((mxLat + 1).W))
   }
 
   class WbFuBusyTableReadBundle(val params: ExeUnitParams)(implicit p: Parameters) extends XSBundle {
@@ -684,20 +684,20 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
-    private val mtilexCertainLat = params.mtilexLatencyCertain
+    private val mxCertainLat = params.mxLatencyCertain
     private val intLat = params.intLatencyValMax
     private val fpLat = params.fpLatencyValMax
     private val vfLat = params.vfLatencyValMax
     private val v0Lat = params.v0LatencyValMax
     private val vlLat = params.vlLatencyValMax
-    private val mtilexLat = params.mtilexLatencyValMax
+    private val mxLat = params.mxLatencyValMax
 
     val intWbBusyTable = OptionWrapper(intCertainLat, UInt((intLat + 1).W))
     val fpWbBusyTable = OptionWrapper(fpCertainLat, UInt((fpLat + 1).W))
     val vfWbBusyTable = OptionWrapper(vfCertainLat, UInt((vfLat + 1).W))
     val v0WbBusyTable = OptionWrapper(v0CertainLat, UInt((v0Lat + 1).W))
     val vlWbBusyTable = OptionWrapper(vlCertainLat, UInt((vlLat + 1).W))
-    val mtilexWbBusyTable = OptionWrapper(mtilexCertainLat, UInt((mtilexLat + 1).W))
+    val mxWbBusyTable = OptionWrapper(mxCertainLat, UInt((mxLat + 1).W))
   }
 
   class WbConflictBundle(val params: ExeUnitParams)(implicit p: Parameters) extends XSBundle {
@@ -706,14 +706,14 @@ object Bundles {
     private val vfCertainLat = params.vfLatencyCertain
     private val v0CertainLat = params.v0LatencyCertain
     private val vlCertainLat = params.vlLatencyCertain
-    private val mtilexCertainLat = params.mtilexLatencyCertain
+    private val mxCertainLat = params.mxLatencyCertain
 
     val intConflict = OptionWrapper(intCertainLat, Bool())
     val fpConflict = OptionWrapper(fpCertainLat, Bool())
     val vfConflict = OptionWrapper(vfCertainLat, Bool())
     val v0Conflict = OptionWrapper(v0CertainLat, Bool())
     val vlConflict = OptionWrapper(vlCertainLat, Bool())
-    val mtilexConflict = OptionWrapper(mtilexCertainLat, Bool())
+    val mxConflict = OptionWrapper(mxCertainLat, Bool())
   }
 
   class ImmInfo extends Bundle {
@@ -738,7 +738,7 @@ object Bundles {
     val vecWenCopy = OptionWrapper(copyWakeupOut && params.needVecWen, Vec(copyNum, Bool()))
     val v0WenCopy  = OptionWrapper(copyWakeupOut && params.needV0Wen, Vec(copyNum, Bool()))
     val vlWenCopy  = OptionWrapper(copyWakeupOut && params.needVlWen, Vec(copyNum, Bool()))
-    val mtilexWenCopy = OptionWrapper(copyWakeupOut && params.needMtilexWen, Vec(copyNum, Bool()))
+    val mxWenCopy  = OptionWrapper(copyWakeupOut && params.needMxWen, Vec(copyNum, Bool()))
     val loadDependencyCopy = OptionWrapper(copyWakeupOut && params.isIQWakeUpSink, Vec(copyNum, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W))))
     val pdest         = UInt(params.wbPregIdxWidth.W)
     val rfWen         = if (params.needIntWen)    Some(Bool())                        else None
@@ -746,7 +746,7 @@ object Bundles {
     val vecWen        = if (params.needVecWen)    Some(Bool())                        else None
     val v0Wen         = if (params.needV0Wen)     Some(Bool())                        else None
     val vlWen         = if (params.needVlWen)     Some(Bool())                        else None
-    val mtilexWen     = if (params.needMtilexWen) Some(Bool())                        else None
+    val mxWen         = if (params.needMxWen)     Some(Bool())                        else None
     val fpu           = if (params.writeFflags)   Some(new FPUCtrlSignals)            else None
     val vpu           = if (params.needVPUCtrl)   Some(new VPUCtrlSignals)            else None
     val mpu           = if (params.needMPUCtrl || params.needOldMtype)
@@ -799,7 +799,7 @@ object Bundles {
       this.vecWen        .foreach(_ := source.common.vecWen.get)
       this.v0Wen         .foreach(_ := source.common.v0Wen.get)
       this.vlWen         .foreach(_ := source.common.vlWen.get)
-      this.mtilexWen     .foreach(_ := source.common.mtilexWen.get)
+      this.mxWen         .foreach(_ := source.common.mxWen.get)
       this.fpu           .foreach(_ := source.common.fpu.get)
       this.vpu           .foreach(_ := source.common.vpu.get)
       this.mpu           .foreach(_ := source.common.mpu.get)
@@ -836,8 +836,8 @@ object Bundles {
     val fpWen        = if (params.needFpWen)    Some(Bool())                  else None
     val vecWen       = if (params.needVecWen)   Some(Bool())                  else None
     val v0Wen        = if (params.needV0Wen)    Some(Bool())                  else None
+    val mxWen        = if (params.needMxWen)    Some(Bool())                  else None
     val vlWen        = if (params.needVlWen)    Some(Bool())                  else None
-    val mtilexWen    = if (params.needMtilexWen) Some(Bool())                  else None
     val redirect     = if (params.hasRedirect)  Some(ValidIO(new Redirect))   else None
     val fflags       = if (params.writeFflags)  Some(UInt(5.W))               else None
     val wflags       = if (params.writeFflags)  Some(Bool())                  else None
@@ -875,8 +875,8 @@ object Bundles {
     val fpWen = Bool()
     val vecWen = Bool()
     val v0Wen = Bool()
+    val mxWen = Bool()
     val vlWen = Bool()
-    val mtilexWen = Bool()
     val pdest = UInt(params.pregIdxWidth(backendParams).W)
     val data = UInt(params.dataWidth.W)
     val robIdx = new RobPtr()(p)
@@ -893,13 +893,13 @@ object Bundles {
     this.wakeupSource = s"WB(${params.toString})"
 
     def fromExuOutput(source: ExuOutput, wbType: String) = {
-      val typeMap = Map("int" -> 0, "fp" -> 1, "vf" -> 2, "v0" -> 3, "vl" -> 4, "mtilex" -> 5)
+      val typeMap = Map("int" -> 0, "fp" -> 1, "vf" -> 2, "v0" -> 3, "mx" -> 4, "vl" -> 5)
       this.rfWen  := source.intWen.getOrElse(false.B)
       this.fpWen  := source.fpWen.getOrElse(false.B)
       this.vecWen := source.vecWen.getOrElse(false.B)
       this.v0Wen  := source.v0Wen.getOrElse(false.B)
+      this.mxWen  := source.mxWen.getOrElse(false.B)
       this.vlWen  := source.vlWen.getOrElse(false.B)
-      this.mtilexWen := source.mtilexWen.getOrElse(false.B)
       this.pdest  := source.pdest
       this.data   := source.data(source.params.wbIndex(typeMap(wbType)))
       this.robIdx := source.robIdx
@@ -923,8 +923,8 @@ object Bundles {
       rfWrite.fpWen := false.B
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
+      rfWrite.mxWen := false.B
       rfWrite.vlWen := false.B
-      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -937,8 +937,8 @@ object Bundles {
       rfWrite.fpWen := this.fpWen
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
+      rfWrite.mxWen := false.B
       rfWrite.vlWen := false.B
-      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -951,8 +951,8 @@ object Bundles {
       rfWrite.fpWen := false.B
       rfWrite.vecWen := this.vecWen
       rfWrite.v0Wen := false.B
+      rfWrite.mxWen := false.B
       rfWrite.vlWen := false.B
-      rfWrite.mtilexWen := false.B
       rfWrite
     }
 
@@ -965,8 +965,22 @@ object Bundles {
       rfWrite.fpWen := false.B
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := this.v0Wen
+      rfWrite.mxWen := false.B
       rfWrite.vlWen := false.B
-      rfWrite.mtilexWen := false.B
+      rfWrite
+    }
+
+    def asMxRfWriteBundle(fire: Bool): RfWritePortWithConfig = {
+      val rfWrite = Wire(Output(new RfWritePortWithConfig(this.params.dataCfg, backendParams.getPregParams(MxData()).addrWidth)))
+      rfWrite.wen := this.mxWen && fire
+      rfWrite.addr := this.pdest
+      rfWrite.data := this.data
+      rfWrite.intWen := false.B
+      rfWrite.fpWen := false.B
+      rfWrite.vecWen := false.B
+      rfWrite.v0Wen := false.B
+      rfWrite.mxWen := this.mxWen
+      rfWrite.vlWen := false.B
       rfWrite
     }
 
@@ -979,22 +993,8 @@ object Bundles {
       rfWrite.fpWen := false.B
       rfWrite.vecWen := false.B
       rfWrite.v0Wen := false.B
+      rfWrite.mxWen := false.B
       rfWrite.vlWen := this.vlWen
-      rfWrite.mtilexWen := false.B
-      rfWrite
-    }
-
-    def asMtilexRfWriteBundle(fire: Bool): RfWritePortWithConfig = {
-      val rfWrite = Wire(Output(new RfWritePortWithConfig(this.params.dataCfg, backendParams.getPregParams(MtilexData()).addrWidth)))
-      rfWrite.wen := this.mtilexWen && fire
-      rfWrite.addr := this.pdest
-      rfWrite.data := this.data
-      rfWrite.intWen := false.B
-      rfWrite.fpWen := false.B
-      rfWrite.vecWen := false.B
-      rfWrite.v0Wen := false.B
-      rfWrite.vlWen := false.B
-      rfWrite.mtilexWen := this.mtilexWen
       rfWrite
     }
   }
@@ -1089,8 +1089,8 @@ object Bundles {
     val fpWen = Bool()
     val vecWen = Bool()
     val v0Wen = Bool()
+    val mxWen = Bool()
     val vlWen = Bool()
-    val mtilexWen = Bool()
     val pdest = UInt(PhyRegIdxWidth.W)
   }
 

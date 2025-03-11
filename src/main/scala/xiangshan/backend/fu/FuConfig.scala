@@ -55,7 +55,7 @@ case class FuConfig (
   writeVecRf    : Boolean = false,
   writeV0Rf     : Boolean = false,
   writeVlRf     : Boolean = false,
-  writeMtilexRf : Boolean = false,
+  writeMxRf     : Boolean = false,
   writeFakeIntRf: Boolean = false,
   writeFflags   : Boolean = false,
   writeVxsat    : Boolean = false,
@@ -83,7 +83,7 @@ case class FuConfig (
   def needVecWen: Boolean = writeVecRf
   def needV0Wen:  Boolean = writeV0Rf
   def needVlWen:  Boolean = writeVlRf
-  def needMtilexWen: Boolean = writeMtilexRf
+  def needMxWen: Boolean = writeMxRf
   var vconfigIdx = -1
   var maskSrcIdx = -1
   if (vconfigWakeUp) {
@@ -103,7 +103,7 @@ case class FuConfig (
   def numVfSrc  : Int = srcData.map(_.count(x => VecRegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numV0Src  : Int = srcData.map(_.count(x => V0RegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numVlSrc  : Int = srcData.map(_.count(x => VlRegSrcDataSet.contains(x))).fold(0)(_ max _)
-  def numMtilexSrc: Int = srcData.map(_.count(x => MtilexRegSrcDataSet.contains(x))).fold(0)(_ max _)
+  def numMxSrc  : Int = srcData.map(_.count(x => MxRegSrcDataSet.contains(x))).fold(0)(_ max _)
   // def numMfSrc  : Int = srcData.map(_.count(x => MatrixRegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numRegSrc : Int = srcData.map(_.count(x => RegSrcDataSet.contains(x))).fold(0)(_ max _)
   def numSrc    : Int = srcData.map(_.length).fold(0)(_ max _)
@@ -176,7 +176,7 @@ case class FuConfig (
 
   def needMPUCtrl: Boolean = {
     import FuType._
-    Seq(mldu, mstu).contains(fuType)
+    Seq(mlsu, mma, marith, mmvef).contains(fuType)
   }
 
   def needCriticalErrors: Boolean = Seq(FuType.csr).contains(fuType)
@@ -450,7 +450,7 @@ object FuConfig {
       Seq(IntData())
     ),
     piped = true,
-    writeMtilexRf = true,
+    writeMxRf = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -461,11 +461,11 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new MSetMtilexRmfWmf(cfg)(p).suggestName("MSetMtilexRmfWmf")),
     srcData = Seq(
       // src(0): old mtilex
-      Seq(MtilexData()),
+      Seq(IntData(), IntData(), MxData()),
     ),
     piped = true,
     writeIntRf = true,
-    writeMtilexRf = true,
+    writeMxRf = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_MSET),
   )
@@ -505,10 +505,11 @@ object FuConfig {
     fuType = FuType.mma,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mma(cfg)(p).suggestName("Mma")),
     srcData = Seq(
-      Seq(MtilexData(), MtilexData(), MtilexData()),
+      Seq(IntData(), IntData(), MxData(), MxData(), MxData()),
     ),
     piped = true,
-    latency = CertainLatency(0)
+    latency = CertainLatency(0),
+    immType = Set(SelImm.IMM_LUI32)
   )
 
   val MarithCfg: FuConfig = FuConfig (
@@ -516,10 +517,28 @@ object FuConfig {
     fuType = FuType.marith,
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new Marith(cfg)(p).suggestName("Marith")),
     srcData = Seq(
-      Seq(MtilexData(), MtilexData()),
+      Seq(IntData(), IntData(), MxData(), MxData()),
     ),
     piped = true,
-    latency = CertainLatency(0)
+    latency = CertainLatency(0),
+    immType = Set(SelImm.IMM_LUI32)
+  )
+
+  val MlsuCfg: FuConfig = FuConfig (
+    name = "mlsu",
+    fuType = FuType.mlsu,
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mlsu(cfg)(p).suggestName("Mlsu")),
+    srcData = Seq(
+      Seq(IntData(), IntData(), MxData(), MxData()),
+    ),
+    piped = true, // Todo: check it
+    // exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
+    // flushPipe = true,
+    // replayInst = true,
+    // hasLoadError = true,
+    // trigger = true,
+    latency = CertainLatency(0),
+    immType = Set(SelImm.IMM_LUI32)
   )
 
   val LduCfg: FuConfig = FuConfig (
@@ -566,35 +585,6 @@ object FuConfig {
     ),
     piped = true,
     latency = CertainLatency(0)
-  )
-
-  val MLduCfg: FuConfig = FuConfig (
-    name = "mldu",
-    fuType = FuType.mldu,
-    fuGen = null,
-    srcData = Seq(
-      Seq(IntData()),
-      Seq(IntData()),
-    ),
-    piped = false, // Todo: check it
-    latency = UncertainLatency(),
-    exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
-    flushPipe = true,
-    replayInst = true,
-    hasLoadError = true,
-    trigger = true
-  )
-
-  val MStuCfg: FuConfig = FuConfig (
-    name = "mstu",
-    fuType = FuType.mstu,
-    fuGen = null, // Todo
-    srcData = Seq(
-      Seq(IntData()),
-    ),
-    piped = false,
-    latency = UncertainLatency(),
-    exceptionOut = Seq(storeAddrMisaligned, storeAccessFault, storePageFault, storeGuestPageFault, breakPoint)
   )
 
   val HyldaCfg = FuConfig (

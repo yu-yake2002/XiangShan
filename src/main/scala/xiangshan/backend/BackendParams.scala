@@ -86,7 +86,7 @@ case class BackendParams(
   def vfPregParams: VfPregParams = pregParams.collectFirst { case x: VfPregParams => x }.get
   def v0PregParams: V0PregParams = pregParams.collectFirst { case x: V0PregParams => x }.get
   def vlPregParams: VlPregParams = pregParams.collectFirst { case x: VlPregParams => x }.get
-  def mtilexPregParams: MtilexPregParams = pregParams.collectFirst { case x: MtilexPregParams => x }.get
+  def mxPregParams: MxPregParams = pregParams.collectFirst { case x: MxPregParams => x }.get
   def getPregParams: Map[DataConfig, PregParams] = {
     pregParams.map(x => (x.dataCfg, x)).toMap
   }
@@ -107,8 +107,7 @@ case class BackendParams(
   def HyuCnt = allSchdParams.map(_.HyuCnt).sum
   def VlduCnt = allSchdParams.map(_.VlduCnt).sum
   def VstuCnt = allSchdParams.map(_.VstuCnt).sum
-  def MlduCnt = allSchdParams.map(_.MlduCnt).sum
-  def MstuCnt = allSchdParams.map(_.MstuCnt).sum
+  def MlsuCnt = allSchdParams.map(_.MlsuCnt).sum
   def LsExuCnt = StaCnt + LduCnt + HyuCnt
   val LdExuCnt = LduCnt + HyuCnt
   val StaExuCnt = StaCnt + HyuCnt
@@ -166,8 +165,8 @@ case class BackendParams(
     Seq.fill(this.getVlRfWriteSize)(new RfWritePortWithConfig(VlData(), vlPregParams.addrWidth))
   }
 
-  def genMtilexWriteBackBundle(implicit p: Parameters) = {
-    Seq.fill(this.getMtilexWriteSize)(new RfWritePortWithConfig(MtilexData(), mtilexPregParams.addrWidth))
+  def genMxWriteBackBundle(implicit p: Parameters) = {
+    Seq.fill(this.getMxRfWriteSize)(new RfWritePortWithConfig(MxData(), mxPregParams.addrWidth))
   }
 
   def genWriteBackBundles(implicit p: Parameters): Seq[RfWritePortWithConfig] = {
@@ -198,14 +197,14 @@ case class BackendParams(
     datapath.WbArbiterParams(v0WbCfgs, v0PregParams, this)
   }
 
+  def getMxWbArbiterParams: WbArbiterParams = {
+    val mxWbCfgs: Seq[MxWB] = allSchdParams.flatMap(_.getWbCfgs.flatten.flatten.filter(x => x.writeMx)).map(_.asInstanceOf[MxWB])
+    datapath.WbArbiterParams(mxWbCfgs, mxPregParams, this)
+  }
+
   def getVlWbArbiterParams: WbArbiterParams = {
     val vlWbCfgs: Seq[VlWB] = allSchdParams.flatMap(_.getWbCfgs.flatten.flatten.filter(x => x.writeVl)).map(_.asInstanceOf[VlWB])
     datapath.WbArbiterParams(vlWbCfgs, vlPregParams, this)
-  }
-
-  def getMtilexWbArbiterParams: WbArbiterParams = {
-    val mtilexWbCfgs: Seq[MtilexWB] = allSchdParams.flatMap(_.getWbCfgs.flatten.flatten.filter(x => x.writeMtilex)).map(_.asInstanceOf[MtilexWB])
-    datapath.WbArbiterParams(mtilexWbCfgs, mtilexPregParams, this)
   }
 
   /**
@@ -327,8 +326,8 @@ case class BackendParams(
     this.vlPregParams.numWrite.getOrElse(this.getWbPortIndices(VlData()).size)
   }
 
-  def getMtilexWriteSize = {
-    this.mtilexPregParams.numWrite.getOrElse(this.getWbPortIndices(MtilexData()).size)
+  def getMxRfWriteSize = {
+    this.mxPregParams.numWrite.getOrElse(this.getWbPortIndices(MxData()).size)
   }
 
   def getRfReadSize(dataCfg: DataConfig) = {
@@ -338,7 +337,7 @@ case class BackendParams(
       case VecData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case V0Data() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case VlData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
-      case MtilexData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
+      case MxData() => this.getPregParams(dataCfg).numRead.getOrElse(this.getRdPortIndices(dataCfg).size)
       case _ => throw new IllegalArgumentException(s"DataConfig ${dataCfg} can not get RfReadSize")
     }
   }
@@ -400,7 +399,7 @@ case class BackendParams(
   def getVfWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVfWBPort.getOrElse(VfWB(port = -1)).port).filter(_._1 != -1)
   def getV0WBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getV0WBPort.getOrElse(V0WB(port = -1)).port).filter(_._1 != -1)
   def getVlWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getVlWBPort.getOrElse(VlWB(port = -1)).port).filter(_._1 != -1)
-  def getMtilexWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMtilexWBPort.getOrElse(MtilexWB(port = -1)).port).filter(_._1 != -1)
+  def getMxWBExeGroup: Map[Int, Seq[ExeUnitParams]] = allRealExuParams.groupBy(x => x.getMxWBPort.getOrElse(MxWB(port = -1)).port).filter(_._1 != -1)
 
   private def isContinuous(portIndices: Seq[Int]): Boolean = {
     val portIndicesSet = portIndices.toSet
@@ -455,8 +454,8 @@ case class BackendParams(
     // check 1
     // if some exus share the same wb port and rd ports,
     // the exu with high priority at wb must also have high priority at rd.
-    val wbTypes = Seq(IntWB(), FpWB(), VfWB())
-    val rdTypes = Seq(IntRD(), FpRD(), VfRD())
+    val wbTypes = Seq(IntWB(), FpWB(), VfWB(), MxWB())
+    val rdTypes = Seq(IntRD(), FpRD(), VfRD(), MxRD())
     for(wbType <- wbTypes){
       for(rdType <- rdTypes){
         println(s"[BackendParams] wbType: ${wbType}, rdType: ${rdType}")
@@ -467,6 +466,7 @@ case class BackendParams(
               case _: IntWB => wbPortConfigs.collectFirst { case x: IntWB => x }
               case _: FpWB  => wbPortConfigs.collectFirst { case x: FpWB => x }
               case _: VfWB  => wbPortConfigs.collectFirst { case x: VfWB => x }
+              case _: MxWB  => wbPortConfigs.collectFirst { case x: MxWB => x }
               case _        => None
             }
             val rfReadPortConfigs = exuParam.rfrPortConfigs
@@ -474,6 +474,7 @@ case class BackendParams(
               case _: IntRD => rfReadPortConfigs.flatten.filter(_.isInstanceOf[IntRD])
               case _: FpRD  => rfReadPortConfigs.flatten.filter(_.isInstanceOf[FpRD])
               case _: VfRD  => rfReadPortConfigs.flatten.filter(_.isInstanceOf[VfRD])
+              case _: MxRD  => rfReadPortConfigs.flatten.filter(_.isInstanceOf[MxRD])
               case _        => Seq()
             }
             (wbConfigs, rdConfigs)

@@ -35,7 +35,7 @@ package object xiangshan {
     def fp     = "b00010".U
     def vp     = "b00100".U
     def v0     = "b01000".U
-    def mtilex = "b10000".U
+    def mx     = "b10000".U
     def no     = "b00000".U // this src read no reg but cannot be Any value
 
     // alias
@@ -50,7 +50,7 @@ package object xiangshan {
     def isFp(srcType: UInt) = srcType(1)
     def isVp(srcType: UInt) = srcType(2)
     def isV0(srcType: UInt) = srcType(3)
-    def isMtilex(srcType: UInt) = srcType(4)
+    def isMx(srcType: UInt) = srcType(4)
     def isPcOrImm(srcType: UInt) = isPc(srcType) || isImm(srcType)
     def isNotReg(srcType: UInt): Bool = !srcType.orR
     def isVfp(srcType: UInt) = isVp(srcType) || isFp(srcType)
@@ -561,7 +561,7 @@ package object xiangshan {
 
     // def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
 
-    def toMtilexIdx (func: UInt) = func(1, 0)
+    def toMxIdx (func: UInt) = func(1, 0)
   }
 
   object MldstOpType {
@@ -677,6 +677,9 @@ package object xiangshan {
     def hfmaFp16ToFp32 = "b10_011_101".U
 
     def hfmaFp32ToFp32 = "b10_101_101".U
+
+    def getFromType (func: UInt): UInt = func(5, 3)
+    def getToType   (func: UInt): UInt = func(2, 0)
   }
 
   object MarithOpType {
@@ -1450,7 +1453,7 @@ package object xiangshan {
     val VecFlStall = Value("VecFlStall")
     val V0FlStall = Value("V0FlStall")
     val VlFlStall = Value("VlFlStall")
-    val MtilexFlStall = Value("MtilexFlStall")
+    val MxFlStall = Value("MxFlStall")
     val MultiFlStall = Value("MultiFlStall")
 
     // memblock

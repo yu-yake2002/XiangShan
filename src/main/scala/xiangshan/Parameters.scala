@@ -167,7 +167,7 @@ case class XSCoreParameters
   VecLogicRegs: Int = 32 + 15, // 15: tmp
   V0LogicRegs: Int = 1, // V0
   VlLogicRegs: Int = 1, // Vl
-  MtilexLogicRegs: Int = 3, // Mtilem, Mtilen, Mtilek
+  MxLogicRegs: Int = 3, // Mtilem, Mtilen, Mtilek
   V0_IDX: Int = 0,
   Vl_IDX: Int = 0,
   Mtilem_IDX: Int = 0,
@@ -216,7 +216,7 @@ case class XSCoreParameters
     numRead = None,
     numWrite = None,
   ),
-  mtilexPreg: MtilexPregParams = MtilexPregParams(
+  mxPreg: MxPregParams = MxPregParams(
     numEntries = 32,
     numRead = None,
     numWrite = None,
@@ -225,8 +225,8 @@ case class XSCoreParameters
   MemRegCacheSize: Int = 12,
   intSchdVlWbPort: Int = 0,
   vfSchdVlWbPort: Int = 1,
-  intSchdMtilexWbPort: Int = 0,
-  mfSchdMtilexWbPort: Int = 1,
+  intSchdMxWbPort: Int = 0,
+  mfSchdMxWbPort: Int = 1,
   prefetcher: Option[PrefetcherParams] = Some(SMSParams()),
   IfuRedirectNum: Int = 1,
   LoadPipelineWidth: Int = 3,
@@ -430,7 +430,7 @@ case class XSCoreParameters
         ExeUnitParams("BJU3", Seq(CsrCfg, FenceCfg, DivCfg), Seq(IntWB(port = 4, 1)), Seq(Seq(IntRD(0, 1)), Seq(IntRD(1, 1)))),
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MtilexWB(port = intSchdMtilexWbPort, 0)), Seq(Seq(IntRD(0, 2)))),
+        ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MxWB(port = intSchdMxWbPort, 0)), Seq(Seq(IntRD(0, 2)))),
         ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2))))
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
     ),
@@ -489,22 +489,20 @@ case class XSCoreParameters
     implicit val schdType: SchedulerType = MfScheduler()
     SchdBlockParams(Seq(
       IssueBlockParams(Seq(
-        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MtilexWB(port = mfSchdMtilexWbPort, 0)), Seq(Seq(MtilexRD(0, 0)))),
+        ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MxWB(port = mfSchdMxWbPort, 0)), Seq(Seq(), Seq(), Seq(MxRD(0, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
-        ExeUnitParams("MEX0", Seq(MmaCfg), Seq(FakeIntWB()), Seq(Seq(MtilexRD(0, 1)), Seq(MtilexRD(1, 0)), Seq(MtilexRD(2, 0)))),
+        ExeUnitParams("MEX0", Seq(MmaCfg), Seq(FakeIntWB()), Seq(Seq(), Seq(), Seq(MxRD(0, 1)), Seq(MxRD(1, 0)), Seq(MxRD(2, 0)))),
+        ExeUnitParams("MEX1", Seq(MarithCfg), Seq(FakeIntWB()), Seq(Seq(), Seq(), Seq(MxRD(1, 1)), Seq(MxRD(2, 1)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
-      // IssueBlockParams(Seq(
-      //   ExeUnitParams("MSTU", Seq(MStuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MtilexRD(3, 0)), Seq(MtilexRD(4, 0)))),
-      // ), numEntries = 16, numEnq = 2, numComp = 12),
-      // IssueBlockParams(Seq(
-      //   ExeUnitParams("MLDU", Seq(MLduCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 2)), Seq(IntRD(9, 2)), Seq(MtilexRD(3, 1)), Seq(MtilexRD(4, 1)))),
-      // ), numEntries = 16, numEnq = 2, numComp = 12),
+      IssueBlockParams(Seq(
+        ExeUnitParams("MLSU", Seq(MlsuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
+      ), numEntries = 16, numEnq = 2, numComp = 12),
     ),
-      numPregs = mtilexPreg.numEntries,
+      numPregs = mxPreg.numEntries,
       numDeqOutside = 0,
       schdType = schdType,
-      rfDataWidth = mtilexPreg.dataCfg.dataWidth,
+      rfDataWidth = mxPreg.dataCfg.dataWidth,
       numUopIn = dpParams.VecDqDeqWidth,
     )
   }
@@ -555,13 +553,17 @@ case class XSCoreParameters
     Seq(
       WakeUpConfig(
         Seq("ALU0", "ALU1", "ALU2", "ALU3", "LDU0", "LDU1", "LDU2") ->
-        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSET1", "MSETTYPE", "MEX0")
+        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSETTYPE", "MLSU")
       ),
       // TODO: add load -> fp slow wakeup
       WakeUpConfig(
         Seq("FEX0", "FEX2", "FEX4") ->
         Seq("FEX0", "FEX1", "FEX2", "FEX3", "FEX4")
       ),
+      // WakeUpConfig(
+      //   Seq("MSET0", "MSET1") ->
+      //   Seq("MSET0", "MSET1", "MEX0")
+      // )
     ).flatten
   }
 
@@ -581,7 +583,7 @@ case class XSCoreParameters
       vfPreg,
       v0Preg,
       vlPreg,
-      mtilexPreg,
+      mxPreg,
       fakeIntPreg
     ),
     iqWakeUpParams,
@@ -793,7 +795,7 @@ trait HasXSParameter {
   def VecLogicRegs = coreParams.VecLogicRegs
   def V0LogicRegs = coreParams.V0LogicRegs
   def VlLogicRegs = coreParams.VlLogicRegs
-  def MtilexLogicRegs = coreParams.MtilexLogicRegs
+  def MxLogicRegs = coreParams.MxLogicRegs
   def MaxLogicRegs = Set(IntLogicRegs, FpLogicRegs, VecLogicRegs, V0LogicRegs, VlLogicRegs).max
   def LogicRegsWidth = log2Ceil(MaxLogicRegs)
   def V0_IDX = coreParams.V0_IDX
@@ -806,15 +808,15 @@ trait HasXSParameter {
   def VfPhyRegs = coreParams.vfPreg.numEntries
   def V0PhyRegs = coreParams.v0Preg.numEntries
   def VlPhyRegs = coreParams.vlPreg.numEntries
-  def MtilexPhyRegs = coreParams.mtilexPreg.numEntries
-  def MaxPhyRegs = Seq(IntPhyRegs, FpPhyRegs, VfPhyRegs, V0PhyRegs, VlPhyRegs, MtilexPhyRegs).max
+  def MxPhyRegs = coreParams.mxPreg.numEntries
+  def MaxPhyRegs = Seq(IntPhyRegs, FpPhyRegs, VfPhyRegs, V0PhyRegs, VlPhyRegs, MxPhyRegs).max
   def IntPhyRegIdxWidth = log2Up(IntPhyRegs)
   def FpPhyRegIdxWidth = log2Up(FpPhyRegs)
   def VfPhyRegIdxWidth = log2Up(VfPhyRegs)
   def V0PhyRegIdxWidth = log2Up(V0PhyRegs)
   def VlPhyRegIdxWidth = log2Up(VlPhyRegs)
-  def MtilexPhyRegIdxWidth = log2Up(MtilexPhyRegs)
-  def PhyRegIdxWidth = Seq(IntPhyRegIdxWidth, FpPhyRegIdxWidth, VfPhyRegIdxWidth, V0PhyRegIdxWidth, VlPhyRegIdxWidth, MtilexPhyRegIdxWidth).max
+  def MxPhyRegIdxWidth = log2Up(MxPhyRegs)
+  def PhyRegIdxWidth = Seq(IntPhyRegIdxWidth, FpPhyRegIdxWidth, VfPhyRegIdxWidth, V0PhyRegIdxWidth, VlPhyRegIdxWidth, MxPhyRegIdxWidth).max
   def RobSize = coreParams.RobSize
   def RabSize = coreParams.RabSize
   def VTypeBufferSize = coreParams.VTypeBufferSize

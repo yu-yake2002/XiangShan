@@ -31,7 +31,7 @@ case object Reg_F extends RegType
 case object Reg_V extends RegType
 case object Reg_V0 extends RegType
 case object Reg_Vl extends RegType
-case object Reg_Mtilex extends RegType
+case object Reg_Mx extends RegType
 
 class RatReadPort(ratAddrWidth: Int)(implicit p: Parameters) extends XSBundle {
   val hold = Input(Bool())
@@ -57,7 +57,7 @@ class RenameTable(reg_t: RegType)(implicit p: Parameters) extends XSModule with 
     case Reg_V => 3
     case Reg_V0 => 1
     case Reg_Vl => 1
-    case Reg_Mtilex => 1
+    case Reg_Mx => 1
   }
   val rdataNums = reg_t match {
     case Reg_I => 32
@@ -65,7 +65,7 @@ class RenameTable(reg_t: RegType)(implicit p: Parameters) extends XSModule with 
     case Reg_V => 31 // no v0
     case Reg_V0 => 1 // v0
     case Reg_Vl => 1 // vl
-    case Reg_Mtilex => 3 // mtilem/n/k
+    case Reg_Mx => 3 // mtilem/n/k
   }
   val renameTableWidth = reg_t match {
     case Reg_I => log2Ceil(IntLogicRegs)
@@ -73,7 +73,7 @@ class RenameTable(reg_t: RegType)(implicit p: Parameters) extends XSModule with 
     case Reg_V => log2Ceil(VecLogicRegs)
     case Reg_V0 => log2Ceil(V0LogicRegs)
     case Reg_Vl => log2Ceil(VlLogicRegs)
-    case Reg_Mtilex => log2Ceil(MtilexLogicRegs)
+    case Reg_Mx => log2Ceil(MxLogicRegs)
   }
 
   val io = IO(new Bundle {
@@ -112,7 +112,7 @@ class RenameTable(reg_t: RegType)(implicit p: Parameters) extends XSModule with 
     case Reg_V => VecInit.tabulate(VecLogicRegs)(_.U(PhyRegIdxWidth.W))
     case Reg_V0 => VecInit.tabulate(V0LogicRegs)(_.U(PhyRegIdxWidth.W))
     case Reg_Vl => VecInit.tabulate(VlLogicRegs)(_.U(PhyRegIdxWidth.W))
-    case Reg_Mtilex => VecInit.tabulate(MtilexLogicRegs)(_.U(PhyRegIdxWidth.W))
+    case Reg_Mx => VecInit.tabulate(MxLogicRegs)(_.U(PhyRegIdxWidth.W))
   }
   val spec_table = RegInit(rename_table_init)
   val spec_table_next = WireInit(spec_table)
@@ -232,15 +232,15 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
     val v0RenamePorts = Vec(RenameWidth, Input(new RatWritePort(V0LogicRegs)))
     val vlReadPorts = Vec(RenameWidth, new RatReadPort(VlLogicRegs))
     val vlRenamePorts = Vec(RenameWidth, Input(new RatWritePort(VlLogicRegs)))
-    val mtilexReadPorts = Vec(RenameWidth, new RatReadPort(MtilexLogicRegs))
-    val mtilexRenamePorts = Vec(RenameWidth, Input(new RatWritePort(MtilexLogicRegs)))
+    val mxReadPorts = Vec(RenameWidth, new RatReadPort(MxLogicRegs))
+    val mxRenamePorts = Vec(RenameWidth, Input(new RatWritePort(MxLogicRegs)))
 
     val int_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
     val fp_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
     val vec_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
     val v0_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
     val vl_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
-    val mtilex_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
+    val mx_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
     val int_need_free = Vec(RabCommitWidth, Output(Bool()))
     val snpt = Input(new SnapshotPort)
 
@@ -250,7 +250,7 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
     val debug_vec_rat = if (backendParams.debugEn) Some(Vec(31, Output(UInt(PhyRegIdxWidth.W)))) else None
     val debug_v0_rat  = if (backendParams.debugEn) Some(Vec(1,Output(UInt(PhyRegIdxWidth.W)))) else None
     val debug_vl_rat  = if (backendParams.debugEn) Some(Vec(1,Output(UInt(PhyRegIdxWidth.W)))) else None
-    val debug_mtilex_rat = if (backendParams.debugEn) Some(Vec(3,Output(UInt(PhyRegIdxWidth.W)))) else None
+    val debug_mx_rat = if (backendParams.debugEn) Some(Vec(3,Output(UInt(PhyRegIdxWidth.W)))) else None
 
     // for difftest
     val diff_int_rat = if (backendParams.basicDebugEn) Some(Vec(32, Output(UInt(PhyRegIdxWidth.W)))) else None
@@ -258,7 +258,7 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
     val diff_vec_rat = if (backendParams.basicDebugEn) Some(Vec(31, Output(UInt(PhyRegIdxWidth.W)))) else None
     val diff_v0_rat  = if (backendParams.basicDebugEn) Some(Vec(1,Output(UInt(PhyRegIdxWidth.W)))) else None
     val diff_vl_rat  = if (backendParams.basicDebugEn) Some(Vec(1,Output(UInt(PhyRegIdxWidth.W)))) else None
-    val diff_mtilex_rat = if (backendParams.basicDebugEn) Some(Vec(3,Output(UInt(PhyRegIdxWidth.W)))) else None
+    val diff_mx_rat = if (backendParams.basicDebugEn) Some(Vec(3,Output(UInt(PhyRegIdxWidth.W)))) else None
   })
 
   val intRat = Module(new RenameTable(Reg_I))
@@ -266,7 +266,7 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
   val vecRat = Module(new RenameTable(Reg_V))
   val v0Rat  = Module(new RenameTable(Reg_V0))
   val vlRat  = Module(new RenameTable(Reg_Vl))
-  val mtilexRfRat = Module(new RenameTable(Reg_Mtilex))
+  val mxRat = Module(new RenameTable(Reg_Mx))
 
   io.debug_int_rat .foreach(_ := intRat.io.debug_rdata.get)
   io.diff_int_rat  .foreach(_ := intRat.io.diff_rdata.get)
@@ -446,27 +446,27 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
   }
 
   // debug read ports for difftest
-  io.debug_mtilex_rat.foreach(_ := mtilexRfRat.io.debug_rdata.get)
-  io.diff_mtilex_rat.foreach(_ := mtilexRfRat.io.diff_rdata.get)
-  mtilexRfRat.io.readPorts <> io.mtilexReadPorts
-  mtilexRfRat.io.redirect := io.redirect
-  mtilexRfRat.io.snpt := io.snpt
-  io.mtilex_old_pdest := mtilexRfRat.io.old_pdest
+  io.debug_mx_rat.foreach(_ := mxRat.io.debug_rdata.get)
+  io.diff_mx_rat.foreach(_ := mxRat.io.diff_rdata.get)
+  mxRat.io.readPorts <> io.mxReadPorts
+  mxRat.io.redirect := io.redirect
+  mxRat.io.snpt := io.snpt
+  io.mx_old_pdest := mxRat.io.old_pdest
 
   if (backendParams.debugEn) {
-    dontTouch(mtilexRfRat.io)
+    dontTouch(mxRat.io)
   }
-  for ((arch, i) <- mtilexRfRat.io.archWritePorts.zipWithIndex) {
-    arch.wen := io.rabCommits.isCommit && io.rabCommits.commitValid(i) && io.rabCommits.info(i).mtilexWen
+  for ((arch, i) <- mxRat.io.archWritePorts.zipWithIndex) {
+    arch.wen := io.rabCommits.isCommit && io.rabCommits.commitValid(i) && io.rabCommits.info(i).mxWen
     arch.addr := io.rabCommits.info(i).ldest
     arch.data := io.rabCommits.info(i).pdest
   }
-  for ((spec, i) <- mtilexRfRat.io.specWritePorts.zipWithIndex) {
-    spec.wen := io.rabCommits.isWalk && io.rabCommits.walkValid(i) && io.rabCommits.info(i).mtilexWen
+  for ((spec, i) <- mxRat.io.specWritePorts.zipWithIndex) {
+    spec.wen := io.rabCommits.isWalk && io.rabCommits.walkValid(i) && io.rabCommits.info(i).mxWen
     spec.addr := io.rabCommits.info(i).ldest
     spec.data := io.rabCommits.info(i).pdest
   }
-  for ((spec, rename) <- mtilexRfRat.io.specWritePorts.zip(io.mtilexRenamePorts)) {
+  for ((spec, rename) <- mxRat.io.specWritePorts.zip(io.mxRenamePorts)) {
     when(rename.wen) {
       spec.wen := true.B
       spec.addr := rename.addr
@@ -474,8 +474,8 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
     }
   }
   if (backendParams.basicDebugEn) {
-    for ((diff, i) <- mtilexRfRat.io.diffWritePorts.get.zipWithIndex) {
-      diff.wen := io.diffCommits.get.isCommit && io.diffCommits.get.commitValid(i) && io.diffCommits.get.info(i).mtilexWen
+    for ((diff, i) <- mxRat.io.diffWritePorts.get.zipWithIndex) {
+      diff.wen := io.diffCommits.get.isCommit && io.diffCommits.get.commitValid(i) && io.diffCommits.get.info(i).mxWen
       diff.addr := io.diffCommits.get.info(i).ldest
       diff.data := io.diffCommits.get.info(i).pdest
     }

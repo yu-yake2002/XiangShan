@@ -14,8 +14,8 @@ object WbConfig {
     def writeFp = dataCfg == FpData()
     def writeVec = dataCfg == VecData()
     def writeV0 = dataCfg == V0Data()
+    def writeMx = dataCfg == MxData()
     def writeVl = dataCfg == VlData()
-    def writeMtilex = dataCfg == MtilexData()
 
     override def toString: String = {
       var res = this match {
@@ -23,8 +23,8 @@ object WbConfig {
         case _: FpWB => "FP"
         case _: VfWB => "VF"
         case _: V0WB => "V0"
+        case _: MxWB => "MX"
         case _: VlWB => "VL"
-        case _: MtilexWB => "MTILEX"
         case _: NoWB => "NO"
         case _ => "??"
       }
@@ -83,6 +83,16 @@ object WbConfig {
     def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(V0Data()).numEntries
   }
 
+  case class MxWB(
+    port    : Int = -1,
+    priority: Int = Int.MaxValue,
+  ) extends PregWB {
+
+    def dataCfg: DataConfig = MxData()
+
+    def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(MxData()).numEntries
+  }
+
   case class VlWB(
     port    : Int = -1,
     priority: Int = Int.MaxValue,
@@ -92,17 +102,7 @@ object WbConfig {
 
     def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(VlData()).numEntries
   }
-
-  case class MtilexWB(
-    port    : Int = -1,
-    priority: Int = Int.MaxValue,
-  ) extends PregWB {
-
-    def dataCfg: DataConfig = MtilexData()
-
-    def numPreg(backendParams: BackendParams): Int = backendParams.getPregParams(MtilexData()).numEntries
-  }
-
+  
   case class NoWB(
     port    : Int = -1,
     priority: Int = Int.MaxValue,
