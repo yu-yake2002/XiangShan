@@ -263,10 +263,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   private val vlFromIntIsVlmax = intExuBlock.io.vlIsVlmax.get
   private val vlFromVfIsZero = vfExuBlock.io.vlIsZero.get
   private val vlFromVfIsVlmax = vfExuBlock.io.vlIsVlmax.get
-  private val mtilexFromIntIsZero = intExuBlock.io.mtilexIsZero.get
-  private val mtilexFromIntIsMtilexmax = intExuBlock.io.mtilexIsMtilexmax.get
-  private val mtilexFromMfIsZero = mfExuBlock.io.mtilexIsZero.get
-  private val mtilexFromMfIsMtilexmax = mfExuBlock.io.mtilexIsMtilexmax.get
+  private val mxFromIntIsZero = intExuBlock.io.mxIsZero.get
+  private val mxFromIntIsMxmax = intExuBlock.io.mxIsMxmax.get
+  private val mxFromMfIsZero = mfExuBlock.io.mxIsZero.get
+  private val mxFromMfIsMxmax = mfExuBlock.io.mxIsMxmax.get
 
   private val backendCriticalError = Wire(Bool())
 
@@ -318,8 +318,8 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     x._1.valid := x._2.wen && x._2.vlWen
     x._1.bits := x._2.addr
   })
-  ctrlBlock.io.toDispatch.wbPregsMtilex.zip(wbDataPath.io.toMtilexPreg).map(x => {
-    x._1.valid := x._2.wen && x._2.mtilexWen
+  ctrlBlock.io.toDispatch.wbPregsMx.zip(wbDataPath.io.toMxPreg).map(x => {
+    x._1.valid := x._2.wen && x._2.mxWen
     x._1.bits := x._2.addr
   })
   ctrlBlock.io.toDispatch.vlWriteBackInfo.vlFromIntIsZero := vlFromIntIsZero
@@ -377,11 +377,11 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.vlWen := RegNext(source.vlWen)
     sink.addr := RegEnable(source.addr, source.wen)
   }
-  val mtilexWriteBackDelayed = Wire(chiselTypeOf(wbDataPath.io.toMtilexPreg))
-  mtilexWriteBackDelayed.zip(wbDataPath.io.toMtilexPreg).map { case (sink, source) =>
+  val mxWriteBackDelayed = Wire(chiselTypeOf(wbDataPath.io.toMxPreg))
+  mxWriteBackDelayed.zip(wbDataPath.io.toMxPreg).map { case (sink, source) =>
     sink := DontCare
     sink.wen := RegNext(source.wen)
-    sink.mtilexWen := RegNext(source.mtilexWen)
+    sink.mxWen := RegNext(source.mxWen)
     sink.addr := RegEnable(source.addr, source.wen)
   }
   intScheduler.io.fromTop.hartId := io.fromTop.hartId
@@ -392,13 +392,13 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   intScheduler.io.vfWriteBack := 0.U.asTypeOf(intScheduler.io.vfWriteBack)
   intScheduler.io.v0WriteBack := 0.U.asTypeOf(intScheduler.io.v0WriteBack)
   intScheduler.io.vlWriteBack := 0.U.asTypeOf(intScheduler.io.vlWriteBack)
-  intScheduler.io.mtilexWriteBack := 0.U.asTypeOf(intScheduler.io.mtilexWriteBack)
+  intScheduler.io.mxWriteBack := 0.U.asTypeOf(intScheduler.io.mxWriteBack)
   intScheduler.io.intWriteBackDelayed := intWriteBackDelayed
   intScheduler.io.fpWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.fpWriteBackDelayed)
   intScheduler.io.vfWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.vfWriteBackDelayed)
   intScheduler.io.v0WriteBackDelayed := 0.U.asTypeOf(intScheduler.io.v0WriteBackDelayed)
   intScheduler.io.vlWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.vlWriteBackDelayed)
-  intScheduler.io.mtilexWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.mtilexWriteBackDelayed)
+  intScheduler.io.mxWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.mxWriteBackDelayed)
   intScheduler.io.fromDataPath.resp := dataPath.io.toIntIQ
   intScheduler.io.fromSchedulers.wakeupVec.foreach { wakeup => wakeup := iqWakeUpMappedBundle(wakeup.bits.exuIdx) }
   intScheduler.io.fromSchedulers.wakeupVecDelayed.foreach { wakeup => wakeup := iqWakeUpMappedBundleDelayed(wakeup.bits.exuIdx) }
@@ -410,10 +410,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   intScheduler.io.vlWriteBackInfo.vlFromIntIsVlmax := false.B
   intScheduler.io.vlWriteBackInfo.vlFromVfIsZero := false.B
   intScheduler.io.vlWriteBackInfo.vlFromVfIsVlmax := false.B
-  intScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsZero := false.B
-  intScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax := false.B
-  intScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsZero := false.B
-  intScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax := false.B
+  intScheduler.io.mxWriteBackInfo.mxFromIntIsZero := false.B
+  intScheduler.io.mxWriteBackInfo.mxFromIntIsMxmax := false.B
+  intScheduler.io.mxWriteBackInfo.mxFromMfIsZero := false.B
+  intScheduler.io.mxWriteBackInfo.mxFromMfIsMxmax := false.B
 
   fpScheduler.io.fromTop.hartId := io.fromTop.hartId
   fpScheduler.io.fromCtrlBlock.flush := ctrlBlock.io.toIssueBlock.flush
@@ -423,13 +423,13 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   fpScheduler.io.vfWriteBack := 0.U.asTypeOf(fpScheduler.io.vfWriteBack)
   fpScheduler.io.v0WriteBack := 0.U.asTypeOf(fpScheduler.io.v0WriteBack)
   fpScheduler.io.vlWriteBack := 0.U.asTypeOf(fpScheduler.io.vlWriteBack)
-  fpScheduler.io.mtilexWriteBack := 0.U.asTypeOf(fpScheduler.io.mtilexWriteBack)
+  fpScheduler.io.mxWriteBack := 0.U.asTypeOf(fpScheduler.io.mxWriteBack)
   fpScheduler.io.intWriteBackDelayed := 0.U.asTypeOf(intWriteBackDelayed)
   fpScheduler.io.fpWriteBackDelayed := fpWriteBackDelayed
   fpScheduler.io.vfWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.vfWriteBackDelayed)
   fpScheduler.io.v0WriteBackDelayed := 0.U.asTypeOf(intScheduler.io.v0WriteBackDelayed)
   fpScheduler.io.vlWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.vlWriteBackDelayed)
-  fpScheduler.io.mtilexWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.mtilexWriteBackDelayed)
+  fpScheduler.io.mxWriteBackDelayed := 0.U.asTypeOf(intScheduler.io.mxWriteBackDelayed)
   fpScheduler.io.fromDataPath.resp := dataPath.io.toFpIQ
   fpScheduler.io.fromSchedulers.wakeupVec.foreach { wakeup => wakeup := iqWakeUpMappedBundle(wakeup.bits.exuIdx) }
   fpScheduler.io.fromSchedulers.wakeupVecDelayed.foreach { wakeup => wakeup := iqWakeUpMappedBundleDelayed(wakeup.bits.exuIdx) }
@@ -440,10 +440,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   fpScheduler.io.vlWriteBackInfo.vlFromIntIsVlmax := false.B
   fpScheduler.io.vlWriteBackInfo.vlFromVfIsZero := false.B
   fpScheduler.io.vlWriteBackInfo.vlFromVfIsVlmax := false.B
-  fpScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsZero := false.B
-  fpScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax := false.B
-  fpScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsZero := false.B
-  fpScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax := false.B
+  fpScheduler.io.mxWriteBackInfo.mxFromIntIsZero := false.B
+  fpScheduler.io.mxWriteBackInfo.mxFromIntIsMxmax := false.B
+  fpScheduler.io.mxWriteBackInfo.mxFromMfIsZero := false.B
+  fpScheduler.io.mxWriteBackInfo.mxFromMfIsMxmax := false.B
 
   memScheduler.io.fromTop.hartId := io.fromTop.hartId
   memScheduler.io.fromCtrlBlock.flush := ctrlBlock.io.toIssueBlock.flush
@@ -453,13 +453,13 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   memScheduler.io.vfWriteBack := wbDataPath.io.toVfPreg
   memScheduler.io.v0WriteBack := wbDataPath.io.toV0Preg
   memScheduler.io.vlWriteBack := wbDataPath.io.toVlPreg
-  memScheduler.io.mtilexWriteBack := wbDataPath.io.toMtilexPreg
+  memScheduler.io.mxWriteBack := wbDataPath.io.toMxPreg
   memScheduler.io.intWriteBackDelayed := intWriteBackDelayed
   memScheduler.io.fpWriteBackDelayed := fpWriteBackDelayed
   memScheduler.io.vfWriteBackDelayed := vfWriteBackDelayed
   memScheduler.io.v0WriteBackDelayed := v0WriteBackDelayed
   memScheduler.io.vlWriteBackDelayed := vlWriteBackDelayed
-  memScheduler.io.mtilexWriteBackDelayed := mtilexWriteBackDelayed
+  memScheduler.io.mxWriteBackDelayed := mxWriteBackDelayed
   memScheduler.io.fromMem.get.scommit := io.mem.sqDeq
   memScheduler.io.fromMem.get.lcommit := io.mem.lqDeq
   memScheduler.io.fromMem.get.wakeup := io.mem.wakeup
@@ -490,10 +490,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   memScheduler.io.vlWriteBackInfo.vlFromIntIsVlmax := vlFromIntIsVlmax
   memScheduler.io.vlWriteBackInfo.vlFromVfIsZero := vlFromVfIsZero
   memScheduler.io.vlWriteBackInfo.vlFromVfIsVlmax := vlFromVfIsVlmax
-  memScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsZero := mtilexFromIntIsZero
-  memScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax := mtilexFromIntIsMtilexmax
-  memScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsZero := mtilexFromMfIsZero
-  memScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax := mtilexFromMfIsMtilexmax
+  memScheduler.io.mxWriteBackInfo.mxFromIntIsZero := mxFromIntIsZero
+  memScheduler.io.mxWriteBackInfo.mxFromIntIsMxmax := mxFromIntIsMxmax
+  memScheduler.io.mxWriteBackInfo.mxFromMfIsZero := mxFromMfIsZero
+  memScheduler.io.mxWriteBackInfo.mxFromMfIsMxmax := mxFromMfIsMxmax
   memScheduler.io.fromOg2Resp.get := og2ForVector.io.toMemIQOg2Resp
 
   vfScheduler.io.fromTop.hartId := io.fromTop.hartId
@@ -504,13 +504,13 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   vfScheduler.io.vfWriteBack := wbDataPath.io.toVfPreg
   vfScheduler.io.v0WriteBack := wbDataPath.io.toV0Preg
   vfScheduler.io.vlWriteBack := wbDataPath.io.toVlPreg
-  vfScheduler.io.mtilexWriteBack := wbDataPath.io.toMtilexPreg
+  vfScheduler.io.mxWriteBack := wbDataPath.io.toMxPreg
   vfScheduler.io.intWriteBackDelayed := 0.U.asTypeOf(intWriteBackDelayed)
   vfScheduler.io.fpWriteBackDelayed := 0.U.asTypeOf(fpWriteBackDelayed)
   vfScheduler.io.vfWriteBackDelayed := vfWriteBackDelayed
   vfScheduler.io.v0WriteBackDelayed := v0WriteBackDelayed
   vfScheduler.io.vlWriteBackDelayed := vlWriteBackDelayed
-  vfScheduler.io.mtilexWriteBackDelayed := mtilexWriteBackDelayed
+  vfScheduler.io.mxWriteBackDelayed := mxWriteBackDelayed
   vfScheduler.io.fromDataPath.resp := dataPath.io.toVfIQ
   vfScheduler.io.fromSchedulers.wakeupVec.foreach { wakeup => wakeup := iqWakeUpMappedBundle(wakeup.bits.exuIdx) }
   vfScheduler.io.fromSchedulers.wakeupVecDelayed.foreach { wakeup => wakeup := iqWakeUpMappedBundleDelayed(wakeup.bits.exuIdx) }
@@ -521,28 +521,27 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   vfScheduler.io.vlWriteBackInfo.vlFromIntIsVlmax := vlFromIntIsVlmax
   vfScheduler.io.vlWriteBackInfo.vlFromVfIsZero := vlFromVfIsZero
   vfScheduler.io.vlWriteBackInfo.vlFromVfIsVlmax := vlFromVfIsVlmax
-  vfScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsZero := mtilexFromIntIsZero
-  vfScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax := mtilexFromIntIsMtilexmax
-  vfScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsZero := mtilexFromMfIsZero
-  vfScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax := mtilexFromMfIsMtilexmax
+  vfScheduler.io.mxWriteBackInfo.mxFromIntIsZero := mxFromIntIsZero
+  vfScheduler.io.mxWriteBackInfo.mxFromIntIsMxmax := mxFromIntIsMxmax
+  vfScheduler.io.mxWriteBackInfo.mxFromMfIsZero := mxFromMfIsZero
+  vfScheduler.io.mxWriteBackInfo.mxFromMfIsMxmax := mxFromMfIsMxmax
   vfScheduler.io.fromOg2Resp.get := og2ForVector.io.toVfIQOg2Resp
 
   mfScheduler.io.fromTop.hartId := io.fromTop.hartId
   mfScheduler.io.fromCtrlBlock.flush := ctrlBlock.io.toIssueBlock.flush
   mfScheduler.io.fromDispatch.uops <> ctrlBlock.io.toIssueBlock.mfUops
-  // mfScheduler.io.intWriteBack := wbDataPath.io.toIntPreg
-  mfScheduler.io.intWriteBack := 0.U.asTypeOf(mfScheduler.io.intWriteBack)
+  mfScheduler.io.intWriteBack := wbDataPath.io.toIntPreg
   mfScheduler.io.fpWriteBack := 0.U.asTypeOf(mfScheduler.io.fpWriteBack)
   mfScheduler.io.vfWriteBack := 0.U.asTypeOf(mfScheduler.io.vfWriteBack)
   mfScheduler.io.v0WriteBack := 0.U.asTypeOf(mfScheduler.io.v0WriteBack)
   mfScheduler.io.vlWriteBack := 0.U.asTypeOf(mfScheduler.io.vlWriteBack)
-  mfScheduler.io.mtilexWriteBack := wbDataPath.io.toMtilexPreg
+  mfScheduler.io.mxWriteBack := wbDataPath.io.toMxPreg
   mfScheduler.io.intWriteBackDelayed := intWriteBackDelayed
   mfScheduler.io.fpWriteBackDelayed := 0.U.asTypeOf(mfScheduler.io.fpWriteBackDelayed)
   mfScheduler.io.vfWriteBackDelayed := 0.U.asTypeOf(mfScheduler.io.vfWriteBackDelayed)
   mfScheduler.io.v0WriteBackDelayed := 0.U.asTypeOf(mfScheduler.io.v0WriteBackDelayed)
   mfScheduler.io.vlWriteBackDelayed := 0.U.asTypeOf(mfScheduler.io.vlWriteBackDelayed)
-  mfScheduler.io.mtilexWriteBackDelayed := mtilexWriteBackDelayed
+  mfScheduler.io.mxWriteBackDelayed := mxWriteBackDelayed
   mfScheduler.io.fromDataPath.resp := dataPath.io.toMfIQ
   mfScheduler.io.fromSchedulers.wakeupVec.foreach { wakeup => wakeup := iqWakeUpMappedBundle(wakeup.bits.exuIdx) }
   mfScheduler.io.fromSchedulers.wakeupVecDelayed.foreach { wakeup => wakeup := iqWakeUpMappedBundleDelayed(wakeup.bits.exuIdx) }
@@ -553,10 +552,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   mfScheduler.io.vlWriteBackInfo.vlFromIntIsVlmax := vlFromIntIsVlmax
   mfScheduler.io.vlWriteBackInfo.vlFromVfIsZero := vlFromVfIsZero
   mfScheduler.io.vlWriteBackInfo.vlFromVfIsVlmax := vlFromVfIsVlmax
-  mfScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsZero := mtilexFromIntIsZero
-  mfScheduler.io.mtilexWriteBackInfo.mtilexFromIntIsMtilexmax := mtilexFromIntIsMtilexmax
-  mfScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsZero := mtilexFromMfIsZero
-  mfScheduler.io.mtilexWriteBackInfo.mtilexFromMfIsMtilexmax := mtilexFromMfIsMtilexmax
+  mfScheduler.io.mxWriteBackInfo.mxFromIntIsZero := mxFromIntIsZero
+  mfScheduler.io.mxWriteBackInfo.mxFromIntIsMxmax := mxFromIntIsMxmax
+  mfScheduler.io.mxWriteBackInfo.mxFromMfIsZero := mxFromMfIsZero
+  mfScheduler.io.mxWriteBackInfo.mxFromMfIsMxmax := mxFromMfIsMxmax
   
   dataPath.io.hartId := io.fromTop.hartId
   dataPath.io.flush := ctrlBlock.io.toDataPath.flush
@@ -572,19 +571,19 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   println(s"[Backend] wbDataPath.io.toIntPreg: ${wbDataPath.io.toIntPreg.size}, dataPath.io.fromIntWb: ${dataPath.io.fromIntWb.size}")
   println(s"[Backend] wbDataPath.io.toFpPreg: ${wbDataPath.io.toFpPreg.size}, dataPath.io.fromFpWb: ${dataPath.io.fromFpWb.size}")
   println(s"[Backend] wbDataPath.io.toVfPreg: ${wbDataPath.io.toVfPreg.size}, dataPath.io.fromVfWb: ${dataPath.io.fromVfWb.size}")
-  println(s"[Backend] wbDataPath.io.toMtilexPreg: ${wbDataPath.io.toMtilexPreg.size}, dataPath.io.fromMtilexWb: ${dataPath.io.fromMtilexWb.size}")
+  println(s"[Backend] wbDataPath.io.toMxPreg: ${wbDataPath.io.toMxPreg.size}, dataPath.io.fromMxWb: ${dataPath.io.fromMxWb.size}")
   dataPath.io.fromIntWb := wbDataPath.io.toIntPreg
   dataPath.io.fromFpWb := wbDataPath.io.toFpPreg
   dataPath.io.fromVfWb := wbDataPath.io.toVfPreg
   dataPath.io.fromV0Wb := wbDataPath.io.toV0Preg
+  dataPath.io.fromMxWb := wbDataPath.io.toMxPreg
   dataPath.io.fromVlWb := wbDataPath.io.toVlPreg
-  dataPath.io.fromMtilexWb := wbDataPath.io.toMtilexPreg
   dataPath.io.diffIntRat.foreach(_ := ctrlBlock.io.diff_int_rat.get)
   dataPath.io.diffFpRat .foreach(_ := ctrlBlock.io.diff_fp_rat.get)
   dataPath.io.diffVecRat.foreach(_ := ctrlBlock.io.diff_vec_rat.get)
   dataPath.io.diffV0Rat .foreach(_ := ctrlBlock.io.diff_v0_rat.get)
+  dataPath.io.diffMxRat .foreach(_ := ctrlBlock.io.diff_mx_rat.get)
   dataPath.io.diffVlRat .foreach(_ := ctrlBlock.io.diff_vl_rat.get)
-  dataPath.io.diffMtilexRat.foreach(_ := ctrlBlock.io.diff_mtilex_rat.get)
   dataPath.io.fromBypassNetwork := bypassNetwork.io.toDataPath
   dataPath.io.fromVecExcpMod.r := vecExcpMod.o.toVPRF.r
   dataPath.io.fromVecExcpMod.w := vecExcpMod.o.toVPRF.w
@@ -718,10 +717,10 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   val debugMtilen_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
   val debugMtilek_s0 = WireInit(UInt(VlData().dataWidth.W), 0.U)
   val debugMtilek_s1 = WireInit(UInt(VlData().dataWidth.W), 0.U)
-  if (dataPath.io.diffMtilex.isDefined) {
-    debugMtilem_s0 := dataPath.io.diffMtilex.get(0)
-    debugMtilen_s0 := dataPath.io.diffMtilex.get(1)
-    debugMtilek_s0 := dataPath.io.diffMtilex.get(2)
+  if (dataPath.io.diffMx.isDefined) {
+    debugMtilem_s0 := dataPath.io.diffMx.get(0)
+    debugMtilen_s0 := dataPath.io.diffMx.get(1)
+    debugMtilek_s0 := dataPath.io.diffMx.get(2)
   } else {
     debugMtilem_s0 := 0.U.asTypeOf(UInt(VlData().dataWidth.W))
     debugMtilen_s0 := 0.U.asTypeOf(UInt(VlData().dataWidth.W))
@@ -825,7 +824,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.vecWen.foreach(_ := source.bits.uop.vecWen)
     sink.bits.v0Wen.foreach(_ := source.bits.uop.v0Wen)
     sink.bits.vlWen.foreach(_ := source.bits.uop.vlWen)
-    sink.bits.mtilexWen.foreach(_ := source.bits.uop.mtilexWen)
+    sink.bits.mxWen.foreach(_ := source.bits.uop.mxWen)
     sink.bits.exceptionVec.foreach(_ := source.bits.uop.exceptionVec)
     sink.bits.flushPipe.foreach(_ := source.bits.uop.flushPipe)
     sink.bits.replay.foreach(_ := source.bits.uop.replayInst)
@@ -952,7 +951,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.uop.vecWen         := source.bits.vecWen.getOrElse(false.B)
     sink.bits.uop.v0Wen          := source.bits.v0Wen.getOrElse(false.B)
     sink.bits.uop.vlWen          := source.bits.vlWen.getOrElse(false.B)
-    sink.bits.uop.mtilexWen      := source.bits.mtilexWen.getOrElse(false.B)
+    sink.bits.uop.mxWen          := source.bits.mxWen.getOrElse(false.B)
     sink.bits.uop.flushPipe      := source.bits.flushPipe.getOrElse(false.B)
     sink.bits.uop.pc             := source.bits.pc.getOrElse(0.U) + (source.bits.ftqOffset.getOrElse(0.U) << instOffsetBits)
     sink.bits.uop.loadWaitBit    := Mux(enableMdp, source.bits.loadWaitBit.getOrElse(false.B), false.B)

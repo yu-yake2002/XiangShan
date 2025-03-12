@@ -26,12 +26,12 @@ object RdConfig {
     override def getDataConfig = V0Data()
   }
 
-  case class VlRD(port: Int = -1, priority: Int = Int.MaxValue) extends RdConfig() {
-    override def getDataConfig = VlData()
+  case class MxRD(port: Int = -1, priority: Int = Int.MaxValue) extends RdConfig() {
+    override def getDataConfig = MxData()
   }
 
-  case class MtilexRD(port: Int = -1, priority: Int = Int.MaxValue) extends RdConfig() {
-    override def getDataConfig = MtilexData()
+  case class VlRD(port: Int = -1, priority: Int = Int.MaxValue) extends RdConfig() {
+    override def getDataConfig = VlData()
   }
 
   case class NoRD() extends RdConfig() {

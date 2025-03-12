@@ -46,7 +46,7 @@ case class MLS(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
     val fu = FuType.mlsu
     val src1: BitPat = SrcType.xp
     val src2: BitPat = SrcType.xp
-    val src3: BitPat = SrcType.mtilex
+    val src3: BitPat = SrcType.mx
     // src4: BitPat = SrcType.mp
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MEM,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
@@ -56,9 +56,9 @@ case class MLS(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
 case class MMUL(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.mma
-    val src1: BitPat = SrcType.mtilex // always mtilem
-    val src2: BitPat = SrcType.mtilex // always mtilen
-    val src3: BitPat = SrcType.mtilex // always mtilek
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx // always mtilem
     XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MUL,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -67,9 +67,10 @@ case class MMUL(fuOp: BitPat) extends XSDecodeBase {
 case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, regStride: Boolean = false,
   fWen: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = fWen, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -77,9 +78,10 @@ case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, reg
 case class MBC(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    val src1: BitPat = SrcType.no
+    val src2: BitPat = SrcType.no
+    val src3: BitPat = SrcType.mx
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -88,8 +90,8 @@ case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
     // min(src1, src2) will be used
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = SrcType.mtilex
+    val src1: BitPat = SrcType.mx
+    val src2: BitPat = SrcType.mx
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -98,8 +100,8 @@ case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
 case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex
-    val src2: BitPat = if (hasSrc2) SrcType.mtilex else SrcType.X
+    val src1: BitPat = SrcType.mx
+    val src2: BitPat = if (hasSrc2) SrcType.mx else SrcType.X
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
@@ -108,8 +110,8 @@ case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
 case class MCVT(fuOp: BitPat) extends XSDecodeBase {
   def generate(): List[BitPat] = {
     val fu = FuType.marith
-    val src1: BitPat = SrcType.mtilex // always mtilem
-    val src2: BitPat = SrcType.mtilex // always mtilen
+    val src1: BitPat = SrcType.mx // always mtilem
+    val src2: BitPat = SrcType.mx // always mtilen
     XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_CVT,
       xWen =F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }

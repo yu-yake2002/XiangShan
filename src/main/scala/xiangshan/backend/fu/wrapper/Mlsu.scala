@@ -8,6 +8,10 @@ import xiangshan.backend.fu.matrix.Bundles.AmuLsuIO
 class Mlsu(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   protected val in = io.in.bits
   protected val out = io.out.bits
+
+  connect0LatencyCtrlSingal
+  io.out.valid := io.in.valid
+  io.in.ready := io.out.ready
   
   protected val baseAddress = in.data.src(0)
   protected val stride = in.data.src(1)

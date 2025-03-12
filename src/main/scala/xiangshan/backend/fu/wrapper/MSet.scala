@@ -80,10 +80,10 @@ class MSetMtilexRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexB
 
   out.res.data := mtilex
 
-  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.mtilex
-  if (cfg.writeMtilexRf) io.mtilex.get.valid := io.out.valid && isMsettilex
-  if (cfg.writeMtilexRf) io.mtilexIsZero.get := io.out.valid && mtilex === 0.U
-  if (cfg.writeMtilexRf) io.mtilexIsMtilexmax.get := io.out.valid && mtilex === tilexmax
+  if (cfg.writeMxRf) io.mtilex.get.bits := msetModule.io.out.mtilex
+  if (cfg.writeMxRf) io.mtilex.get.valid := io.out.valid && isMsettilex
+  if (cfg.writeMxRf) io.mxIsZero.get := io.out.valid && mtilex === 0.U
+  if (cfg.writeMxRf) io.mxIsMxmax.get := io.out.valid && mtilex === tilexmax
 }
 
 /**
@@ -108,10 +108,10 @@ class MSetMtilexRmfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilex
   // Select output 
   out.res.data := Mux(isMreadMtilex, oldMtilex, mtilex)
 
-  if (cfg.writeMtilexRf) io.mtilex.get.bits := msetModule.io.out.mtilex
-  if (cfg.writeMtilexRf) io.mtilex.get.valid := io.out.valid && isMsettilex
-  if (cfg.writeMtilexRf) io.mtilexIsZero.get := io.out.valid && !isMreadMtilex && mtilex === 0.U
-  if (cfg.writeMtilexRf) io.mtilexIsMtilexmax.get := io.out.valid && !isMreadMtilex && mtilex === txmax
+  if (cfg.writeMxRf) io.mtilex.get.bits := msetModule.io.out.mtilex
+  if (cfg.writeMxRf) io.mtilex.get.valid := io.out.valid && isMsettilex
+  if (cfg.writeMxRf) io.mxIsZero.get := io.out.valid && !isMreadMtilex && mtilex === 0.U
+  if (cfg.writeMxRf) io.mxIsMxmax.get := io.out.valid && !isMreadMtilex && mtilex === txmax
 }
 
 class MSetMtypeBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
