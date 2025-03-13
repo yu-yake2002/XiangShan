@@ -233,6 +233,12 @@ object FuType extends OHEnumeration {
 
   def isVectorNeedFrm(fuType: UInt): Bool = FuTypeOrR(fuType, vectorNeedFrm)
 
+  def isMArith(fuType: UInt): Bool = FuTypeOrR(fuType, matrixArith)
+
+  def isMMem(fuType: UInt): Bool = FuTypeOrR(fuType, matrixMem)
+
+  def isMsetRmxWmx(fuType: UInt): Bool = FuTypeOrR(fuType, msetmtilexfwf)
+
   object FuTypeOrR {
     def apply(fuType: UInt, fu0: OHType, fus: OHType*): Bool = {
       apply(fuType, fu0 +: fus)

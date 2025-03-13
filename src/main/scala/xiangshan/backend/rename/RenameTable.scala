@@ -57,7 +57,7 @@ class RenameTable(reg_t: RegType)(implicit p: Parameters) extends XSModule with 
     case Reg_V => 3
     case Reg_V0 => 1
     case Reg_Vl => 1
-    case Reg_Mx => 1
+    case Reg_Mx => 3
   }
   val rdataNums = reg_t match {
     case Reg_I => 32
@@ -232,7 +232,7 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
     val v0RenamePorts = Vec(RenameWidth, Input(new RatWritePort(V0LogicRegs)))
     val vlReadPorts = Vec(RenameWidth, new RatReadPort(VlLogicRegs))
     val vlRenamePorts = Vec(RenameWidth, Input(new RatWritePort(VlLogicRegs)))
-    val mxReadPorts = Vec(RenameWidth, new RatReadPort(MxLogicRegs))
+    val mxReadPorts = Vec(RenameWidth, Vec(3, new RatReadPort(MxLogicRegs)))
     val mxRenamePorts = Vec(RenameWidth, Input(new RatWritePort(MxLogicRegs)))
 
     val int_old_pdest = Vec(RabCommitWidth, Output(UInt(PhyRegIdxWidth.W)))
@@ -448,7 +448,7 @@ class RenameTableWrapper(implicit p: Parameters) extends XSModule {
   // debug read ports for difftest
   io.debug_mx_rat.foreach(_ := mxRat.io.debug_rdata.get)
   io.diff_mx_rat.foreach(_ := mxRat.io.diff_rdata.get)
-  mxRat.io.readPorts <> io.mxReadPorts
+  mxRat.io.readPorts <> io.mxReadPorts.flatten
   mxRat.io.redirect := io.redirect
   mxRat.io.snpt := io.snpt
   io.mx_old_pdest := mxRat.io.old_pdest

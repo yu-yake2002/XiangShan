@@ -21,9 +21,10 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   dontTouch(in.data.imm)
 
   val output = Wire(new AmuMmaIO)
-  output.ms1    := in.data.imm(18, 15)
-  output.ms2    := in.data.imm(23, 20)
-  output.md     := in.data.imm(10, 7)
+  dontTouch(output)
+  output.ms1    := in.data.imm(7, 4)
+  output.ms2    := in.data.imm(11, 8)
+  output.md     := in.data.imm(3, 0)
   output.widths := MmulOpType.getFromType(in.ctrl.fuOpType)
   output.widthd := MmulOpType.getToType(in.ctrl.fuOpType)
   output.sat    := false.B

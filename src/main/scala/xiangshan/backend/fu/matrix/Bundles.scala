@@ -283,8 +283,8 @@ object Bundles {
     val ls        = Bool()       // load/store
     val ms        = UInt(4.W)    // src/dest matrix register
     val widths    = MtypeMSew()  // matrix elements width
-    val baseAddr  = UInt(XLEN.W)
-    val stride    = UInt(XLEN.W)
+    val baseAddr  = UInt(PAddrBits.W)
+    val stride    = UInt(PAddrBits.W)
     val transpose = Bool()       // whether transposed
     val row       = Mtilex()
     val column    = Mtilex()

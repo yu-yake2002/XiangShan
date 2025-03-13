@@ -640,8 +640,8 @@ class CtrlBlockImp(
   rat.io.fpRenamePorts := rename.io.fpRenamePorts
   rat.io.vecRenamePorts := rename.io.vecRenamePorts
   rat.io.v0RenamePorts := rename.io.v0RenamePorts
-  rat.io.vlRenamePorts := rename.io.vlRenamePorts
   rat.io.mxRenamePorts := rename.io.mxRenamePorts
+  rat.io.vlRenamePorts := rename.io.vlRenamePorts
 
   rename.io.redirect := s1_s3_redirect
   rename.io.rabCommits := rob.io.rabCommits
@@ -658,21 +658,21 @@ class CtrlBlockImp(
   rename.io.fpReadPorts := VecInit(rat.io.fpReadPorts.map(x => VecInit(x.map(_.data))))
   rename.io.vecReadPorts := VecInit(rat.io.vecReadPorts.map(x => VecInit(x.map(_.data))))
   rename.io.v0ReadPorts := VecInit(rat.io.v0ReadPorts.map(x => VecInit(x.data)))
+  rename.io.mxReadPorts := VecInit(rat.io.mxReadPorts.map(x => VecInit(x.map(_.data))))
   rename.io.vlReadPorts := VecInit(rat.io.vlReadPorts.map(x => VecInit(x.data)))
-  rename.io.mxReadPorts := VecInit(rat.io.mxReadPorts.map(x => VecInit(x.data)))
   rename.io.int_need_free := rat.io.int_need_free
   rename.io.int_old_pdest := rat.io.int_old_pdest
   rename.io.fp_old_pdest := rat.io.fp_old_pdest
   rename.io.vec_old_pdest := rat.io.vec_old_pdest
   rename.io.v0_old_pdest := rat.io.v0_old_pdest
-  rename.io.vl_old_pdest := rat.io.vl_old_pdest
   rename.io.mx_old_pdest := rat.io.mx_old_pdest
+  rename.io.vl_old_pdest := rat.io.vl_old_pdest
   rename.io.debug_int_rat.foreach(_ := rat.io.debug_int_rat.get)
   rename.io.debug_fp_rat.foreach(_ := rat.io.debug_fp_rat.get)
   rename.io.debug_vec_rat.foreach(_ := rat.io.debug_vec_rat.get)
   rename.io.debug_v0_rat.foreach(_ := rat.io.debug_v0_rat.get)
-  rename.io.debug_vl_rat.foreach(_ := rat.io.debug_vl_rat.get)
   rename.io.debug_mx_rat.foreach(_ := rat.io.debug_mx_rat.get)
+  rename.io.debug_vl_rat.foreach(_ := rat.io.debug_vl_rat.get)
   rename.io.stallReason.in <> decode.io.stallReason.out
   rename.io.snpt.snptEnq := DontCare
   rename.io.snpt.snptDeq := snpt.io.deq
@@ -734,8 +734,8 @@ class CtrlBlockImp(
   dispatch.io.wbPregsFp := io.toDispatch.wbPregsFp
   dispatch.io.wbPregsVec := io.toDispatch.wbPregsVec
   dispatch.io.wbPregsV0 := io.toDispatch.wbPregsV0
-  dispatch.io.wbPregsVl := io.toDispatch.wbPregsVl
   dispatch.io.wbPregsMx := io.toDispatch.wbPregsMx
+  dispatch.io.wbPregsVl := io.toDispatch.wbPregsVl
   dispatch.io.vlWriteBackInfo := io.toDispatch.vlWriteBackInfo
   dispatch.io.robHeadNotReady := rob.io.headNotReady
   dispatch.io.robFull := rob.io.robFull
@@ -789,8 +789,8 @@ class CtrlBlockImp(
   io.diff_fp_rat .foreach(_ := rat.io.diff_fp_rat.get)
   io.diff_vec_rat.foreach(_ := rat.io.diff_vec_rat.get)
   io.diff_v0_rat .foreach(_ := rat.io.diff_v0_rat.get)
-  io.diff_vl_rat .foreach(_ := rat.io.diff_vl_rat.get)
   io.diff_mx_rat .foreach(_ := rat.io.diff_mx_rat.get)
+  io.diff_vl_rat .foreach(_ := rat.io.diff_vl_rat.get)
 
   rob.io.debug_ls := io.robio.debug_ls
   rob.io.debugHeadLsIssue := io.robio.robHeadLsIssue
@@ -924,8 +924,8 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val wbPregsFp = Vec(backendParams.numPregWb(FpData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsVec = Vec(backendParams.numPregWb(VecData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsV0 = Vec(backendParams.numPregWb(V0Data()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
-    val wbPregsVl = Vec(backendParams.numPregWb(VlData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsMx = Vec(backendParams.numPregWb(MxData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
+    val wbPregsVl = Vec(backendParams.numPregWb(VlData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val vlWriteBackInfo = new Bundle {
       val vlFromIntIsZero  = Input(Bool())
       val vlFromIntIsVlmax = Input(Bool())
@@ -1011,8 +1011,8 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
   val diff_fp_rat  = if (params.basicDebugEn) Some(Vec(32, Output(UInt(PhyRegIdxWidth.W)))) else None
   val diff_vec_rat = if (params.basicDebugEn) Some(Vec(31, Output(UInt(PhyRegIdxWidth.W)))) else None
   val diff_v0_rat  = if (params.basicDebugEn) Some(Vec(1, Output(UInt(PhyRegIdxWidth.W)))) else None
-  val diff_vl_rat  = if (params.basicDebugEn) Some(Vec(1, Output(UInt(PhyRegIdxWidth.W)))) else None
   val diff_mx_rat  = if (params.basicDebugEn) Some(Vec(3, Output(UInt(PhyRegIdxWidth.W)))) else None
+  val diff_vl_rat  = if (params.basicDebugEn) Some(Vec(1, Output(UInt(PhyRegIdxWidth.W)))) else None
 
   val sqCanAccept = Input(Bool())
   val lqCanAccept = Input(Bool())
