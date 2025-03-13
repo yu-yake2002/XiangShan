@@ -48,7 +48,7 @@ case class MLS(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
     val src2: BitPat = SrcType.xp
     val src3: BitPat = SrcType.mx
     // src4: BitPat = SrcType.mp
-    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MEM,
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_MEM,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -59,7 +59,7 @@ case class MMUL(fuOp: BitPat) extends XSDecodeBase {
     val src1: BitPat = SrcType.no
     val src2: BitPat = SrcType.no
     val src3: BitPat = SrcType.mx // always mtilem
-    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_LUI32, UopSplitType.MAT_MUL,
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_MUL,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -70,7 +70,7 @@ case class MMVE(fu: FuType.OHType, fuOp: BitPat, immStride: Boolean = false, reg
     val src1: BitPat = SrcType.no
     val src2: BitPat = SrcType.no
     val src3: BitPat = SrcType.mx
-    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = fWen, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -81,7 +81,7 @@ case class MBC(fuOp: BitPat) extends XSDecodeBase {
     val src1: BitPat = SrcType.no
     val src2: BitPat = SrcType.no
     val src3: BitPat = SrcType.mx
-    XSDecode(src1, src2, src3, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    XSDecode(src1, src2, src3, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -92,7 +92,7 @@ case class MTRANS(fuOp: BitPat) extends XSDecodeBase {
     // min(src1, src2) will be used
     val src1: BitPat = SrcType.mx
     val src2: BitPat = SrcType.mx
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -102,7 +102,7 @@ case class MARITH(fuOp: BitPat, hasSrc2: Boolean = true) extends XSDecodeBase {
     val fu = FuType.marith
     val src1: BitPat = SrcType.mx
     val src2: BitPat = if (hasSrc2) SrcType.mx else SrcType.X
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_ARITH,
+    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_ARITH,
       xWen = F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -112,7 +112,7 @@ case class MCVT(fuOp: BitPat) extends XSDecodeBase {
     val fu = FuType.marith
     val src1: BitPat = SrcType.mx // always mtilem
     val src2: BitPat = SrcType.mx // always mtilen
-    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.X, UopSplitType.MAT_CVT,
+    XSDecode(src1, src2, SrcType.X, fu, fuOp, SelImm.IMM_MATRIXREG, UopSplitType.MAT_CVT,
       xWen =F, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = F, flushPipe = F).generate()
   }
 }
@@ -505,18 +505,18 @@ object MatrixDecoder extends DecodeConstants {
     // MSOMA_HB_MM -> MMUL(MmulOpType.placeholder),
 
     // Float point matrix multiplication and add, md = md + ms1 * ms2.
-    MFMA_MM     -> MMUL(MmulOpType.placeholder), // fpx -> fpx
-    MFMA_HF_MM  -> MMUL(MmulOpType.placeholder), // fp16 -> fp16
-    MFMA_F_MM   -> MMUL(MmulOpType.placeholder), // fp32 -> fp32
+    MFMA_MM     -> MMUL(MmulOpType.hfmaFpxToFpx), // fpx -> fpx
+    MFMA_HF_MM  -> MMUL(MmulOpType.hfmaFp16ToFp16), // fp16 -> fp16
+    MFMA_F_MM   -> MMUL(MmulOpType.hfmaFp32ToFp32), // fp32 -> fp32
     // MFMA_D_MM   -> MMUL(MmulOpType.placeholder), // fp64 -> fp64
 
-    MFWMA_MM    -> MMUL(MmulOpType.placeholder), // fpx -> fp2x
-    MFWMA_CF_MM -> MMUL(MmulOpType.placeholder), // fp8 -> fp32
-    MFWMA_HF_MM -> MMUL(MmulOpType.placeholder), // fp16 -> fp32
+    MFWMA_MM    -> MMUL(MmulOpType.hfmaFpxToFp2x), // fpx -> fp2x
+    MFWMA_CF_MM -> MMUL(MmulOpType.hfmaFp8ToFp16), // fp8 -> fp16
+    MFWMA_HF_MM -> MMUL(MmulOpType.hfmaFp16ToFp32), // fp16 -> fp32
     // MFWMA_F_MM  -> MMUL(MmulOpType.placeholder), // fp32 -> fp64
 
-    MFQMA_MM    -> MMUL(MmulOpType.placeholder), // fpx -> fp4x
-    MFQMA_CF_MM -> MMUL(MmulOpType.placeholder), // fp8 -> fp32
+    MFQMA_MM    -> MMUL(MmulOpType.hfmaFp8ToFp32), // fpx -> fp4x
+    MFQMA_CF_MM -> MMUL(MmulOpType.hfmaFp8ToFp32), // fp8 -> fp32
   )
 
   val msparsemul: Array[(BitPat, XSDecodeBase)] = Array(

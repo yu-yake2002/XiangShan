@@ -838,6 +838,7 @@ object Bundles {
     val v0Wen        = if (params.needV0Wen)    Some(Bool())                  else None
     val mxWen        = if (params.needMxWen)    Some(Bool())                  else None
     val vlWen        = if (params.needVlWen)    Some(Bool())                  else None
+    // val amuCtrl      = if (params.needAmuCtrl)  Some(UInt(128.W))             else None
     val redirect     = if (params.hasRedirect)  Some(ValidIO(new Redirect))   else None
     val fflags       = if (params.writeFflags)  Some(UInt(5.W))               else None
     val wflags       = if (params.writeFflags)  Some(Bool())                  else None
@@ -848,7 +849,7 @@ object Bundles {
     val lqIdx        = if (params.hasLoadFu)    Some(new LqPtr())             else None
     val sqIdx        = if (params.hasStoreAddrFu || params.hasStdFu)
                                                 Some(new SqPtr())             else None
-    val trigger      = if (params.trigger)      Some(TriggerAction())           else None
+    val trigger      = if (params.trigger)      Some(TriggerAction())         else None
     // uop info
     val predecodeInfo = if(params.hasPredecode) Some(new PreDecodeInfo) else None
     // vldu used only

@@ -23,9 +23,11 @@ import xiangshan.ExceptionNO._
 import xiangshan.backend.fu._
 import xiangshan.backend.fu.fpu._
 import xiangshan.backend.fu.vector._
+import xiangshan.backend.fu.matrix.Bundles._
 import xiangshan.backend.issue._
 import xiangshan.backend.fu.FuConfig
 import xiangshan.backend.decode.{Imm, ImmUnion}
+import xiangshan.backend.fu.matrix.Bundles.MSew
 
 package object xiangshan {
   object SrcType {
@@ -645,41 +647,68 @@ package object xiangshan {
   }
 
   object MmulOpType {
-    def placeholder = "b0000_0000".U
+    def placeholder = "b11_111_111".U
 
-    def isSignedInt   (func: UInt) = func(7, 6) === "b00".U
-    def isUnsignedInt (func: UInt) = func(7, 6) === "b01".U
-    def isFloat       (func: UInt) = func(7, 6) === "b10".U
+    def isInt         (func: UInt) = func(7) === "b0".U
+    def isFloat       (func: UInt) = func(7) === "b1".U
 
-    def isFromE4M3 (func: UInt) = func(5, 3) === "b000".U
-    def isFromE5M2 (func: UInt) = func(5, 3) === "b001".U
-    def isFromE3M4 (func: UInt) = func(5, 3) === "b010".U
-    def isFromFp16 (func: UInt) = func(5, 3) === "b011".U // E5M10
-    def isFromBf16 (func: UInt) = func(5, 3) === "b100".U // E8M7
-    def isFromFp32 (func: UInt) = func(5, 3) === "b101".U // E8M23
-    def isFromTf32 (func: UInt) = func(5, 3) === "b110".U
-    def isFromFp64 (func: UInt) = func(5, 3) === "b111".U
+    def isSigned      (func: UInt) = func(6) === "b1".U // only for int
+    def isUnsigned    (func: UInt) = func(6) === "b0".U // only for int
 
-    def isToE4M3 (func: UInt) = func(2, 0) === "b000".U
-    def isToE5M2 (func: UInt) = func(2, 0) === "b001".U
-    def isToE3M4 (func: UInt) = func(2, 0) === "b010".U
-    def isToFp16 (func: UInt) = func(2, 0) === "b011".U
-    def isToBf16 (func: UInt) = func(2, 0) === "b100".U
-    def isToFp32 (func: UInt) = func(2, 0) === "b101".U
-    def isToTf32 (func: UInt) = func(2, 0) === "b110".U
-    def isToFp64 (func: UInt) = func(2, 0) === "b111".U
+    def isFromE4   (func: UInt) = func(5, 3) === MSew.e4
+    def isFromE8   (func: UInt) = func(5, 3) === MSew.e8
+    def isFromE16  (func: UInt) = func(5, 3) === MSew.e16
+    def isFromE32  (func: UInt) = func(5, 3) === MSew.e32
+    def isFromE64  (func: UInt) = func(5, 3) === MSew.e64
+    def isFromMsew (func: UInt) = func(5, 3) === "b100".U
 
-    def hfmaFp8ToFp8  = "b10_000_000".U
-    def hfmaFp8ToFp16 = "b10_000_011".U
-    def hfmaFp8ToFp32 = "b10_000_101".U
+    def isTo1W     (func: UInt) = func(2, 1) === "b00".U
+    def isTo2W     (func: UInt) = func(2, 1) === "b01".U
+    def isTo4W     (func: UInt) = func(2, 1) === "b10".U
 
-    def hfmaFp16ToFp16 = "b10_011_011".U
-    def hfmaFp16ToFp32 = "b10_011_101".U
+    def isSat      (func: UInt) = func(0) === "b1".U
 
-    def hfmaFp32ToFp32 = "b10_101_101".U
+    def hfmaFp8ToFp8   = "b10_000_00_0".U
+    def hfmaFp8ToFp16  = "b10_000_01_0".U
+    def hfmaFp8ToFp32  = "b10_000_10_0".U
+
+    def hfmaFp16ToFp16 = "b10_001_00_0".U
+    def hfmaFp16ToFp32 = "b10_001_01_0".U
+
+    def hfmaFp32ToFp32 = "b10_010_00_0".U
+
+    def hfmaFpxToFpx   = "b10_100_00_0".U
+    def hfmaFpxToFp2x  = "b10_100_01_0".U
 
     def getFromType (func: UInt): UInt = func(5, 3)
-    def getToType   (func: UInt): UInt = func(2, 0)
+    def getToType   (func: UInt): UInt = {
+      val wide = WireInit(func(2, 1))
+      val toType = WireInit(0.U(3.W))
+      switch(wide) {
+        is("b00".U) {
+          toType := getFromType(func)
+        }
+        is("b01".U) {
+          toType := MuxLookup(getFromType(func), "b100".U)(Seq(
+            MSew.e4  -> MSew.e8,
+            MSew.e8  -> MSew.e16,
+            MSew.e16 -> MSew.e32,
+            MSew.e32 -> MSew.e64
+          ))
+        }
+        is("b10".U) {
+          toType := MuxLookup(getFromType(func), "b100".U)(Seq(
+            MSew.e4  -> MSew.e16,
+            MSew.e8  -> MSew.e32,
+            MSew.e16 -> MSew.e64
+          ))
+        }
+        is("b11".U) {
+          toType := "b100".U
+        }
+      }
+      toType
+    }
   }
 
   object MarithOpType {
@@ -1181,6 +1210,7 @@ package object xiangshan {
     def IMM_MSET = "b10000".U
     def IMM_MSETVAL = "b10001".U
     def IMM_MSETFIELD = "b10010".U
+    def IMM_MATRIXREG = "b10011".U
 
     def X      = BitPat("b00000")
 
@@ -1205,6 +1235,7 @@ package object xiangshan {
         IMM_MSET.litValue      -> "MSET",
         IMM_MSETVAL.litValue   -> "MSETVAL",
         IMM_MSETFIELD.litValue -> "MSETFIELD",
+        IMM_MATRIXREG.litValue -> "MATRIXREG",
       )
       strMap(immType.litValue)
     }
@@ -1227,6 +1258,7 @@ package object xiangshan {
         IMM_MSET.litValue      -> ImmUnion.MSET,
         IMM_MSETVAL.litValue   -> ImmUnion.MSETVAL,
         IMM_MSETFIELD.litValue -> ImmUnion.MSETFIELD,
+        IMM_MATRIXREG.litValue -> ImmUnion.MATRIXREG,
       )
       iuMap(immType.litValue)
     }

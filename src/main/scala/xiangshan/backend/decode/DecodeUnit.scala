@@ -758,6 +758,14 @@ case class Imm_MSETFIELD() extends Imm(5){
   }
 }
 
+case class Imm_MATRIXREG() extends Imm(12){
+  override def do_toImm32(minBits: UInt): UInt = ZeroExt(minBits, 32)
+
+  override def minBitsFromInstr(instr: UInt): UInt = {
+    Cat(instr(23, 20), instr(18, 15), instr(10, 7))
+  }
+}
+
 object ImmUnion {
   val I = Imm_I()
   val S = Imm_S()
@@ -775,9 +783,10 @@ object ImmUnion {
   val MSET = Imm_MSET()
   val MSETVAL = Imm_MSETVAL()
   val MSETFIELD = Imm_MSETFIELD()
+  val MATRIXREG = Imm_MATRIXREG()
 
   // do not add special type lui32 to this, keep ImmUnion max len being 20.
-  val imms = Seq(I, S, B, U, J, Z, B6, OPIVIS, OPIVIU, VSETVLI, VSETIVLI, VRORVI, MSET, MSETVAL, MSETFIELD)
+  val imms = Seq(I, S, B, U, J, Z, B6, OPIVIS, OPIVIU, VSETVLI, VSETIVLI, VRORVI, MSET, MSETVAL, MSETFIELD, MATRIXREG)
   val maxLen = imms.maxBy(_.len).len
   val immSelMap = Seq(
     SelImm.IMM_I,
@@ -795,6 +804,7 @@ object ImmUnion {
     SelImm.IMM_MSET,
     SelImm.IMM_MSETVAL,
     SelImm.IMM_MSETFIELD,
+    SelImm.IMM_MATRIXREG
   ).zip(imms)
   println(s"ImmUnion max len: $maxLen")
 }
@@ -1208,32 +1218,32 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.vsIsOff
   }.elsewhen (isCsrrMtilem) {
-    decodedInst.srcType(0) := SrcType.mx
+    decodedInst.srcType(0) := SrcType.no
     decodedInst.srcType(1) := SrcType.no
-    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(2) := SrcType.mx
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
-    decodedInst.lsrc(1)    := Mtilem_IDX.U
+    decodedInst.lsrc(2)    := Mtilem_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilen) {
-    decodedInst.srcType(0) := SrcType.mx
+    decodedInst.srcType(0) := SrcType.no
     decodedInst.srcType(1) := SrcType.no
-    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(2) := SrcType.mx
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
-    decodedInst.lsrc(0)    := Mtilen_IDX.U
+    decodedInst.lsrc(2)    := Mtilen_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff
   }.elsewhen (isCsrrMtilek) {
-    decodedInst.srcType(0) := SrcType.mx
+    decodedInst.srcType(0) := SrcType.no
     decodedInst.srcType(1) := SrcType.no
-    decodedInst.srcType(2) := SrcType.no
+    decodedInst.srcType(2) := SrcType.mx
     decodedInst.srcType(3) := SrcType.no
     decodedInst.srcType(4) := SrcType.no
-    decodedInst.lsrc(0)    := Mtilek_IDX.U
+    decodedInst.lsrc(2)    := Mtilek_IDX.U
     decodedInst.waitForward   := false.B
     decodedInst.blockBackward := false.B
     decodedInst.exceptionVec(illegalInstr) := io.fromCSR.illegalInst.msIsOff

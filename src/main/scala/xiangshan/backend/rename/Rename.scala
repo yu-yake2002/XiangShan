@@ -63,7 +63,7 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
     val fpReadPorts = Vec(RenameWidth, Vec(3, Input(UInt(PhyRegIdxWidth.W))))
     val vecReadPorts = Vec(RenameWidth, Vec(numVecRatPorts, Input(UInt(PhyRegIdxWidth.W))))
     val v0ReadPorts = Vec(RenameWidth, Vec(1, Input(UInt(PhyRegIdxWidth.W))))
-    val mxReadPorts = Vec(RenameWidth, Vec(1, Input(UInt(PhyRegIdxWidth.W))))
+    val mxReadPorts = Vec(RenameWidth, Vec(3, Input(UInt(PhyRegIdxWidth.W))))
     val vlReadPorts = Vec(RenameWidth, Vec(1, Input(UInt(PhyRegIdxWidth.W))))
     val intRenamePorts = Vec(RenameWidth, Output(new RatWritePort(log2Ceil(IntLogicRegs))))
     val fpRenamePorts = Vec(RenameWidth, Output(new RatWritePort(log2Ceil(FpLogicRegs))))
@@ -404,9 +404,9 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
     // psrc0,psrc1,psrc2 don't require v0ReadPorts because their srcType can distinguish whether they are V0 or not
     uops(i).psrc(0) := Mux1H(Cat(uops(i).srcType(0)(4), uops(i).srcType(0)(2, 0)), Seq(io.intReadPorts(i)(0), io.fpReadPorts(i)(0), io.vecReadPorts(i)(0), io.mxReadPorts(i)(0)))
     uops(i).psrc(1) := Mux1H(uops(i).srcType(1)(2, 0), Seq(io.intReadPorts(i)(1), io.fpReadPorts(i)(1), io.vecReadPorts(i)(1)))
-    uops(i).psrc(2) := Mux1H(uops(i).srcType(2)(2, 1), Seq(io.fpReadPorts(i)(2), io.vecReadPorts(i)(2)))
-    uops(i).psrc(3) := io.v0ReadPorts(i)(0)
-    uops(i).psrc(4) := io.vlReadPorts(i)(0)
+    uops(i).psrc(2) := Mux1H(Cat(uops(i).srcType(2)(4), uops(i).srcType(2)(2, 1)), Seq(io.fpReadPorts(i)(2), io.vecReadPorts(i)(2), io.mxReadPorts(i)(0)))
+    uops(i).psrc(3) := Mux1H(uops(i).srcType(3)(4, 3), Seq(io.v0ReadPorts(i)(0), io.mxReadPorts(i)(1)))
+    uops(i).psrc(4) := Mux(uops(i).srcType(4)(4), io.mxReadPorts(i)(2), io.vlReadPorts(i)(0))
 
     // int psrc2 should be bypassed from next instruction if it is fused
     if (i < RenameWidth - 1) {

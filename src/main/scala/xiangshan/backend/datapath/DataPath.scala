@@ -780,12 +780,18 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
             :+
             OptionWrapper(s1_v0PregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(V0RegSrcDataSet).nonEmpty, 
               (SrcType.isV0(s1_srcType(i)(j)(k)) -> s1_v0PregRData(i)(j)(k)))
+            :+
+            OptionWrapper(s1_mxPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(MxRegSrcDataSet).nonEmpty, 
+              (SrcType.isMx(s1_srcType(i)(j)(k)) -> s1_mxPregRData(i)(j)(k)))
           )}
           else if (k == 4) {(
             Seq(None)
             :+
             OptionWrapper(s1_vlPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(VlRegSrcDataSet).nonEmpty, 
               (SrcType.isVp(s1_srcType(i)(j)(k)) -> s1_vlPregRData(i)(j)(k)))
+            :+
+            OptionWrapper(s1_mxPregRData(i)(j).isDefinedAt(k) && srcDataTypeSet.intersect(MxRegSrcDataSet).nonEmpty, 
+              (SrcType.isMx(s1_srcType(i)(j)(k)) -> s1_mxPregRData(i)(j)(k)))
           )}
           else {(
             Seq(None)
