@@ -399,7 +399,7 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
           csBundle(1).srcType(0) := SrcType.no
           csBundle(1).srcType(1) := SrcType.no
           csBundle(1).srcType(2) := SrcType.mx
-          csBundle(1).lsrc(0) := MSETtilexOpType.toMxIdx(latchedInst.fuOpType)
+          csBundle(1).lsrc(2) := MSETtilexOpType.toMxIdx(latchedInst.fuOpType)
         }.elsewhen(dest === 0.U) {
           // write nothing, uop0 is a nop instruction
           csBundle(0).rfWen := false.B
@@ -437,8 +437,11 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
     is(UopSplitType.MAT_MUL) {
       csBundle(0).fuType := latchedInst.fuType
       csBundle(0).fuOpType := latchedInst.fuOpType
-      csBundle(0).lsrc(0) := SrcType.no
-      csBundle(0).lsrc(1) := SrcType.no
+      csBundle(0).srcType(0) := SrcType.no
+      csBundle(0).srcType(1) := SrcType.no
+      csBundle(0).srcType(2) := SrcType.mx
+      csBundle(0).srcType(3) := SrcType.mx
+      csBundle(0).srcType(4) := SrcType.mx
       csBundle(0).lsrc(2) := Mtilem_IDX.U
       csBundle(0).lsrc(3) := Mtilen_IDX.U
       csBundle(0).lsrc(4) := Mtilek_IDX.U

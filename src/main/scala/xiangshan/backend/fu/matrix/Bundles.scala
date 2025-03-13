@@ -265,8 +265,8 @@ object Bundles {
     val ms1    = UInt(4.W)
     val ms2    = UInt(4.W)
     val md     = UInt(4.W)
-    val widths = UInt(3.W)
-    val widthd = UInt(3.W)
+    val types  = UInt(3.W)
+    val typed  = UInt(3.W)
     val sat    = Bool()
     val mtilem = Mtilex()
     val mtilen = Mtilex()
@@ -283,8 +283,8 @@ object Bundles {
     val ls        = Bool()       // load/store
     val ms        = UInt(4.W)    // src/dest matrix register
     val widths    = MtypeMSew()  // matrix elements width
-    val baseAddr  = UInt(XLEN.W)
-    val stride    = UInt(XLEN.W)
+    val baseAddr  = UInt(PAddrBits.W)
+    val stride    = UInt(PAddrBits.W)
     val transpose = Bool()       // whether transposed
     val row       = Mtilex()
     val column    = Mtilex()
@@ -294,5 +294,9 @@ object Bundles {
     def apply()(implicit p: Parameters) : AmuLsuIO = {
       new AmuLsuIO()
     }
+  }
+
+  class AmuCtrlIO(implicit p: Parameters) extends XSBundle {
+    // TODO: add more control signals
   }
 }

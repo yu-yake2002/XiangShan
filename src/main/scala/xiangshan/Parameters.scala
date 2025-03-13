@@ -492,11 +492,11 @@ case class XSCoreParameters
         ExeUnitParams("MSET1", Seq(MSetMtilexRmfWmfCfg), Seq(IntWB(port = 3, 1), MxWB(port = mfSchdMxWbPort, 0)), Seq(Seq(), Seq(), Seq(MxRD(0, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
-        ExeUnitParams("MEX0", Seq(MmaCfg), Seq(FakeIntWB()), Seq(Seq(), Seq(), Seq(MxRD(0, 1)), Seq(MxRD(1, 0)), Seq(MxRD(2, 0)))),
-        ExeUnitParams("MEX1", Seq(MarithCfg), Seq(FakeIntWB()), Seq(Seq(), Seq(), Seq(MxRD(1, 1)), Seq(MxRD(2, 1)))),
+        ExeUnitParams("MEX0", Seq(MmaCfg), Seq(), Seq(Seq(), Seq(), Seq(MxRD(0, 1)), Seq(MxRD(1, 0)), Seq(MxRD(2, 0)))),
+        ExeUnitParams("MEX1", Seq(MarithCfg), Seq(), Seq(Seq(), Seq(), Seq(MxRD(1, 1)), Seq(MxRD(2, 1)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
-        ExeUnitParams("MLSU", Seq(MlsuCfg), Seq(FakeIntWB()), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
+        ExeUnitParams("MLSU", Seq(MlsuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
     ),
       numPregs = mxPreg.numEntries,
