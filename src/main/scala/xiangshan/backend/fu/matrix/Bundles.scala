@@ -265,8 +265,8 @@ object Bundles {
     val ms1    = UInt(4.W)
     val ms2    = UInt(4.W)
     val md     = UInt(4.W)
-    val widths = UInt(3.W)
-    val widthd = UInt(3.W)
+    val types  = UInt(3.W)
+    val typed  = UInt(3.W)
     val sat    = Bool()
     val mtilem = Mtilex()
     val mtilen = Mtilex()
@@ -294,5 +294,9 @@ object Bundles {
     def apply()(implicit p: Parameters) : AmuLsuIO = {
       new AmuLsuIO()
     }
+  }
+
+  class AmuCtrlIO(implicit p: Parameters) extends XSBundle {
+    // TODO: add more control signals
   }
 }

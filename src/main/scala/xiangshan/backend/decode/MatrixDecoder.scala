@@ -505,12 +505,12 @@ object MatrixDecoder extends DecodeConstants {
     // MSOMA_HB_MM -> MMUL(MmulOpType.placeholder),
 
     // Float point matrix multiplication and add, md = md + ms1 * ms2.
-    MFMA_MM     -> MMUL(MmulOpType.hfmaFp8ToFp8), // fpx -> fpx
+    MFMA_MM     -> MMUL(MmulOpType.hfmaFpxToFpx), // fpx -> fpx
     MFMA_HF_MM  -> MMUL(MmulOpType.hfmaFp16ToFp16), // fp16 -> fp16
     MFMA_F_MM   -> MMUL(MmulOpType.hfmaFp32ToFp32), // fp32 -> fp32
     // MFMA_D_MM   -> MMUL(MmulOpType.placeholder), // fp64 -> fp64
 
-    MFWMA_MM    -> MMUL(MmulOpType.hfmaFp8ToFp16), // fpx -> fp2x
+    MFWMA_MM    -> MMUL(MmulOpType.hfmaFpxToFp2x), // fpx -> fp2x
     MFWMA_CF_MM -> MMUL(MmulOpType.hfmaFp8ToFp16), // fp8 -> fp16
     MFWMA_HF_MM -> MMUL(MmulOpType.hfmaFp16ToFp32), // fp16 -> fp32
     // MFWMA_F_MM  -> MMUL(MmulOpType.placeholder), // fp32 -> fp64
