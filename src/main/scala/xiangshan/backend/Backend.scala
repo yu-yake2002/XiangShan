@@ -41,7 +41,7 @@ import xiangshan.backend.datapath.DataConfig._
 import xiangshan.backend.datapath._
 import xiangshan.backend.dispatch.CoreDispatchTopDownIO
 import xiangshan.backend.exu.ExuBlock
-import xiangshan.backend.fu.matrix.Bundles.{MType}
+import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
 import xiangshan.backend.fu.vector.Bundles.{VConfig, VType}
 import xiangshan.backend.fu.{FenceIO, FenceToSbuffer, FuConfig, FuType, PerfCounterIO}
 import xiangshan.backend.fu.NewCSR.PFEvent
@@ -825,6 +825,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.v0Wen.foreach(_ := source.bits.uop.v0Wen)
     sink.bits.vlWen.foreach(_ := source.bits.uop.vlWen)
     sink.bits.mxWen.foreach(_ := source.bits.uop.mxWen)
+    sink.bits.amuCtrl.foreach(_ := source.bits.amuCtrl.get)
     sink.bits.exceptionVec.foreach(_ := source.bits.uop.exceptionVec)
     sink.bits.flushPipe.foreach(_ := source.bits.uop.flushPipe)
     sink.bits.replay.foreach(_ := source.bits.uop.replayInst)
@@ -1007,6 +1008,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   io.csrCustomCtrl := csrio.customCtrl
 
   io.toTop.cpuHalted := ctrlBlock.io.toTop.cpuHalt
+  io.toAmu <> ctrlBlock.io.toAmu
 
   io.traceCoreInterface <> ctrlBlock.io.traceCoreInterface
 
@@ -1222,6 +1224,7 @@ class BackendIO(implicit p: Parameters, params: BackendParams) extends XSBundle 
   val fromTop = Flipped(new TopToBackendBundle)
 
   val toTop = new BackendToTopBundle
+  val toAmu = Vec(CommitWidth, DecoupledIO(new AmuCtrlIO))
 
   val traceCoreInterface = new TraceCoreInterface(hasOffset = true)
   val fenceio = new FenceIO

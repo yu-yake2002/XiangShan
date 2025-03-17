@@ -59,6 +59,7 @@ case class FuConfig (
   writeFakeIntRf: Boolean = false,
   writeFflags   : Boolean = false,
   writeVxsat    : Boolean = false,
+  needAmuCtrl   : Boolean = false,
   destDataBits  : Int = 64,
   srcDataBits   : Option[Int] = None,
   srcNeedCopy   : Boolean = false,
@@ -508,6 +509,7 @@ object FuConfig {
       Seq(IntData(), IntData(), MxData(), MxData(), MxData()),
     ),
     piped = true,
+    needAmuCtrl = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_LUI32)
   )
@@ -520,6 +522,7 @@ object FuConfig {
       Seq(IntData(), IntData(), MxData(), MxData()),
     ),
     piped = true,
+    needAmuCtrl = true,
     latency = CertainLatency(0),
     immType = Set(SelImm.IMM_LUI32)
   )
@@ -532,6 +535,7 @@ object FuConfig {
       Seq(IntData(), IntData(), MxData(), MxData()),
     ),
     piped = true, // Todo: check it
+    needAmuCtrl = true,
     // exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
     // flushPipe = true,
     // replayInst = true,

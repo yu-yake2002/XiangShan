@@ -40,4 +40,6 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   output.mtilek := mtilek
   
   out.res.data := output.asUInt
+
+  out.ctrl.amuCtrl.get.data := output.asUInt
 }

@@ -298,5 +298,6 @@ object Bundles {
 
   class AmuCtrlIO(implicit p: Parameters) extends XSBundle {
     // TODO: add more control signals
+    val data = UInt(128.W)
   }
 }
