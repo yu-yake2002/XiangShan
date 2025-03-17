@@ -62,6 +62,7 @@ case class ExeUnitParams(
   val needV0Wen: Boolean = fuConfigs.map(_.needV0Wen).reduce(_ || _)
   val needVlWen: Boolean = fuConfigs.map(_.needVlWen).reduce(_ || _)
   val needMxWen: Boolean = fuConfigs.map(_.needMxWen).reduce(_ || _)
+  val needAmuCtrl: Boolean = fuConfigs.map(_.needAmuCtrl).reduce(_ || _)
   val needOg2: Boolean = fuConfigs.map(_.needOg2).reduce(_ || _)
   val writeVfRf: Boolean = writeVecRf
   val writeFflags: Boolean = fuConfigs.map(_.writeFflags).reduce(_ || _)
