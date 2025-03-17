@@ -37,4 +37,6 @@ class Mlsu(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   output.column := mtile3
   
   out.res.data := output.asUInt
+
+  out.ctrl.amuCtrl.get.data := output.asUInt
 }

@@ -34,6 +34,7 @@ import xiangshan.backend.Bundles.{DynInst, ExceptionInfo, ExuOutput}
 import xiangshan.backend.ctrlblock.{DebugLSIO, DebugLsInfo, LsTopdownInfo}
 import xiangshan.backend.fu.NewCSR.CSREvents.TargetPCBundle
 import xiangshan.backend.fu.vector.Bundles.{Nf, VLmul, VSew, VType}
+import xiangshan.backend.fu.matrix.Bundles.{AmuCtrlIO}
 import xiangshan.backend.rename.SnapshotGenerator
 import xiangshan.backend.trace._
 
@@ -64,6 +65,8 @@ object RobBundles extends HasCircularQueuePtrHelper {
     val isMsettype = Bool()
     val isHls = Bool()
     val instrSize = UInt(log2Ceil(RenameWidth + 1).W)
+    val needAmuCtrl = Bool()
+    val amuCtrl = new AmuCtrlIO
     // data end
     
     // trace
@@ -106,6 +109,8 @@ object RobBundles extends HasCircularQueuePtrHelper {
     val isVset = Bool()
     val isMsettilex = Bool()
     val isMsettype = Bool()
+    val needAmuCtrl = Bool()
+    val amuCtrl = new AmuCtrlIO // TODO: It's too big. Can we optimize it?
     val isHls = Bool()
     val isVls = Bool()
     val vls = Bool()
@@ -147,6 +152,8 @@ object RobBundles extends HasCircularQueuePtrHelper {
     robEntry.fpWen := robEnq.dirtyFs
     robEntry.dirtyVs := robEnq.dirtyVs
     robEntry.dirtyMs := robEnq.dirtyMs
+    robEntry.needAmuCtrl := robEnq.needAmuCtrl
+    robEntry.amuCtrl.data := 0.U
     // flushPipe needFlush but not exception
     robEntry.needFlush := robEnq.hasException || robEnq.flushPipe
     // trace
@@ -173,6 +180,8 @@ object RobBundles extends HasCircularQueuePtrHelper {
     robCommitEntry.isVset := robEntry.isVset
     robCommitEntry.isMsettilex := robEntry.isMsettilex
     robCommitEntry.isMsettype := robEntry.isMsettype
+    robCommitEntry.needAmuCtrl := robEntry.needAmuCtrl
+    robCommitEntry.amuCtrl := robEntry.amuCtrl
     robCommitEntry.isHls := robEntry.isHls
     robCommitEntry.isVls := robEntry.vls
     robCommitEntry.vls := robEntry.vls
@@ -305,6 +314,7 @@ class RobExceptionInfo(implicit p: Parameters) extends XSBundle {
   val isVset = Bool()
   val isMsettilex = Bool()
   val isMsettype = Bool()
+  val needAmuCtrl = Bool()
   val replayInst = Bool() // redirect to that inst itself
   val singleStep = Bool() // TODO add frontend hit beneath
   val crossPageIPFFix = Bool()

@@ -119,6 +119,7 @@ object Bundles {
     val isVset          = Bool()
     val isMsettilex     = Bool()
     val isMsettype      = Bool()
+    val needAmuCtrl     = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -222,6 +223,7 @@ object Bundles {
     val isVset          = Bool()
     val isMsettilex     = Bool()
     val isMsettype      = Bool()
+    val needAmuCtrl     = Bool()
     val firstUop        = Bool()
     val lastUop         = Bool()
     val numUops         = UInt(log2Up(MaxUopSize).W) // rob need this
@@ -838,7 +840,7 @@ object Bundles {
     val v0Wen        = if (params.needV0Wen)    Some(Bool())                  else None
     val mxWen        = if (params.needMxWen)    Some(Bool())                  else None
     val vlWen        = if (params.needVlWen)    Some(Bool())                  else None
-    // val amuCtrl      = if (params.needAmuCtrl)  Some(UInt(128.W))             else None
+    val amuCtrl      = if (params.needAmuCtrl)  Some(new AmuCtrlIO)           else None
     val redirect     = if (params.hasRedirect)  Some(ValidIO(new Redirect))   else None
     val fflags       = if (params.writeFflags)  Some(UInt(5.W))               else None
     val wflags       = if (params.writeFflags)  Some(Bool())                  else None
@@ -1110,13 +1112,14 @@ object Bundles {
     def src_vl = if (isVector) src(4) else 0.U
   }
 
-  class MemExuOutput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuOutput(isVector: Boolean = false, needAmuCtrl: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
     val data = if (isVector) UInt(VLEN.W) else UInt(XLEN.W)
     val mask = if (isVector) Some(UInt(VLEN.W)) else None
     val vdIdx = if (isVector) Some(UInt(3.W)) else None // TODO: parameterize width
     val vdIdxInField = if (isVector) Some(UInt(3.W)) else None
     val isFromLoadUnit = Bool()
+    val amuCtrl = if (needAmuCtrl) Some(new AmuCtrlIO) else None
     val debug = new DebugBundle
     val vecDebug = if (isVector) Some(new VecMissalignedDebugBundle) else None
 

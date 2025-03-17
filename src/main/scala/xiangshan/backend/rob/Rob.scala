@@ -42,7 +42,7 @@ import xiangshan.frontend.FtqPtr
 import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr}
 import xiangshan.backend.Bundles.{DynInst, ExceptionInfo, ExuOutput}
 import xiangshan.backend.ctrlblock.{DebugLSIO, DebugLsInfo, LsTopdownInfo}
-import xiangshan.backend.fu.matrix.Bundles.MType
+import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
 import xiangshan.backend.fu.vector.Bundles.VType
 import xiangshan.backend.rename.SnapshotGenerator
 import yunsuan.VfaluType
@@ -143,7 +143,13 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       val robidx = Input(new RobPtr)
       val pc     = Output(UInt(VAddrBits.W))
     })
+
+    // to AMU
+    val amuCtrl = Vec(CommitWidth, DecoupledIO(new AmuCtrlIO))
   })
+
+  dontTouch(io.writeback)
+  dontTouch(io.exuWriteback)
 
   val exuWBs: Seq[ValidIO[ExuOutput]] = io.exuWriteback.filter(!_.bits.params.hasStdFu).toSeq
   val stdWBs: Seq[ValidIO[ExuOutput]] = io.exuWriteback.filter(_.bits.params.hasStdFu).toSeq
@@ -151,6 +157,9 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   val fflagsWBs = io.exuWriteback.filter(x => x.bits.fflags.nonEmpty).toSeq
   val exceptionWBs = io.writeback.filter(x => x.bits.exceptionVec.nonEmpty).toSeq
   val redirectWBs = io.writeback.filter(x => x.bits.redirect.nonEmpty).toSeq
+  // TODO: What's the difference between writeback and exuWriteBack?
+  // Which one is proper to use?
+  val amuCtrlWBs = io.writeback.filter(x => x.bits.amuCtrl.nonEmpty).toSeq
   val vxsatWBs = io.exuWriteback.filter(x => x.bits.vxsat.nonEmpty).toSeq
   val branchWBs = io.exuWriteback.filter(_.bits.params.hasBrhFu).toSeq
   val jmpWBs = io.exuWriteback.filter(_.bits.params.hasJmpFu).toSeq
@@ -849,6 +858,9 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       io.commits.info(i).debug_ldest.getOrElse(0.U),
       debug_exuData(walkPtrVec(i).value)
     )
+
+    io.amuCtrl(i).valid := io.commits.isCommit && io.commits.commitValid(i) && commitInfo(i).needAmuCtrl
+    io.amuCtrl(i).bits := commitInfo(i).amuCtrl
   }
 
   // sync fflags/dirty_fs/vxsat to csr
@@ -1035,6 +1047,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   })
   val fflags_wb = fflagsWBs
   val vxsat_wb = vxsatWBs
+  val amuCtrl_wb = amuCtrlWBs
   for (i <- 0 until RobSize) {
 
     val robIdxMatchSeq = io.enq.req.map(_.bits.robIdx.value === i.U)
@@ -1081,6 +1094,12 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       when(canStdWbSeq.asUInt.orR) {
         robEntries(i).stdWritebacked := true.B
       }
+    }
+
+    val amuCtrlCanWbSeq = amuCtrl_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === i.U)
+    val amuCtrlRes = amuCtrlCanWbSeq.zip(amuCtrl_wb).map { case (canWb, wb) => Mux(canWb, wb.bits.amuCtrl.get.asUInt, 0.U) }.fold(0.U)(_ | _)
+    when(robEntries(i).valid && amuCtrlRes.orR) {
+      robEntries(i).amuCtrl := amuCtrlRes.asTypeOf(new AmuCtrlIO)
     }
 
     val fflagsCanWbSeq = fflags_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === i.U && writeback.bits.wflags.getOrElse(false.B))
@@ -1155,6 +1174,10 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       }
     }
 
+    val amuCtrlCanWbSeq = amuCtrl_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === needUpdateRobIdx(i))
+    val amuCtrlRes = amuCtrlCanWbSeq.zip(amuCtrl_wb).map { case (canWb, wb) => Mux(canWb, wb.bits.amuCtrl.get.asUInt, 0.U) }.fold(0.U)(_ | _)
+    needUpdate(i).amuCtrl.data := Mux(!robBanksRdata(i).valid && instCanEnqFlag, 0.U, robBanksRdata(i).amuCtrl.data | amuCtrlRes)
+
     val fflagsCanWbSeq = fflags_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === needUpdateRobIdx(i) && writeback.bits.wflags.getOrElse(false.B))
     val fflagsRes = fflagsCanWbSeq.zip(fflags_wb).map { case (canWb, wb) => Mux(canWb, wb.bits.fflags.get, 0.U) }.fold(false.B)(_ | _)
     needUpdate(i).fflags := Mux(!robBanksRdata(i).valid && instCanEnqFlag, 0.U, robBanksRdata(i).fflags | fflagsRes)
@@ -1213,6 +1236,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exceptionGen.io.enq(i).bits.isVset := io.enq.req(i).bits.isVset
     exceptionGen.io.enq(i).bits.isMsettilex := io.enq.req(i).bits.isMsettilex
     exceptionGen.io.enq(i).bits.isMsettype := io.enq.req(i).bits.isMsettype
+    exceptionGen.io.enq(i).bits.needAmuCtrl := io.enq.req(i).bits.needAmuCtrl
     exceptionGen.io.enq(i).bits.replayInst := false.B
     XSError(canEnqueue(i) && io.enq.req(i).bits.replayInst, "enq should not set replayInst")
     exceptionGen.io.enq(i).bits.singleStep := io.enq.req(i).bits.singleStep
@@ -1253,6 +1277,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exc_wb.bits.isVset          := false.B
     exc_wb.bits.isMsettilex     := false.B
     exc_wb.bits.isMsettype      := false.B
+    exc_wb.bits.needAmuCtrl     := false.B
     exc_wb.bits.replayInst      := wb.bits.replay.getOrElse(false.B)
     exc_wb.bits.singleStep      := false.B
     exc_wb.bits.crossPageIPFFix := false.B

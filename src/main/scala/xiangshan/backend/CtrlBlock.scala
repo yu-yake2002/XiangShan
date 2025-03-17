@@ -31,7 +31,7 @@ import xiangshan.backend.decode.{DecodeStage, FusionDecoder}
 import xiangshan.backend.dispatch.{CoreDispatchTopDownIO}
 import xiangshan.backend.dispatch.NewDispatch
 import xiangshan.backend.fu.PFEvent
-import xiangshan.backend.fu.matrix.Bundles.MType
+import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
 import xiangshan.backend.fu.vector.Bundles.{VType, Vl}
 import xiangshan.backend.fu.wrapper.CSRToDecode
 import xiangshan.backend.rename.{Rename, RenameTableWrapper, SnapshotGenerator}
@@ -397,6 +397,7 @@ class CtrlBlockImp(
   decode.io.fromRob.walkToArchVType := rob.io.toDecode.walkToArchVType
   decode.io.fromRob.commitVType := rob.io.toDecode.commitVType
   decode.io.fromRob.walkVType := rob.io.toDecode.walkVType
+  // mtype commit
   decode.io.fromRob.isResumeMType := rob.io.toDecode.isResumeMType
   decode.io.fromRob.walkToArchMType := rob.io.toDecode.walkToArchMType
   decode.io.fromRob.commitMType := rob.io.toDecode.commitMType
@@ -771,6 +772,7 @@ class CtrlBlockImp(
   rob.io.wfi_enable := decode.io.csrCtrl.wfi_enable
 
   io.toTop.cpuHalt := DelayN(rob.io.cpu_halt, 5)
+  io.toAmu <> rob.io.amuCtrl
 
   io.robio.csr.perfinfo.retiredInstr <> RegNext(rob.io.csr.perfinfo.retiredInstr)
   io.robio.exception := rob.io.exception
@@ -874,6 +876,9 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
   val toTop = new Bundle {
     val cpuHalt = Output(Bool())
   }
+
+  val toAmu = Vec(CommitWidth, Decoupled(new AmuCtrlIO))
+
   val frontend = Flipped(new FrontendToCtrlIO())
   val fromCSR = new Bundle{
     val toDecode = Input(new CSRToDecode)

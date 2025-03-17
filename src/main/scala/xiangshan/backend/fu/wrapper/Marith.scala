@@ -16,4 +16,6 @@ class Marith(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   protected val mtilex1 = in.data.src(1)
 
   out.res.data := 0.U
+
+  out.ctrl.amuCtrl.get.data := 0.U
 }

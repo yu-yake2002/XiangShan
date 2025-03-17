@@ -10,7 +10,7 @@ import xiangshan.backend.Bundles.VPUCtrlSignals
 import xiangshan.backend.rob.RobPtr
 import xiangshan.frontend.{FtqPtr, PreDecodeInfo}
 import xiangshan.backend.datapath.DataConfig._
-import xiangshan.backend.fu.matrix.Bundles.MType
+import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
 import xiangshan.backend.fu.vector.Bundles.Vxsat
 import xiangshan.ExceptionNO.illegalInstr
 import xiangshan.backend.fu.vector.Bundles.VType
@@ -56,6 +56,7 @@ class FuncUnitCtrlOutput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle
   val fpu           = OptionWrapper(cfg.writeFflags, new FPUCtrlSignals)
   val vpu           = OptionWrapper(cfg.needVecCtrl, new VPUCtrlSignals)
   val mpu           = OptionWrapper(cfg.needMPUCtrl, new MPUCtrlSignals)
+  val amuCtrl       = OptionWrapper(cfg.needAmuCtrl, new AmuCtrlIO)
 }
 
 class FuncUnitDataInput(cfg: FuConfig)(implicit p: Parameters) extends XSBundle {
