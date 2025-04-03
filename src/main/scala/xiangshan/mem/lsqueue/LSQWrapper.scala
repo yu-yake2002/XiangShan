@@ -57,7 +57,7 @@ class InflightBlockInfo(implicit p: Parameters) extends XSBundle {
 
 class LsqEnqIO(implicit p: Parameters) extends MemBlockBundle {
   val canAccept = Output(Bool())
-  val needAlloc = Vec(LSQEnqWidth, Input(UInt(2.W)))
+  val needAlloc = Vec(LSQEnqWidth, Input(UInt(3.W)))
   val req       = Vec(LSQEnqWidth, Flipped(ValidIO(new DynInst)))
   val iqAccept  = Input(Vec(LSQEnqWidth, Bool()))
   val resp      = Vec(LSQEnqWidth, Output(new LSIdx))
@@ -77,17 +77,21 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
         val ldin = Vec(LoadPipelineWidth, Flipped(Decoupled(new LqWriteBundle))) // from load_s3
     }
     val sta = new Bundle() {
-      val storeMaskIn = Vec(StorePipelineWidth, Flipped(Valid(new StoreMaskBundle))) // from store_s0, store mask, send to sq from rs
+      val storeMaskIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new StoreMaskBundle))) // from store_s0, store mask, send to sq from rs
       val storeAddrIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle))) // from store_s1
       val storeAddrInRe = Vec(StorePipelineWidth, Input(new LsPipelineBundle())) // from store_s2
     }
     val std = new Bundle() {
-      val storeDataIn = Vec(StorePipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // from store_s0, store data, send to sq from rs
+      val storeDataIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // from store_s0, store data, send to sq from rs
+    }
+    val mlsu = new Bundle() {
+      val mlsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new MlsqWriteBundle))) // from load_s3
     }
     val ldout = Vec(LoadPipelineWidth, DecoupledIO(new MemExuOutput))
     val ld_raw_data = Vec(LoadPipelineWidth, Output(new LoadDataFromLQBundle))
     val ncOut = Vec(LoadPipelineWidth, DecoupledIO(new LsPipelineBundle))
     val replay = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
+    val mls_replay = Vec(backendParams.MlsCnt, Decoupled(new MlsPipelineBundle))
     val sbuffer = Vec(EnsbufferWidth, Decoupled(new DCacheWordReqWithVaddrAndPfFlag))
     val sbufferVecDifftestInfo = Vec(EnsbufferWidth, Decoupled(new DynInst)) // The vector store difftest needs is
     val forward = Vec(LoadPipelineWidth, Flipped(new PipeLoadForwardQueryIO))
@@ -106,16 +110,22 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
     val vecmmioStout = DecoupledIO(new MemExuOutput(isVector = true)) // vec writeback uncached store
     val sqEmpty = Output(Bool())
     val lq_rep_full = Output(Bool())
+    val mlsq_rep_full = Output(Bool())
     val sqFull = Output(Bool())
     val lqFull = Output(Bool())
+    val mlsqFull = Output(Bool())
     val sqCancelCnt = Output(UInt(log2Up(StoreQueueSize+1).W))
     val lqCancelCnt = Output(UInt(log2Up(VirtualLoadQueueSize+1).W))
+    val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize+1).W))
     val lqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val sqDeq = Output(UInt(log2Ceil(EnsbufferWidth + 1).W))
+    val mlsqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val lqCanAccept = Output(Bool())
     val sqCanAccept = Output(Bool())
+    val mlsqCanAccept = Output(Bool())
     val lqDeqPtr = Output(new LqPtr)
     val sqDeqPtr = Output(new SqPtr)
+    val mlsqDeqPtr = Output(new MlsqPtr)
     val exceptionAddr = new ExceptionAddrIO
     val loadMisalignFull = Input(Bool())
     val misalignAllowSpec = Input(Bool())
@@ -127,6 +137,7 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
     val flushSbuffer = new SbufferFlushBundle
     val force_write = Output(Bool())
     val lqEmpty = Output(Bool())
+    val mlsqEmpty = Output(Bool())
     val rarValidCount = Output(UInt())
     val wfi = Flipped(new WfiReqBundle)
     // top-down
@@ -138,6 +149,7 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
 
   val loadQueue = Module(new LoadQueue)
   val storeQueue = Module(new StoreQueue)
+  val mlsQueue = Module(new MlsQueue)
 
   storeQueue.io.hartId := io.hartId
   storeQueue.io.uncacheOutstanding := io.uncacheOutstanding
@@ -152,13 +164,19 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
   // io.enq logic
   // LSQ: send out canAccept when both load queue and store queue are ready
   // Dispatch: send instructions to LSQ only when they are ready
-  io.enq.canAccept := loadQueue.io.enq.canAccept && storeQueue.io.enq.canAccept
+  io.enq.canAccept := loadQueue.io.enq.canAccept && storeQueue.io.enq.canAccept && mlsQueue.io.enq.canAccept
   io.lqCanAccept := loadQueue.io.enq.canAccept
   io.sqCanAccept := storeQueue.io.enq.canAccept
+  io.mlsqCanAccept := mlsQueue.io.enq.canAccept
   loadQueue.io.enq.sqCanAccept := storeQueue.io.enq.canAccept
+  loadQueue.io.enq.mlsqCanAccept := mlsQueue.io.enq.canAccept
   storeQueue.io.enq.lqCanAccept := loadQueue.io.enq.canAccept
+  storeQueue.io.enq.mlsqCanAccept := mlsQueue.io.enq.canAccept
+  mlsQueue.io.enq.lqCanAccept := loadQueue.io.enq.canAccept
+  mlsQueue.io.enq.sqCanAccept := storeQueue.io.enq.canAccept
   io.lqDeqPtr := loadQueue.io.lqDeqPtr
   io.sqDeqPtr := storeQueue.io.sqDeqPtr
+  io.mlsqDeqPtr := mlsQueue.io.mlsqDeqPtr
   io.rarValidCount := loadQueue.io.rarValidCount
   for (i <- io.enq.req.indices) {
     loadQueue.io.enq.needAlloc(i)      := io.enq.needAlloc(i)(0)
@@ -171,8 +189,14 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
     storeQueue.io.enq.req(i).bits       := io.enq.req(i).bits
     storeQueue.io.enq.req(i).bits.lqIdx := loadQueue.io.enq.resp(i)
 
-    io.enq.resp(i).lqIdx := loadQueue.io.enq.resp(i)
-    io.enq.resp(i).sqIdx := storeQueue.io.enq.resp(i)
+    mlsQueue.io.enq.needAlloc(i)        := io.enq.needAlloc(i)(2)
+    mlsQueue.io.enq.req(i).valid        := io.enq.needAlloc(i)(2) && io.enq.req(i).valid
+    mlsQueue.io.enq.req(i).bits         := io.enq.req(i).bits
+    mlsQueue.io.enq.req(i).bits.lqIdx   := mlsQueue.io.enq.resp(i)
+
+    io.enq.resp(i).lqIdx  := loadQueue.io.enq.resp(i)
+    io.enq.resp(i).sqIdx  := storeQueue.io.enq.resp(i)
+    io.enq.resp(i).mlsqIdx := mlsQueue.io.enq.resp(i)
   }
 
   // store queue wiring
@@ -235,6 +259,18 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
   loadQueue.io.l2_hint             <> io.l2_hint
   loadQueue.io.tlb_hint            <> io.tlb_hint
   loadQueue.io.lqEmpty             <> io.lqEmpty
+
+  mlsQueue.io.mlsu                  <> io.mlsu
+  mlsQueue.io.redirect              <> io.brqRedirect
+  mlsQueue.io.mlsqFull              <> io.mlsqFull
+  mlsQueue.io.mlsqEmpty             <> io.mlsqEmpty
+  mlsQueue.io.mlsqDeq               <> io.mlsqDeq
+  mlsQueue.io.mlsqCancelCnt         <> io.mlsqCancelCnt
+  mlsQueue.io.replay                <> io.mls_replay
+  mlsQueue.io.tlb_hint              <> io.tlb_hint
+  mlsQueue.io.tlbReplayDelayCycleCtrl := tlbReplayDelayCycleCtrl
+  mlsQueue.io.mlsq_rep_full         <> io.mlsq_rep_full
+  // TODO: Implement me!
 
   // rob commits for lsq is delayed for two cycles, which causes the delayed update for deqPtr in lq/sq
   // s0: commit
@@ -333,37 +369,50 @@ class LsqEnqCtrl(implicit p: Parameters) extends XSModule
     val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     // from `memBlock.io.sqDeq`
     val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W))
+    // from `memBlock.io.mlsqDeq`
+    val mcommit = Input(UInt(log2Up(CommitWidth + 1).W)) // TODO: determine the width
     // from/tp lsq
     val lqCancelCnt = Input(UInt(log2Up(VirtualLoadQueueSize + 1).W))
     val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))
+    val mlsqCancelCnt = Input(UInt(log2Up(MlsQueueSize + 1).W))
     val lqFreeCount = Output(UInt(log2Up(VirtualLoadQueueSize + 1).W))
     val sqFreeCount = Output(UInt(log2Up(StoreQueueSize + 1).W))
+    val mlsqFreeCount = Output(UInt(log2Up(MlsQueueSize + 1).W))
     val enqLsq = Flipped(new LsqEnqIO)
   })
 
   val lqPtr = RegInit(0.U.asTypeOf(new LqPtr))
   val sqPtr = RegInit(0.U.asTypeOf(new SqPtr))
+  val mlsqPtr = RegInit(0.U.asTypeOf(new MlsqPtr))
   val lqCounter = RegInit(VirtualLoadQueueSize.U(log2Up(VirtualLoadQueueSize + 1).W))
   val sqCounter = RegInit(StoreQueueSize.U(log2Up(StoreQueueSize + 1).W))
+  val mlsqCounter = RegInit(MlsQueueSize.U(log2Up(MlsQueueSize + 1).W))
   val canAccept = RegInit(false.B)
 
   val blockVec = io.enq.iqAccept.map(!_) :+ true.B
   val numLsElem = io.enq.req.map(_.bits.numLsElem)
   val needEnqLoadQueue = VecInit(io.enq.req.map(x => x.valid && (FuType.isLoad(x.bits.fuType) || FuType.isVNonsegLoad(x.bits.fuType))))
   val needEnqStoreQueue = VecInit(io.enq.req.map(x => x.valid && (FuType.isStore(x.bits.fuType) || FuType.isVNonsegStore(x.bits.fuType))))
+  val needEnqMlsQueue = VecInit(io.enq.req.map(x => x.valid && FuType.isMls(x.bits.fuType)))
   val loadQueueElem = needEnqLoadQueue.zip(numLsElem).map(x => Mux(x._1, x._2, 0.U))
   val storeQueueElem = needEnqStoreQueue.zip(numLsElem).map(x => Mux(x._1, x._2, 0.U))
+  val mlsQueueElem = needEnqMlsQueue.zip(numLsElem).map(x => Mux(x._1, x._2, 0.U))
   val loadFlowPopCount = 0.U +: loadQueueElem.zipWithIndex.map{ case (l, i) =>
     loadQueueElem.take(i + 1).reduce(_ +& _).asTypeOf(UInt(elemIdxBits.W))
   }
   val storeFlowPopCount = 0.U +: storeQueueElem.zipWithIndex.map { case (s, i) =>
     storeQueueElem.take(i + 1).reduce(_ +& _).asTypeOf(UInt(elemIdxBits.W))
   }
+  val mlsFlowPopCount = 0.U +: mlsQueueElem.zipWithIndex.map { case (s, i) =>
+    mlsQueueElem.take(i + 1).reduce(_ +& _).asTypeOf(UInt(elemIdxBits.W))
+  }
   val lqAllocNumber = PriorityMux(blockVec.zip(loadFlowPopCount))
   val sqAllocNumber = PriorityMux(blockVec.zip(storeFlowPopCount))
+  val mlsqAllocNumber = PriorityMux(blockVec.zip(mlsFlowPopCount))
 
   io.lqFreeCount  := lqCounter
   io.sqFreeCount  := sqCounter
+  io.mlsqFreeCount := mlsqCounter
   // How to update ptr and counter:
   // (1) by default, updated according to enq/commit
   // (2) when redirect and dispatch queue is empty, update according to lsq
@@ -373,40 +422,51 @@ class LsqEnqCtrl(implicit p: Parameters) extends XSModule
   val t3_update = RegNext(t2_update)
   val t3_lqCancelCnt = GatedRegNext(io.lqCancelCnt)
   val t3_sqCancelCnt = GatedRegNext(io.sqCancelCnt)
+  val t3_mlsqCancelCnt = GatedRegNext(io.mlsqCancelCnt)
   when (t3_update) {
     lqPtr := lqPtr - t3_lqCancelCnt
     lqCounter := lqCounter + io.lcommit + t3_lqCancelCnt
     sqPtr := sqPtr - t3_sqCancelCnt
     sqCounter := sqCounter + io.scommit + t3_sqCancelCnt
+    mlsqPtr := mlsqPtr - t3_mlsqCancelCnt
+    mlsqCounter := mlsqCounter + io.mcommit + t3_mlsqCancelCnt
   }.elsewhen (!io.redirect.valid && io.enq.canAccept) {
     lqPtr := lqPtr + lqAllocNumber
     lqCounter := lqCounter + io.lcommit - lqAllocNumber
     sqPtr := sqPtr + sqAllocNumber
     sqCounter := sqCounter + io.scommit - sqAllocNumber
+    mlsqPtr := mlsqPtr + mlsqAllocNumber
+    mlsqCounter := mlsqCounter + io.mcommit - mlsqAllocNumber
   }.otherwise {
     lqCounter := lqCounter + io.lcommit
     sqCounter := sqCounter + io.scommit
+    mlsqCounter := mlsqCounter + io.mcommit
   }
 
 
   //TODO MaxAllocate and width of lqOffset/sqOffset needs to be discussed
   val lqMaxAllocate = LSQLdEnqWidth
   val sqMaxAllocate = LSQStEnqWidth
+  val mlsqMaxAllocate = LSQMlsEnqWidth
   val maxAllocate = lqMaxAllocate max sqMaxAllocate
   val ldCanAccept = lqCounter >= lqAllocNumber +& lqMaxAllocate.U
   val sqCanAccept = sqCounter >= sqAllocNumber +& sqMaxAllocate.U
+  val mlsqCanAccept = mlsqCounter >= mlsqAllocNumber +& mlsqMaxAllocate.U
   // It is possible that t3_update and enq are true at the same clock cycle.
   // For example, if redirect.valid lasts more than one clock cycle,
   // after the last redirect, new instructions may enter but previously redirect has not been resolved (updated according to the cancel count from LSQ).
   // To solve the issue easily, we block enqueue when t3_update, which is RegNext(t2_update).
-  io.enq.canAccept := RegNext(ldCanAccept && sqCanAccept && !t2_update)
+  io.enq.canAccept := RegNext(ldCanAccept && sqCanAccept && mlsqCanAccept && !t2_update)
   val lqOffset = Wire(Vec(io.enq.resp.length, UInt(lqPtr.value.getWidth.W)))
   val sqOffset = Wire(Vec(io.enq.resp.length, UInt(sqPtr.value.getWidth.W)))
+  val mlsqOffset = Wire(Vec(io.enq.resp.length, UInt(mlsqPtr.value.getWidth.W)))
   for ((resp, i) <- io.enq.resp.zipWithIndex) {
     lqOffset(i) := loadFlowPopCount(i)
     resp.lqIdx := lqPtr + lqOffset(i)
     sqOffset(i) := storeFlowPopCount(i)
     resp.sqIdx := sqPtr + sqOffset(i)
+    mlsqOffset(i) := mlsFlowPopCount(i)
+    resp.mlsqIdx := mlsqPtr + mlsqOffset(i)
   }
 
   io.enqLsq.needAlloc := RegNext(io.enq.needAlloc)
@@ -417,6 +477,7 @@ class LsqEnqCtrl(implicit p: Parameters) extends XSModule
     toLsq.bits := RegEnable(enq.bits, do_enq)
     toLsq.bits.lqIdx := RegEnable(resp.lqIdx, do_enq)
     toLsq.bits.sqIdx := RegEnable(resp.sqIdx, do_enq)
+    toLsq.bits.mlsqIdx := RegEnable(resp.mlsqIdx, do_enq)
   }
 
 }

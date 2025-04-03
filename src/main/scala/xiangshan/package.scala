@@ -171,6 +171,7 @@ package object xiangshan {
     def BRANCH = "b001".U  // branch
     def LOAD   = "b010".U  // load
     def STORE  = "b011".U  // store
+    def MLS    = "b100".U  // mls
 
     def apply() = UInt(3.W)
     def isFused(commitType: UInt): Bool = commitType(2)
@@ -579,9 +580,9 @@ package object xiangshan {
     def isLoad (func: UInt) = func(8) === "b0".U
     def isStore(func: UInt) = func(8) === "b1".U
 
-    def isMatrixC (func: UInt) = func(7, 3) === "b00001".U
-    def isMatrixA (func: UInt) = func(7, 3) === "b00010".U
-    def isMatrixB (func: UInt) = func(7, 3) === "b00100".U
+    def isMatrixA (func: UInt) = func(7, 3) === "b00001".U
+    def isMatrixB (func: UInt) = func(7, 3) === "b00010".U
+    def isMatrixC (func: UInt) = func(7, 3) === "b00100".U
     def isTile    (func: UInt) = func(7, 3) === "b01000".U
     def isAccum   (func: UInt) = func(7, 3) === "b10000".U
 

@@ -1426,6 +1426,7 @@ class LoadUnit(implicit p: Parameters) extends XSModule
   io.feedback_fast.bits.robIdx           := s2_in.uop.robIdx
   io.feedback_fast.bits.sqIdx            := s2_in.uop.sqIdx
   io.feedback_fast.bits.lqIdx            := s2_in.uop.lqIdx
+  io.feedback_fast.bits.mlsqIdx          := s2_in.uop.mlsqIdx
   io.feedback_fast.bits.sourceType       := RSFeedbackType.lrqFull
   io.feedback_fast.bits.dataInvalidSqIdx := DontCare
 
@@ -1670,6 +1671,7 @@ class LoadUnit(implicit p: Parameters) extends XSModule
   io.feedback_slow.bits.robIdx           := s3_in.uop.robIdx
   io.feedback_slow.bits.sqIdx            := s3_in.uop.sqIdx
   io.feedback_slow.bits.lqIdx            := s3_in.uop.lqIdx
+  io.feedback_slow.bits.mlsqIdx          := s3_in.uop.mlsqIdx
   io.feedback_slow.bits.sourceType       := RSFeedbackType.lrqFull
   io.feedback_slow.bits.dataInvalidSqIdx := DontCare
 

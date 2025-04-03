@@ -60,7 +60,7 @@ class BusyTable(numReadPorts: Int, numWritePorts: Int, numPhyPregs: Int, pregWB:
     // cancelFromDatapath
     val og0Cancel = Input(ExuVec())
     // cancelFromMem
-    val ldCancel = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
     // read preg state
     val read = Vec(numReadPorts, new BusyTableReadIO)
   })

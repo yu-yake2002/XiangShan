@@ -919,6 +919,7 @@ class VSegmentUnit (implicit p: Parameters) extends VLSUModule
   feedbackOut.dataInvalidSqIdx        := DontCare
   feedbackOut.sqIdx                   := uopq(deqPtr.value).uop.sqIdx
   feedbackOut.lqIdx                   := uopq(deqPtr.value).uop.lqIdx
+  feedbackOut.mlsqIdx                 := uopq(deqPtr.value).uop.mlsqIdx
 
   io.feedback.valid                   := RegNext(feedbackValid)
   io.feedback.bits                    := RegEnable(feedbackOut, feedbackValid)

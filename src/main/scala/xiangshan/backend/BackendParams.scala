@@ -107,9 +107,10 @@ case class BackendParams(
   def HyuCnt = allSchdParams.map(_.HyuCnt).sum
   def VlduCnt = allSchdParams.map(_.VlduCnt).sum
   def VstuCnt = allSchdParams.map(_.VstuCnt).sum
-  def MlsuCnt = allSchdParams.map(_.MlsuCnt).sum
+  def MlsCnt = allSchdParams.map(_.MlsCnt).sum
   def LsExuCnt = StaCnt + LduCnt + HyuCnt
-  val LdExuCnt = LduCnt + HyuCnt
+  val LdExuCnt = LduCnt + HyuCnt + MlsCnt
+  val LdWakeupCnt = LduCnt + HyuCnt
   val StaExuCnt = StaCnt + HyuCnt
   def JmpCnt = allSchdParams.map(_.JmpCnt).sum
   def BrhCnt = allSchdParams.map(_.BrhCnt).sum
@@ -132,6 +133,8 @@ case class BackendParams(
   def numLoadDp = memSchdParams.get.issueBlockParams.filter(x => x.isLdAddrIQ || x.isHyAddrIQ).map(_.numEnq).sum
 
   def numStoreDp = memSchdParams.get.issueBlockParams.filter(x => x.isStAddrIQ || x.isHyAddrIQ).map(_.numEnq).sum
+
+  def numMlsDp = memSchdParams.get.issueBlockParams.filter(x => x.isMatrixMemIQ).map(_.numEnq).sum
 
   def genIntIQValidNumBundle(implicit p: Parameters) = {
     this.intSchdParams.get.issueBlockParams.map(x => Vec(x.numDeq, UInt((x.numEntries).U.getWidth.W)))
@@ -355,7 +358,7 @@ case class BackendParams(
   }
 
   def getMemExuRCReadSize = {
-    this.allExuParams.filter(x => x.isMemExeUnit && x.readIntRf).map(_.numIntSrc).reduce(_ + _)
+    this.allExuParams.filter(x => x.isMemExeUnit && x.readIntRf && !x.readMxRf).map(_.numIntSrc).reduce(_ + _)
   }
 
   /**

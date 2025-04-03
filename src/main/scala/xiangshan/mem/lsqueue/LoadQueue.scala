@@ -131,6 +131,7 @@ trait HasLoadHelper { this: XSModule =>
 class LqEnqIO(implicit p: Parameters) extends MemBlockBundle {
   val canAccept = Output(Bool())
   val sqCanAccept = Input(Bool())
+  val mlsqCanAccept = Input(Bool())
   val needAlloc = Vec(LSQEnqWidth, Input(Bool()))
   val req = Vec(LSQEnqWidth, Flipped(ValidIO(new DynInst)))
   val resp = Vec(LSQEnqWidth, Output(new LqPtr))
@@ -181,7 +182,7 @@ class LoadQueue(implicit p: Parameters) extends XSModule
       val sqEmpty          = Input(Bool())
     }
     val ldout = Vec(LoadPipelineWidth, DecoupledIO(new MemExuOutput))
-    val ld_raw_data = Vec(LoadPipelineWidth, Output(new LoadDataFromLQBundle))
+    val ld_raw_data = Vec(LoadDataPipelineWidth, Output(new LoadDataFromLQBundle))
     val ncOut = Vec(LoadPipelineWidth, DecoupledIO(new LsPipelineBundle))
     val replay = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
   //  val refill = Flipped(ValidIO(new Refill))

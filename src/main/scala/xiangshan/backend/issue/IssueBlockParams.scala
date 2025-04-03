@@ -46,7 +46,7 @@ case class IssueBlockParams(
 
   def inVfSchd: Boolean = schdType == VfScheduler()
 
-  def isMemAddrIQ: Boolean = inMemSchd && (LduCnt > 0 || StaCnt > 0 || VlduCnt > 0 || VstuCnt > 0 || HyuCnt > 0)
+  def isMemAddrIQ: Boolean = inMemSchd && (LduCnt > 0 || StaCnt > 0 || VlduCnt > 0 || VstuCnt > 0 || HyuCnt > 0 || MlsCnt > 0)
 
   def isLdAddrIQ: Boolean = inMemSchd && LduCnt > 0
 
@@ -58,11 +58,15 @@ case class IssueBlockParams(
 
   def isVecStuIQ: Boolean = inMemSchd && (VstuCnt + VsegstuCnt) > 0
 
+  def isMatrixMemIQ: Boolean = inMemSchd && MlsCnt > 0
+
   def isVecMemIQ: Boolean = isVecLduIQ || isVecStuIQ
 
   def needFeedBackSqIdx: Boolean = isVecMemIQ || isStAddrIQ
 
   def needFeedBackLqIdx: Boolean = isVecMemIQ || isLdAddrIQ
+
+  def needFeedBackMlsqIdx: Boolean = isMatrixMemIQ
 
   def needLoadDependency: Boolean = exuBlockParams.map(_.needLoadDependency).reduce(_ || _)
 
@@ -196,7 +200,9 @@ case class IssueBlockParams(
 
   def HyuCnt: Int = exuBlockParams.count(_.hasHyldaFu) // only count hylda, since it equals to hysta
 
-  def LdExuCnt = LduCnt + HyuCnt
+  def LdExuCnt: Int = LduCnt + HyuCnt + MlsCnt
+
+  def LdWakeupCnt: Int = LduCnt + HyuCnt
 
   def VipuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vipu)).sum
 
@@ -206,7 +212,7 @@ case class IssueBlockParams(
 
   def VstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vstu)).sum
 
-  def MlsuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.mlsu)).sum
+  def MlsCnt: Int = exuBlockParams.count(_.hasMlsFu)
 
   def VseglduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vsegldu)).sum
 
@@ -393,7 +399,7 @@ case class IssueBlockParams(
       case _ => Seq()
     }
     val mxBundle = schdType match {
-      case MfScheduler() => needWakeupFromMxWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
+      case MfScheduler() | MemScheduler() => needWakeupFromMxWBPort.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq
       case _ => Seq()
     }
     MixedVec(intBundle ++ fpBundle ++ vfBundle ++ v0Bundle ++ vlBundle ++ mxBundle)

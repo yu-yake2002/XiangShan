@@ -74,7 +74,7 @@ class DebugLsInfoBundle(implicit p: Parameters) extends DebugLsInfo {
 }
 
 class DebugLSIO(implicit p: Parameters) extends XSBundle {
-  val debugLsInfo = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.StaCnt + backendParams.HyuCnt, Output(new DebugLsInfoBundle))
+  val debugLsInfo = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt + backendParams.StaCnt + backendParams.HyuCnt, Output(new DebugLsInfoBundle))
 }
 class LsTopdownInfo(implicit p: Parameters) extends XSBundle {
   val s1 = new Bundle {

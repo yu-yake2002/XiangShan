@@ -12,6 +12,8 @@ import xiangshan.backend.datapath.DataConfig._
 import xiangshan.backend.datapath.WbConfig._
 import xiangshan.backend.fu.FuType
 import xiangshan.backend.regfile.RfWritePortWithConfig
+import xiangshan.mem.Bundles.MemWaitUpdateReqBundle
+import xiangshan.mem.{LsqEnqCtrl, LsqEnqIO, SqPtr, LqPtr, MlsqPtr}
 import xiangshan.backend.datapath.WbConfig.V0WB
 import xiangshan.backend.regfile.VlPregParams
 import xiangshan.backend.regcache.RegCacheTagTable
@@ -136,7 +138,7 @@ class SchedulerIO()(implicit params: SchdBlockParams, p: Parameters) extends XSB
   val memAddrIssueResp = MixedVec(params.issueBlockParams.map(x => MixedVec(Vec(x.LdExuCnt, Flipped(ValidIO(new IssueQueueDeqRespBundle()(p, x)))))))
   val vecLoadIssueResp = MixedVec(params.issueBlockParams.map(x => MixedVec(Vec(x.VlduCnt, Flipped(ValidIO(new IssueQueueDeqRespBundle()(p, x)))))))
 
-  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
 
   val fromMem = if (params.isMemSchd) Some(new Bundle {
     val ldaFeedback = Flipped(Vec(params.LduCnt, new MemRSFeedbackIO))
@@ -144,15 +146,19 @@ class SchedulerIO()(implicit params: SchdBlockParams, p: Parameters) extends XSB
     val hyuFeedback = Flipped(Vec(params.HyuCnt, new MemRSFeedbackIO))
     val vstuFeedback = Flipped(Vec(params.VstuCnt, new MemRSFeedbackIO(isVector = true)))
     val vlduFeedback = Flipped(Vec(params.VlduCnt, new MemRSFeedbackIO(isVector = true)))
+    val mlsFeedback = Flipped(Vec(params.MlsCnt, new MemRSFeedbackIO))
     val stIssuePtr = Input(new SqPtr())
     val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W)) // connected to `memBlock.io.sqDeq` instead of ROB
-    val wakeup = Vec(params.LdExuCnt, Flipped(Valid(new DynInst)))
+    val mcommit = Input(UInt(log2Up(CommitWidth + 1).W))
+    val wakeup = Vec(params.LdWakeupCnt, Flipped(Valid(new DynInst)))
     val lqDeqPtr = Input(new LqPtr)
     val sqDeqPtr = Input(new SqPtr)
+    val mlsqDeqPtr = Input(new MlsqPtr)
     // from lsq
     val lqCancelCnt = Input(UInt(log2Up(LoadQueueSize + 1).W))
     val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))
+    val mlsqCancelCnt = Input(UInt(log2Up(MlsQueueSize + 1).W))
     val memWaitUpdateReq = Flipped(new MemWaitUpdateReqBundle)
   }) else None
   val toMem = if (params.isMemSchd) Some(new Bundle {
@@ -429,6 +435,7 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
   val memAddrIQs = issueQueues.filter(_.params.isMemAddrIQ)
   val stAddrIQs = issueQueues.filter(iq => iq.params.StaCnt > 0) // included in memAddrIQs
   val ldAddrIQs = issueQueues.filter(iq => iq.params.LduCnt > 0)
+  val mlsAddrIQs = issueQueues.filter(iq => iq.params.MlsCnt > 0)
   val stDataIQs = issueQueues.filter(iq => iq.params.StdCnt > 0)
   val vecMemIQs = issueQueues.filter(_.params.isVecMemIQ)
   val (hyuIQs, hyuIQIdxs) = issueQueues.zipWithIndex.filter(_._1.params.HyuCnt > 0).unzip
@@ -436,13 +443,14 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
   println(s"[SchedulerMemImp] memAddrIQs.size: ${memAddrIQs.size}, enq.size: ${memAddrIQs.map(_.io.enq.size).sum}")
   println(s"[SchedulerMemImp] stAddrIQs.size:  ${stAddrIQs.size }, enq.size: ${stAddrIQs.map(_.io.enq.size).sum}")
   println(s"[SchedulerMemImp] ldAddrIQs.size:  ${ldAddrIQs.size }, enq.size: ${ldAddrIQs.map(_.io.enq.size).sum}")
+  println(s"[SchedulerMemImp] mlsAddrIQs.size: ${mlsAddrIQs.size}, enq.size: ${mlsAddrIQs.map(_.io.enq.size).sum}")
   println(s"[SchedulerMemImp] stDataIQs.size:  ${stDataIQs.size }, enq.size: ${stDataIQs.map(_.io.enq.size).sum}")
   println(s"[SchedulerMemImp] hyuIQs.size:     ${hyuIQs.size    }, enq.size: ${hyuIQs.map(_.io.enq.size).sum}")
   require(memAddrIQs.nonEmpty && stDataIQs.nonEmpty)
 
   io.toMem.get.loadFastMatch := 0.U.asTypeOf(io.toMem.get.loadFastMatch) // TODO: is still needed?
 
-  private val loadWakeUp = issueQueues.filter(_.params.LdExuCnt > 0).map(_.asInstanceOf[IssueQueueMemAddrImp].io.memIO.get.loadWakeUp).flatten
+  private val loadWakeUp = issueQueues.filter(_.params.LdWakeupCnt > 0).map(_.asInstanceOf[IssueQueueMemAddrImp].io.memIO.get.loadWakeUp).flatten
   require(loadWakeUp.length == io.fromMem.get.wakeup.length)
   loadWakeUp.zip(io.fromMem.get.wakeup).foreach(x => x._1 := x._2)
 
@@ -483,6 +491,13 @@ class SchedulerMemImp(override val wrapper: Scheduler)(implicit params: SchdBloc
       imp.io.memIO.get.checkWait.stIssuePtr := io.fromMem.get.stIssuePtr
       imp.io.memIO.get.checkWait.memWaitUpdateReq := io.fromMem.get.memWaitUpdateReq
     case _ =>
+  }
+
+  mlsAddrIQs.zipWithIndex.foreach {
+    case (imp: IssueQueueMemAddrImp, i) =>
+      imp.io.memIO.get.feedbackIO.head := io.fromMem.get.mlsFeedback(i)
+      imp.io.memIO.get.checkWait.stIssuePtr := io.fromMem.get.stIssuePtr // TODO: check me!
+      imp.io.memIO.get.checkWait.memWaitUpdateReq := io.fromMem.get.memWaitUpdateReq
   }
 
   hyuIQs.zip(hyuIQIdxs).foreach {
