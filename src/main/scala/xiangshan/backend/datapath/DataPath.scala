@@ -20,7 +20,7 @@ import xiangshan.backend.regfile._
 import xiangshan.backend.regcache._
 import xiangshan.backend.fu.FuConfig
 import xiangshan.backend.fu.FuType.is0latency
-import xiangshan.mem.{LqPtr, SqPtr}
+import xiangshan.mem.{LqPtr, SqPtr, MlsqPtr}
 
 class DataPath(params: BackendParams)(implicit p: Parameters) extends LazyModule {
   override def shouldBeInlined: Boolean = false
@@ -48,10 +48,6 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val (fromVfIQ,  toVfIQ,  toVfExu ) = (io.fromVfIQ,  io.toVfIQ,  io.toVecExu)
   private val (fromVecExcp, toVecExcp)       = (io.fromVecExcpMod, io.toVecExcpMod)
   private val (fromMfIQ,  toMfIQ,  toMfExu)  = (io.fromMfIQ,  io.toMfIQ,  io.toMfExu)
-
-  dontTouch(io.fromMfIQ)
-  dontTouch(io.toMfIQ)
-  dontTouch(io.toMfExu)
 
   println(s"[DataPath] IntIQ(${fromIntIQ.size}), FpIQ(${fromFpIQ.size}), VecIQ(${fromVfIQ.size}), MatrixIQ(${fromMfIQ.size}), MemIQ(${fromMemIQ.size})")
   println(s"[DataPath] IntExu(${fromIntIQ.map(_.size).sum}), FpExu(${fromFpIQ.map(_.size).sum}), VecExu(${fromVfIQ.map(_.size).sum}), MatrixExu(${fromMfIQ.map(_.size).sum}), MemExu(${fromMemIQ.map(_.size).sum})")
@@ -299,13 +295,6 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   private val mxRfWen = Wire(Vec(io.fromMxWb.length, Bool()))
   private val mxRfWaddr = Wire(Vec(io.fromMxWb.length, UInt(log2Up(MxPhyRegs).W)))
   private val mxRfWdata = Wire(Vec(io.fromMxWb.length, UInt(MxData().dataWidth.W)))
-  if (backendParams.debugEn) {
-    dontTouch(mxRfRaddr)
-    dontTouch(mxRfRdata)
-    dontTouch(mxRfWen)
-    dontTouch(mxRfWaddr)
-    dontTouch(mxRfWdata)
-  }
 
   val pcReadFtqPtrFormIQ = (fromIntIQ ++ fromMemIQ).flatten.filter(x => x.bits.exuParams.needPc)
   assert(pcReadFtqPtrFormIQ.size == pcReadFtqPtr.size, s"pcReadFtqPtrFormIQ.size ${pcReadFtqPtrFormIQ.size} not equal pcReadFtqPtr.size ${pcReadFtqPtr.size}")
@@ -543,7 +532,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   }
 
   private val regCacheReadReq = fromIntIQ.flatten.filter(_.bits.exuParams.numIntSrc > 0).flatMap(IssueBundle2RCReadPort(_)) ++ 
-                                fromMemIQ.flatten.filter(_.bits.exuParams.numIntSrc > 0).flatMap(IssueBundle2RCReadPort(_))
+                                fromMemIQ.flatten.filter(_.bits.exuParams.numIntSrc > 0).filter(_.bits.exuParams.numMxSrc == 0).flatMap(IssueBundle2RCReadPort(_))
   private val regCacheReadData = regCache.io.readPorts.map(_.data)
 
   println(s"[DataPath] regCache readPorts size: ${regCache.io.readPorts.size}, regCacheReadReq size: ${regCacheReadReq.size}")
@@ -560,7 +549,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
     .zip(regCacheReadData.take(params.getIntExuRCReadSize)).foreach{ case (s1_data, rdata) => 
       s1_data := rdata
     }
-  s1_RCReadData.zip(toExu).filter(_._2.map(x => x.bits.params.isMemExeUnit && x.bits.params.readIntRf).reduce(_ || _)).flatMap(_._1).flatten
+  s1_RCReadData.zip(toExu).filter(_._2.map(x => x.bits.params.isMemExeUnit && x.bits.params.readIntRf && !x.bits.params.readMxRf).reduce(_ || _)).flatMap(_._1).flatten
     .zip(regCacheReadData.takeRight(params.getMemExuRCReadSize)).foreach{ case (s1_data, rdata) => 
       s1_data := rdata
     }
@@ -722,6 +711,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
           og0resp.bits.uopIdx.foreach(_ := fromIQ(iqIdx)(iuIdx).bits.common.vpu.get.vuopIdx)
           og0resp.bits.sqIdx.foreach(_ := 0.U.asTypeOf(new SqPtr))
           og0resp.bits.lqIdx.foreach(_ := 0.U.asTypeOf(new LqPtr))
+          og0resp.bits.mlsqIdx.foreach(_ := 0.U.asTypeOf(new MlsqPtr))
           og0resp.bits.resp             := RespType.block
           og0resp.bits.fuType           := fromIQ(iqIdx)(iuIdx).bits.common.fuType
 
@@ -732,6 +722,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
           og1resp.bits.uopIdx.foreach(_ := s1_toExuData(iqIdx)(iuIdx).vpu.get.vuopIdx)
           og1resp.bits.sqIdx.foreach(_ :=  0.U.asTypeOf(new SqPtr))
           og1resp.bits.lqIdx.foreach(_ :=  0.U.asTypeOf(new LqPtr))
+          og1resp.bits.mlsqIdx.foreach(_ := 0.U.asTypeOf(new MlsqPtr))
           // respType:  success    -> IQ entry clear
           //            uncertain  -> IQ entry no action
           //            block      -> IQ entry issued set false, then re-issue
@@ -1032,7 +1023,7 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
 
   val og1Cancel = Output(ExuVec())
 
-  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
 
   val toIntExu: MixedVec[MixedVec[DecoupledIO[ExuInput]]] = intSchdParams.genExuInputBundle
 

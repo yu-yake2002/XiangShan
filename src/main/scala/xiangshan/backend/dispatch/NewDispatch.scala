@@ -121,7 +121,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
       val wakeUpMem: MixedVec[ValidIO[IssueQueueIQWakeUpBundle]] = Flipped(backendParams.memSchdParams.get.genIQWakeUpOutValidBundle)
     }
     val og0Cancel = Input(ExuVec())
-    val ldCancel = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
     // to vlbusytable
     val vlWriteBackInfo = new Bundle {
       val vlFromIntIsZero  = Input(Bool())
@@ -133,11 +133,14 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val fromMem = new Bundle {
       val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
       val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W)) // connected to `memBlock.io.sqDeq` instead of ROB
+      val mcommit = Input(UInt(log2Up(CommitWidth + 1).W)) // TODO: determine the width
       val lqDeqPtr = Input(new LqPtr)
       val sqDeqPtr = Input(new SqPtr)
+      val mlsqDeqPtr = Input(new MlsqPtr)
       // from lsq
       val lqCancelCnt = Input(UInt(log2Up(VirtualLoadQueueSize + 1).W))
       val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))
+      val mlsqCancelCnt = Input(UInt(log2Up(MlsQueueSize + 1).W))
     }
     //toMem
     val toMem = new Bundle {
@@ -155,6 +158,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val stallReason = Flipped(new StallReasonIO(RenameWidth))
     val lqCanAccept = Input(Bool())
     val sqCanAccept = Input(Bool())
+    val mlsqCanAccept = Input(Bool())
     val robHeadNotReady = Input(Bool())
     val robFull = Input(Bool())
     val debugTopDown = new Bundle {
@@ -536,14 +540,17 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
   lsqEnqCtrl.io.redirect := RegNext(io.redirect)
   lsqEnqCtrl.io.lcommit := io.fromMem.lcommit
   lsqEnqCtrl.io.scommit := io.fromMem.scommit
+  lsqEnqCtrl.io.mcommit := io.fromMem.mcommit
   lsqEnqCtrl.io.lqCancelCnt := io.fromMem.lqCancelCnt
   lsqEnqCtrl.io.sqCancelCnt := io.fromMem.sqCancelCnt
+  lsqEnqCtrl.io.mlsqCancelCnt := io.fromMem.mlsqCancelCnt
   lsqEnqCtrl.io.enq.iqAccept := io.fromRename.map(x => !x.valid || x.fire)
   io.toMem.lsqEnqIO <> lsqEnqCtrl.io.enqLsq
 
   private val enqLsqIO = lsqEnqCtrl.io.enq
   private val lqFreeCount = lsqEnqCtrl.io.lqFreeCount
   private val sqFreeCount = lsqEnqCtrl.io.sqFreeCount
+  private val mlsqFreeCount = lsqEnqCtrl.io.mlsqFreeCount
 
   private val numLoadDeq = LSQLdEnqWidth
   private val numStoreAMODeq = LSQStEnqWidth
@@ -553,6 +560,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
 
   private val isLoadVec = VecInit(fromRename.map(x => x.valid && FuType.isLoad(x.bits.fuType)))
   private val isStoreVec = VecInit(fromRename.map(x => x.valid && FuType.isStore(x.bits.fuType)))
+  private val isMlsVec = VecInit(fromRename.map(x => x.valid && FuType.isMls(x.bits.fuType)))
   private val isAMOVec = fromRename.map(x => x.valid && FuType.isAMO(x.bits.fuType))
   private val isStoreAMOVec = fromRename.map(x => x.valid && (FuType.isStore(x.bits.fuType) || FuType.isAMO(x.bits.fuType)))
   private val isVLoadVec = VecInit(fromRename.map(x => x.valid && FuType.isVLoad(x.bits.fuType)))
@@ -567,6 +575,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     // update lqIdx sqIdx
     fromRenameUpdate(i).bits.lqIdx := s0_enqLsq_resp(i).lqIdx
     fromRenameUpdate(i).bits.sqIdx := s0_enqLsq_resp(i).sqIdx
+    fromRenameUpdate(i).bits.mlsqIdx := s0_enqLsq_resp(i).mlsqIdx
   }
 
   val loadBlockVec = VecInit(loadCntVec.map(_ > numLoadDeq.U))
@@ -708,6 +717,8 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
   for (i <- enqLsqIO.req.indices) {
     when(!io.fromRename(i).fire) {
       enqLsqIO.needAlloc(i) := 0.U
+    }.elsewhen(isMlsVec(i)) {
+      enqLsqIO.needAlloc(i) := 4.U // matrix load | store
     }.elsewhen(isStoreVec(i) || isVStoreVec(i)) {
       enqLsqIO.needAlloc(i) := 2.U // store | vstore
     }.elsewhen(isLoadVec(i) || isVLoadVec(i)){
@@ -911,9 +922,10 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val headIsDiv = FuType.isDivSqrt(io.robHead.getDebugFuType) && io.robHeadNotReady
     val headIsLd  = io.robHead.getDebugFuType === FuType.ldu.U && io.robHeadNotReady || !io.lqCanAccept
     val headIsSt  = io.robHead.getDebugFuType === FuType.stu.U && io.robHeadNotReady || !io.sqCanAccept
+    val headIsMls = io.robHead.getDebugFuType === FuType.mls.U && io.robHeadNotReady || !io.mlsqCanAccept
     val headIsAmo = io.robHead.getDebugFuType === FuType.mou.U && io.robHeadNotReady
     val headIsLs  = headIsLd || headIsSt
-    val robLsFull = io.robFull || !io.lqCanAccept || !io.sqCanAccept
+    val robLsFull = io.robFull || !io.lqCanAccept || !io.sqCanAccept || !io.mlsqCanAccept
 
     import TopDownCounters._
     update := MuxCase(OtherCoreStall.id.U, Seq(

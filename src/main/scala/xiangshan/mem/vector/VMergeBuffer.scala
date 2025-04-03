@@ -359,6 +359,7 @@ abstract class BaseVMergeBuffer(isVStore: Boolean=false)(implicit p: Parameters)
     feedbackOut.dataInvalidSqIdx         := DontCare
     feedbackOut.sqIdx                    := selEntry.uop.sqIdx
     feedbackOut.lqIdx                    := selEntry.uop.lqIdx
+    feedbackOut.mlsqIdx                  := selEntry.uop.mlsqIdx
 
     io.feedback(i).valid                 := RegNext(feedbackValid)
     io.feedback(i).bits                  := RegEnable(feedbackOut, feedbackValid)

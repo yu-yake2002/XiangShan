@@ -177,7 +177,7 @@ case class FuConfig (
 
   def needMPUCtrl: Boolean = {
     import FuType._
-    Seq(mlsu, mma, marith, mmvef).contains(fuType)
+    Seq(mma, marith, mmvef).contains(fuType)
   }
 
   def needCriticalErrors: Boolean = Seq(FuType.csr).contains(fuType)
@@ -511,7 +511,7 @@ object FuConfig {
     piped = true,
     needAmuCtrl = true,
     latency = CertainLatency(0),
-    immType = Set(SelImm.IMM_LUI32)
+    immType = Set(SelImm.IMM_MATRIXREG)
   )
 
   val MarithCfg: FuConfig = FuConfig (
@@ -524,25 +524,7 @@ object FuConfig {
     piped = true,
     needAmuCtrl = true,
     latency = CertainLatency(0),
-    immType = Set(SelImm.IMM_LUI32)
-  )
-
-  val MlsuCfg: FuConfig = FuConfig (
-    name = "mlsu",
-    fuType = FuType.mlsu,
-    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mlsu(cfg)(p).suggestName("Mlsu")),
-    srcData = Seq(
-      Seq(IntData(), IntData(), MxData(), MxData()),
-    ),
-    piped = true, // Todo: check it
-    needAmuCtrl = true,
-    // exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, breakPoint, hardwareError),
-    // flushPipe = true,
-    // replayInst = true,
-    // hasLoadError = true,
-    // trigger = true,
-    latency = CertainLatency(0),
-    immType = Set(SelImm.IMM_LUI32)
+    immType = Set(SelImm.IMM_MATRIXREG)
   )
 
   val LduCfg: FuConfig = FuConfig (
@@ -585,7 +567,7 @@ object FuConfig {
     fuGen = (p: Parameters, cfg: FuConfig) => Module(new Std(cfg)(p).suggestName("Std")),
     srcData = Seq(
       Seq(IntData()),
-      Seq(IntData()),
+      Seq(FpData()),
     ),
     piped = true,
     latency = CertainLatency(0)
@@ -620,6 +602,24 @@ object FuConfig {
     latency = UncertainLatency(),
     exceptionOut = Seq(storeAddrMisaligned, storeAccessFault, storePageFault, storeGuestPageFault, breakPoint, hardwareError),
     immType = Set(SelImm.IMM_S),
+  )
+
+  val MlsCfg: FuConfig = FuConfig (
+    name = "mls",
+    fuType = FuType.mls,
+    fuGen = null,
+    srcData = Seq(
+      Seq(IntData(), IntData(), MxData(), MxData()),
+    ),
+    piped = false, // Todo: check it
+    needAmuCtrl = true,
+    exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, hardwareError),
+    replayInst = true,
+    hasLoadError = true,
+    // If TLB hits, it will take 3 cycle.
+    // Otherwise, it will take uncertain cycles.
+    latency = UncertainLatency(3),
+    immType = Set(SelImm.IMM_MATRIXREG)
   )
 
   val FakeHystaCfg = FuConfig (
@@ -975,7 +975,8 @@ object FuConfig {
     FaluCfg, FmacCfg, FcvtCfg, FdivCfg,
     VfaluCfg, VfmaCfg, VfcvtCfg, HyldaCfg, HystaCfg,
     MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg,
-    MSetMtypeRiWiCfg, MsetMtypeRiWmfCfg
+    MSetMtypeRiWiCfg, MsetMtypeRiWmfCfg,
+    MmaCfg, MarithCfg, MlsCfg,
   )
 
   def VecArithFuConfigs = Seq(

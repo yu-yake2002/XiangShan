@@ -269,8 +269,8 @@ class LoadQueueUncache(implicit p: Parameters) extends XSModule
     // enqueue: from ldu s3
     val req = Vec(LoadPipelineWidth, Flipped(Decoupled(new LqWriteBundle)))
     // writeback: mmio to ldu s0, s3
-    val mmioOut = Vec(LoadPipelineWidth, DecoupledIO(new MemExuOutput))
-    val mmioRawData = Vec(LoadPipelineWidth, Output(new LoadDataFromLQBundle))
+    val mmioOut = Vec(LoadDataPipelineWidth, DecoupledIO(new MemExuOutput))
+    val mmioRawData = Vec(LoadDataPipelineWidth, Output(new LoadDataFromLQBundle))
     // writeback: nc to ldu s0--s3
     val ncOut = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
     // <=>uncache

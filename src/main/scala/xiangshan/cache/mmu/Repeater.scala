@@ -207,7 +207,7 @@ class PTWFilterEntry(Width: Int, Size: Int, hasHint: Boolean = false)(implicit p
   io.getGpa := 0.U
 
   // ugly code, should be optimized later
-  require(Width <= 4, s"DTLB Filter Width ($Width) must equal or less than 4")
+  // require(Width <= 4, s"DTLB Filter Width ($Width) must equal or less than 4")
   if (Width == 1) {
     require(Size == 8, s"prefetch filter Size ($Size) should be 8")
     canenq(0) := !(Cat(v).andR)
@@ -233,6 +233,14 @@ class PTWFilterEntry(Width: Int, Size: Int, hasHint: Boolean = false)(implicit p
       canenq(i) := !(Cat(VecInit(v.slice(i * 4, (i + 1) * 4))).andR)
       enqidx(i) := firstValidIndex(v.slice(i * 4, (i + 1) * 4), false.B) + (i * 4).U
     }
+  } else if (Width == 5) {
+    require(Size == 32, s"load filter Size ($Size) should be 32")
+    for (i <- 0 until (Width - 1)) {
+      canenq(i) := !(Cat(VecInit(v.slice(i * 4, (i + 1) * 4))).andR)
+      enqidx(i) := firstValidIndex(v.slice(i * 4, (i + 1) * 4), false.B) + (i * 4).U
+    }
+    canenq(4) := !(Cat(v.drop(16)).andR)
+    enqidx(4) := firstValidIndex(v.drop(16), false.B) + 16.U
   }
 
   for (i <- 0 until Width) {
@@ -341,6 +349,7 @@ class PTWNewFilter(Width: Int, Size: Int, FenceDelay: Int)(implicit p: Parameter
   private val LduCnt = backendParams.LduCnt
   private val HyuCnt = backendParams.HyuCnt
   private val StaCnt = backendParams.StaCnt
+  private val MlsCnt = backendParams.MlsCnt
   // all load execute units, including ldu and hyu
   private val LdExuCnt = backendParams.LdExuCnt
   // all store address execute units, including sta and hyu

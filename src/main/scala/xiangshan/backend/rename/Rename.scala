@@ -202,6 +202,7 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
     uop.debugInfo     := DontCare
     uop.lqIdx         := DontCare
     uop.sqIdx         := DontCare
+    uop.mlsqIdx       := DontCare
     uop.waitForRobIdx := DontCare
     uop.singleStep    := DontCare
     uop.snapshot      := DontCare

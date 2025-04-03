@@ -43,7 +43,7 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
 
 case class MLS(fuOp: BitPat, transposed: Boolean = false) extends XSDecodeBase {
   def generate(): List[BitPat] = {
-    val fu = FuType.mlsu
+    val fu = FuType.mls
     val src1: BitPat = SrcType.xp
     val src2: BitPat = SrcType.xp
     val src3: BitPat = SrcType.mx

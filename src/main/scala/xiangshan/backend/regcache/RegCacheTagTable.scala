@@ -122,5 +122,5 @@ class RegCacheTagTableIO(numReadPorts: Int)(implicit p: Parameters) extends XSBu
   val og0Cancel = Input(ExuVec())
 
   // cancelFromMem
-  val ldCancel = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
 }

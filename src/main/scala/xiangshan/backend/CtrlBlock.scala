@@ -37,7 +37,7 @@ import xiangshan.backend.fu.wrapper.CSRToDecode
 import xiangshan.backend.rename.{Rename, RenameTableWrapper, SnapshotGenerator}
 import xiangshan.backend.rob.{Rob, RobCSRIO, RobCoreTopDownIO, RobDebugRollingIO, RobLsqIO, RobPtr}
 import xiangshan.frontend.{FtqPtr, FtqRead, Ftq_RF_Components}
-import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr}
+import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr, MlsqPtr}
 import xiangshan.backend.issue.{FpScheduler, IntScheduler, MemScheduler, VfScheduler}
 import xiangshan.backend.trace._
 
@@ -717,12 +717,16 @@ class CtrlBlockImp(
   dispatch.io.stallReason <> rename.io.stallReason.out
   dispatch.io.lqCanAccept := io.lqCanAccept
   dispatch.io.sqCanAccept := io.sqCanAccept
+  dispatch.io.mlsqCanAccept := io.mlsqCanAccept
   dispatch.io.fromMem.lcommit := io.fromMemToDispatch.lcommit
   dispatch.io.fromMem.scommit := io.fromMemToDispatch.scommit
+  dispatch.io.fromMem.mcommit := io.fromMemToDispatch.mcommit
   dispatch.io.fromMem.lqDeqPtr := io.fromMemToDispatch.lqDeqPtr
   dispatch.io.fromMem.sqDeqPtr := io.fromMemToDispatch.sqDeqPtr
+  dispatch.io.fromMem.mlsqDeqPtr := io.fromMemToDispatch.mlsqDeqPtr
   dispatch.io.fromMem.lqCancelCnt := io.fromMemToDispatch.lqCancelCnt
   dispatch.io.fromMem.sqCancelCnt := io.fromMemToDispatch.sqCancelCnt
+  dispatch.io.fromMem.mlsqCancelCnt := io.fromMemToDispatch.mlsqCancelCnt
   io.toMem.lsqEnqIO <> dispatch.io.toMem.lsqEnqIO
   dispatch.io.wakeUpAll.wakeUpInt := io.toDispatch.wakeUpInt
   dispatch.io.wakeUpAll.wakeUpFp  := io.toDispatch.wakeUpFp
@@ -901,11 +905,14 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
   val fromMemToDispatch = new Bundle {
     val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W)) // connected to `memBlock.io.sqDeq` instead of ROB
+    val mcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     val lqDeqPtr = Input(new LqPtr)
     val sqDeqPtr = Input(new SqPtr)
+    val mlsqDeqPtr = Input(new MlsqPtr)
     // from lsq
     val lqCancelCnt = Input(UInt(log2Up(VirtualLoadQueueSize + 1).W))
     val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))
+    val mlsqCancelCnt = Input(UInt(log2Up(MlsQueueSize + 1).W))
   }
   //toMem
   val toMem = new Bundle {
@@ -924,7 +931,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val maxIQSize = allIssueParams.map(_.numEntries).max
     val IQValidNumVec = Vec(exuNum, Input(UInt(maxIQSize.U.getWidth.W)))
     val og0Cancel = Input(ExuVec())
-    val ldCancel = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
     val wbPregsInt = Vec(backendParams.numPregWb(IntData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsFp = Vec(backendParams.numPregWb(FpData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsVec = Vec(backendParams.numPregWb(VecData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
@@ -964,7 +971,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val csr = new RobCSRIO
     val exception = ValidIO(new ExceptionInfo)
     val lsq = new RobLsqIO
-    val lsTopdownInfo = Vec(params.LduCnt + params.HyuCnt, Input(new LsTopdownInfo))
+    val lsTopdownInfo = Vec(params.LduCnt + params.HyuCnt + params.MlsCnt, Input(new LsTopdownInfo))
     val debug_ls = Input(new DebugLSIO())
     val robHeadLsIssue = Input(Bool())
     val robDeqPtr = Output(new RobPtr)
@@ -1021,6 +1028,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
 
   val sqCanAccept = Input(Bool())
   val lqCanAccept = Input(Bool())
+  val mlsqCanAccept = Input(Bool())
 
   val debugTopDown = new Bundle {
     val fromRob = new RobCoreTopDownIO

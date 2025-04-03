@@ -21,8 +21,7 @@ import xiangshan.backend.issue.EntryBundles._
 import xiangshan.backend.regfile.{RfReadPortWithConfig, RfWritePortWithConfig}
 import xiangshan.backend.rob.RobPtr
 import xiangshan.frontend._
-import xiangshan.mem.{LqPtr, SqPtr}
-import xiangshan.mem.{VecMissalignedDebugBundle}
+import xiangshan.mem.{LqPtr, SqPtr, MlsqPtr, VecMissalignedDebugBundle}
 import yunsuan.vector.VIFuParam
 import xiangshan.backend.trace._
 import utility._
@@ -261,6 +260,7 @@ object Bundles {
     // Todo
     val lqIdx = new LqPtr
     val sqIdx = new SqPtr
+    val mlsqIdx = new MlsqPtr
     // debug module
     val singleStep      = Bool()
     // schedule
@@ -774,6 +774,7 @@ object Bundles {
 
     val sqIdx = if (params.hasMemAddrFu || params.hasStdFu) Some(new SqPtr) else None
     val lqIdx = if (params.hasMemAddrFu) Some(new LqPtr) else None
+    val mlsqIdx = if (params.hasMemAddrFu) Some(new MlsqPtr) else None
     val dataSources = Vec(params.numRegSrc, DataSource())
     val exuSources = OptionWrapper(params.isIQWakeUpSink, Vec(params.numRegSrc, ExuSource(params)))
     val srcTimer = OptionWrapper(params.isIQWakeUpSink, Vec(params.numRegSrc, UInt(3.W)))
@@ -819,6 +820,7 @@ object Bundles {
       this.ssid          .foreach(_ := source.common.ssid.get)
       this.lqIdx         .foreach(_ := source.common.lqIdx.get)
       this.sqIdx         .foreach(_ := source.common.sqIdx.get)
+      this.mlsqIdx       .foreach(_ := source.common.mlsqIdx.get)
       this.numLsElem     .foreach(_ := source.common.numLsElem.get)
       this.srcTimer      .foreach(_ := source.common.srcTimer.get)
       this.loadDependency.foreach(_ := source.common.loadDependency.get.map(_ << 1))
@@ -851,6 +853,7 @@ object Bundles {
     val lqIdx        = if (params.hasLoadFu)    Some(new LqPtr())             else None
     val sqIdx        = if (params.hasStoreAddrFu || params.hasStdFu)
                                                 Some(new SqPtr())             else None
+    val mlsqIdx      = if (params.hasMlsFu)     Some(new MlsqPtr())           else None
     val trigger      = if (params.trigger)      Some(TriggerAction())         else None
     // uop info
     val predecodeInfo = if(params.hasPredecode) Some(new PreDecodeInfo) else None
@@ -1097,9 +1100,15 @@ object Bundles {
     val pdest = UInt(PhyRegIdxWidth.W)
   }
 
-  class MemExuInput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuInput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
-    val src = if (isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
+    val src = if (isVector) {
+      Vec(5, UInt(VLEN.W))
+    } else if (isMatrix) {
+      Vec(4, UInt(XLEN.W))
+    } else {
+      Vec(3, UInt(XLEN.W))
+    }
     val iqIdx = UInt(log2Up(MemIQSizeMax).W)
     val isFirstIssue = Bool()
     val flowNum      = OptionWrapper(isVector, NumLsElem())
@@ -1112,14 +1121,14 @@ object Bundles {
     def src_vl = if (isVector) src(4) else 0.U
   }
 
-  class MemExuOutput(isVector: Boolean = false, needAmuCtrl: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuOutput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
     val data = if (isVector) UInt(VLEN.W) else UInt(XLEN.W)
     val mask = if (isVector) Some(UInt(VLEN.W)) else None
     val vdIdx = if (isVector) Some(UInt(3.W)) else None // TODO: parameterize width
     val vdIdxInField = if (isVector) Some(UInt(3.W)) else None
     val isFromLoadUnit = Bool()
-    val amuCtrl = if (needAmuCtrl) Some(new AmuCtrlIO) else None
+    val amuCtrl = if (isMatrix) Some(new AmuCtrlIO) else None
     val debug = new DebugBundle
     val vecDebug = if (isVector) Some(new VecMissalignedDebugBundle) else None
 
