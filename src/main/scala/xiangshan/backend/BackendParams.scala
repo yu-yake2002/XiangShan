@@ -107,10 +107,11 @@ case class BackendParams(
   def HyuCnt = allSchdParams.map(_.HyuCnt).sum
   def VlduCnt = allSchdParams.map(_.VlduCnt).sum
   def VstuCnt = allSchdParams.map(_.VstuCnt).sum
-  def MlsuCnt = allSchdParams.map(_.MlsuCnt).sum
+  def MlsCnt = allSchdParams.map(_.MlsCnt).sum
   def LsExuCnt = StaCnt + LduCnt + HyuCnt
-  val LdExuCnt = LduCnt + HyuCnt
-  val StaExuCnt = StaCnt + HyuCnt
+  val LdExuCnt = LduCnt + HyuCnt + MlsCnt
+  val LdWakeupCnt = LduCnt + HyuCnt
+  val StaExuCnt = StaCnt + HyuCnt + MlsCnt
   def JmpCnt = allSchdParams.map(_.JmpCnt).sum
   def BrhCnt = allSchdParams.map(_.BrhCnt).sum
   def CsrCnt = allSchdParams.map(_.CsrCnt).sum
@@ -355,7 +356,7 @@ case class BackendParams(
   }
 
   def getMemExuRCReadSize = {
-    this.allExuParams.filter(x => x.isMemExeUnit && x.readIntRf).map(_.numIntSrc).reduce(_ + _)
+    this.allExuParams.filter(x => x.isMemExeUnit && x.readIntRf && !x.readMxRf).map(_.numIntSrc).reduce(_ + _)
   }
 
   /**

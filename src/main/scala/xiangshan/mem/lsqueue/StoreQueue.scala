@@ -169,10 +169,10 @@ class StoreQueue(implicit p: Parameters) extends XSModule
     val enq = new SqEnqIO
     val brqRedirect = Flipped(ValidIO(new Redirect))
     val vecFeedback = Vec(VecLoadPipelineWidth, Flipped(ValidIO(new FeedbackToLsqIO)))
-    val storeAddrIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle))) // store addr, data is not included
-    val storeAddrInRe = Vec(StorePipelineWidth, Input(new LsPipelineBundle())) // store more mmio and exception
-    val storeDataIn = Vec(StorePipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // store data, send to sq from rs
-    val storeMaskIn = Vec(StorePipelineWidth, Flipped(Valid(new StoreMaskBundle))) // store mask, send to sq from rs
+    val storeAddrIn = Vec(StoreAddrPipelineWidth, Flipped(Valid(new LsPipelineBundle))) // store addr, data is not included
+    val storeAddrInRe = Vec(StoreAddrPipelineWidth, Input(new LsPipelineBundle())) // store more mmio and exception
+    val storeDataIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // store data, send to sq from rs
+    val storeMaskIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new StoreMaskBundle))) // store mask, send to sq from rs
     val sbuffer = Vec(EnsbufferWidth, Decoupled(new DCacheWordReqWithVaddrAndPfFlag)) // write committed store to sbuffer
     val sbufferVecDifftestInfo = Vec(EnsbufferWidth, Decoupled(new DynInst)) // The vector store difftest needs is, write committed store to sbuffer
     val uncacheOutstanding = Input(Bool())
@@ -181,7 +181,7 @@ class StoreQueue(implicit p: Parameters) extends XSModule
     val cboZeroStout = DecoupledIO(new MemExuOutput)
     val mmioStout = DecoupledIO(new MemExuOutput) // writeback uncached store
     val vecmmioStout = DecoupledIO(new MemExuOutput(isVector = true))
-    val forward = Vec(LoadPipelineWidth, Flipped(new PipeLoadForwardQueryIO))
+    val forward = Vec(LoadDataPipelineWidth, Flipped(new PipeLoadForwardQueryIO))
     // TODO: scommit is only for scalar store
     val rob = Flipped(new RobLsqIO)
     val uncache = new UncacheWordIO
@@ -638,7 +638,7 @@ class StoreQueue(implicit p: Parameters) extends XSModule
     * The response will be valid at the next cycle after req.
     */
   // check over all lq entries and forward data from the first matched store
-  for (i <- 0 until LoadPipelineWidth) {
+  for (i <- 0 until LoadDataPipelineWidth) {
     // Compare deqPtr (deqPtr) and forward.sqIdx, we have two cases:
     // (1) if they have the same flag, we need to check range(tail, sqIdx)
     // (2) if they have different flags, we need to check range(tail, VirtualLoadQueueSize) and range(0, sqIdx)

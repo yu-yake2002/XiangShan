@@ -78,7 +78,8 @@ object FuType extends OHEnumeration {
   val msetmtypeiwi = addType(name = "msetmtypeiwi") // msettype read rs write rd
   val msetmtypeiwf = addType(name = "msetmtypeiwf") // msettype read rs write mtype
   
-  val mlsu = addType(name = "mlsu")
+  val mlslda = addType(name = "mlslda")
+  val mlssta = addType(name = "mlssta")
   val mma   = addType(name = "mma")   // matrix mul (dense/sparse)
   val marith = addType(name = "marith") // arith, mve (for matrix), cvt, logic
   // val mmvei  = addType(name = "mmvei")  // mve (for integer)
@@ -152,7 +153,7 @@ object FuType extends OHEnumeration {
   val matrixMSETtype = Seq(msetmtypeiwi, msetmtypeiwf)
   val matrixMSET = matrixMSETtilex ++ matrixMSETtype
   val matrixArith = Seq(mma, marith)
-  val matrixMem = Seq(mlsu)
+  val matrixMem = Seq(mlslda, mlssta)
   val matrixAll = matrixMSET ++ matrixArith ++ matrixMem
 
   def X = BitPat.N(num) // Todo: Don't Care

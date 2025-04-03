@@ -1095,9 +1095,15 @@ object Bundles {
     val pdest = UInt(PhyRegIdxWidth.W)
   }
 
-  class MemExuInput(isVector: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuInput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
-    val src = if (isVector) Vec(5, UInt(VLEN.W)) else Vec(3, UInt(XLEN.W))
+    val src = if (isVector) {
+      Vec(5, UInt(VLEN.W))
+    } else if (isMatrix) {
+      Vec(4, UInt(XLEN.W))
+    } else {
+      Vec(3, UInt(XLEN.W))
+    }
     val iqIdx = UInt(log2Up(MemIQSizeMax).W)
     val isFirstIssue = Bool()
     val flowNum      = OptionWrapper(isVector, NumLsElem())
@@ -1110,14 +1116,14 @@ object Bundles {
     def src_vl = if (isVector) src(4) else 0.U
   }
 
-  class MemExuOutput(isVector: Boolean = false, needAmuCtrl: Boolean = false)(implicit p: Parameters) extends XSBundle {
+  class MemExuOutput(isVector: Boolean = false, isMatrix: Boolean = false)(implicit p: Parameters) extends XSBundle {
     val uop = new DynInst
     val data = if (isVector) UInt(VLEN.W) else UInt(XLEN.W)
     val mask = if (isVector) Some(UInt(VLEN.W)) else None
     val vdIdx = if (isVector) Some(UInt(3.W)) else None // TODO: parameterize width
     val vdIdxInField = if (isVector) Some(UInt(3.W)) else None
     val isFromLoadUnit = Bool()
-    val amuCtrl = if (needAmuCtrl) Some(new AmuCtrlIO) else None
+    val amuCtrl = if (isMatrix) Some(new AmuCtrlIO) else None
     val debug = new DebugBundle
 
     def isVls = FuType.isVls(uop.fuType)

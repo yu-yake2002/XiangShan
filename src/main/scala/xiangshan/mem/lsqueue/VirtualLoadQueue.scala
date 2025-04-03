@@ -44,7 +44,7 @@ class VirtualLoadQueue(implicit p: Parameters) extends XSModule
     // from dispatch
     val enq         = new LqEnqIO
     // from ldu s3
-    val ldin        = Vec(LoadPipelineWidth, Flipped(DecoupledIO(new LqWriteBundle)))
+    val ldin        = Vec(LoadAddrPipelineWidth, Flipped(DecoupledIO(new LqWriteBundle)))
     // to LoadQueueReplay and LoadQueueRAR
     val ldWbPtr     = Output(new LqPtr)
     // global
@@ -240,7 +240,7 @@ class VirtualLoadQueue(implicit p: Parameters) extends XSModule
     * However,
     *   (1) For ready load instruction (no need replay), it writes back to ROB immediately.
     */
-  for(i <- 0 until LoadPipelineWidth) {
+  for(i <- 0 until LoadAddrPipelineWidth) {
     //   most lq status need to be updated immediately after load writeback to lq
     //   flag bits in lq needs to be updated accurately
     io.ldin(i).ready := true.B

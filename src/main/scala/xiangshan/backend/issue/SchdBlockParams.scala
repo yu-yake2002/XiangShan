@@ -63,6 +63,8 @@ case class SchdBlockParams(
 
   def LdExuCnt: Int = issueBlockParams.map(_.LdExuCnt).sum
 
+  def LdWakeupCnt: Int = issueBlockParams.map(_.LdWakeupCnt).sum
+
   def VipuCnt: Int = issueBlockParams.map(_.VipuCnt).sum
 
   def VfpuCnt: Int = issueBlockParams.map(_.VfpuCnt).sum
@@ -71,7 +73,7 @@ case class SchdBlockParams(
 
   def VstuCnt: Int = issueBlockParams.map(_.VstuCnt).sum
 
-  def MlsuCnt: Int = issueBlockParams.map(_.MlsuCnt).sum
+  def MlsCnt: Int = issueBlockParams.map(_.MlsCnt).sum
 
   def numExu: Int = issueBlockParams.map(_.exuBlockParams.count(!_.fakeUnit)).sum
 

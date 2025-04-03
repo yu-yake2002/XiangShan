@@ -164,10 +164,10 @@ class LoadQueue(implicit p: Parameters) extends XSModule
     val ldu = new Bundle() {
         val stld_nuke_query = Vec(LoadPipelineWidth, Flipped(new LoadNukeQueryIO)) // from load_s2
         val ldld_nuke_query = Vec(LoadPipelineWidth, Flipped(new LoadNukeQueryIO)) // from load_s2
-        val ldin         = Vec(LoadPipelineWidth, Flipped(Decoupled(new LqWriteBundle))) // from load_s3
+        val ldin         = Vec(LoadAddrPipelineWidth, Flipped(Decoupled(new LqWriteBundle))) // from load_s3
     }
     val sta = new Bundle() {
-      val storeAddrIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle))) // from store_s1
+      val storeAddrIn = Vec(StoreAddrPipelineWidth, Flipped(Valid(new LsPipelineBundle))) // from store_s1
     }
     val std = new Bundle() {
       val storeDataIn = Vec(StorePipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // from store_s0, store data, send to sq from rs
@@ -180,10 +180,10 @@ class LoadQueue(implicit p: Parameters) extends XSModule
       val stIssuePtr       = Input(new SqPtr)
       val sqEmpty          = Input(Bool())
     }
-    val ldout = Vec(LoadPipelineWidth, DecoupledIO(new MemExuOutput))
-    val ld_raw_data = Vec(LoadPipelineWidth, Output(new LoadDataFromLQBundle))
+    val ldout = Vec(LoadAddrPipelineWidth, DecoupledIO(new MemExuOutput))
+    val ld_raw_data = Vec(LoadDataPipelineWidth, Output(new LoadDataFromLQBundle))
     val ncOut = Vec(LoadPipelineWidth, DecoupledIO(new LsPipelineBundle))
-    val replay = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
+    val replay = Vec(LoadAddrPipelineWidth, Decoupled(new LsPipelineBundle))
   //  val refill = Flipped(ValidIO(new Refill))
     val tl_d_channel  = Input(new DcacheToLduForwardIO)
     val release = Flipped(Valid(new Release))
@@ -291,7 +291,10 @@ class LoadQueue(implicit p: Parameters) extends XSModule
    * Load uncache buffer
    */
   uncacheBuffer.io.redirect <> io.redirect
-  uncacheBuffer.io.mmioOut <> io.ldout
+  uncacheBuffer.io.mmioOut <> io.ldout.take(LoadDataPipelineWidth)
+  for (i <- 0 until LoadAddrPipelineWidth - LoadDataPipelineWidth) {
+    io.ldout.drop(LoadDataPipelineWidth)(i) <> DontCare
+  }
   uncacheBuffer.io.ncOut <> io.ncOut
   uncacheBuffer.io.mmioRawData <> io.ld_raw_data
   uncacheBuffer.io.rob <> io.rob

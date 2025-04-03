@@ -62,15 +62,15 @@ trait HasMemBlockParameters extends HasXSParameter {
   val HyuCnt  = backendParams.HyuCnt
   val VlduCnt = backendParams.VlduCnt
   val VstuCnt = backendParams.VstuCnt
-  val MlsuCnt = backendParams.MlsuCnt
+  val MlsCnt = backendParams.MlsCnt
 
-  val LdExuCnt  = LduCnt + HyuCnt
-  val StAddrCnt = StaCnt + HyuCnt
+  val LdExuCnt  = LduCnt + HyuCnt + MlsCnt
+  val StAddrCnt = StaCnt + HyuCnt + MlsCnt
   val StDataCnt = StdCnt
   val MemExuCnt = LduCnt + HyuCnt + StaCnt + StdCnt
   val MemAddrExtCnt = LdExuCnt + StaCnt
   val MemVExuCnt = VlduCnt + VstuCnt
-  val MemMExuCnt = MlsuCnt
+  val MemMExuCnt = MlsCnt
 
   val AtomicWBPort   = 0
   val MisalignWBPort = 1
@@ -122,8 +122,8 @@ class ooo_to_mem(implicit p: Parameters) extends MemBlockBundle {
   val issueStd = MixedVec(Seq.fill(StdCnt)(Flipped(DecoupledIO(new MemExuInput))))
   val issueHya = MixedVec(Seq.fill(HyuCnt)(Flipped(DecoupledIO(new MemExuInput))))
   val issueVldu = MixedVec(Seq.fill(VlduCnt)(Flipped(DecoupledIO(new MemExuInput(isVector=true)))))
-
-  def issueUops = issueLda ++ issueSta ++ issueStd ++ issueHya ++ issueVldu
+  val issueMlsu = MixedVec(Seq.fill(MlsCnt)(Flipped(DecoupledIO(new MemExuInput(isMatrix=true)))))
+  def issueUops = issueLda ++ issueSta ++ issueStd ++ issueHya ++ issueVldu ++ issueMlsu
 }
 
 class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
@@ -137,7 +137,8 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   // used by VLSU issue queue, the vector store would wait all store before it, and the vector load would wait all load
   val sqDeqPtr = Output(new SqPtr)
   val lqDeqPtr = Output(new LqPtr)
-  val stIn = Vec(StAddrCnt, ValidIO(new MemExuInput))
+  val stIn = MixedVec(Seq.fill(StaCnt + HyuCnt)(ValidIO(new MemExuInput)) ++
+    Seq.fill(MlsCnt)(ValidIO(new MemExuInput(isMatrix = true))))
   val stIssuePtr = Output(new SqPtr())
 
   val memoryViolation = ValidIO(new Redirect)
@@ -168,23 +169,27 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   val writebackHyuLda = Vec(HyuCnt, DecoupledIO(new MemExuOutput))
   val writebackHyuSta = Vec(HyuCnt, DecoupledIO(new MemExuOutput))
   val writebackVldu = Vec(VlduCnt, DecoupledIO(new MemExuOutput(isVector = true)))
+  val writebackMlsLda = Vec(MlsCnt, DecoupledIO(new MemExuOutput(isMatrix = true)))
+  val writebackMlsSta = Vec(MlsCnt, DecoupledIO(new MemExuOutput(isMatrix = true)))
   def writeBack: Seq[DecoupledIO[MemExuOutput]] = {
     writebackSta ++
       writebackHyuLda ++ writebackHyuSta ++
       writebackLda ++
       writebackVldu ++
+      writebackMlsLda ++ writebackMlsSta ++
       writebackStd
   }
 
   val ldaIqFeedback = Vec(LduCnt, new MemRSFeedbackIO)
   val staIqFeedback = Vec(StaCnt, new MemRSFeedbackIO)
   val hyuIqFeedback = Vec(HyuCnt, new MemRSFeedbackIO)
-  val vstuIqFeedback= Vec(VstuCnt, new MemRSFeedbackIO(isVector = true))
-  val vlduIqFeedback= Vec(VlduCnt, new MemRSFeedbackIO(isVector = true))
+  val vstuIqFeedback = Vec(VstuCnt, new MemRSFeedbackIO(isVector = true))
+  val vlduIqFeedback = Vec(VlduCnt, new MemRSFeedbackIO(isVector = true))
+  val mlsIqFeedback = Vec(MlsCnt, new MemRSFeedbackIO)
   val ldCancel = Vec(backendParams.LdExuCnt, new LoadCancelIO)
-  val wakeup = Vec(backendParams.LdExuCnt, Valid(new DynInst))
+  val wakeup = Vec(backendParams.LdWakeupCnt, Valid(new DynInst))
 
-  val s3_delayed_load_error = Vec(LdExuCnt, Output(Bool()))
+  val s3_delayed_load_error = Vec(LoadPipelineWidth, Output(Bool()))
 }
 
 class MemCoreTopDownIO extends Bundle {
@@ -415,6 +420,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   val storeUnits = Seq.fill(StaCnt)(Module(new StoreUnit))
   val stdExeUnits = Seq.fill(StdCnt)(Module(new MemExeUnit(backendParams.memSchdParams.get.issueBlockParams.find(_.StdCnt != 0).get.exuBlockParams.head)))
   val hybridUnits = Seq.fill(HyuCnt)(Module(new HybridUnit)) // Todo: replace it with HybridUnit
+  val mlsUnits = Seq.fill(MlsCnt)(Module(new MlsUnit))
   val stData = stdExeUnits.map(_.io.out)
   val exeUnits = loadUnits ++ storeUnits
 
@@ -501,6 +507,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   loadUnits.zipWithIndex.map(x => x._1.suggestName("LoadUnit_"+x._2))
   storeUnits.zipWithIndex.map(x => x._1.suggestName("StoreUnit_"+x._2))
   hybridUnits.zipWithIndex.map(x => x._1.suggestName("HybridUnit_"+x._2))
+  mlsUnits.zipWithIndex.map(x => x._1.suggestName("MlsUnit_"+x._2))
   val atomicsUnit = Module(new AtomicsUnit)
 
 
@@ -545,10 +552,14 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   }
   io.mem_to_ooo.writebackHyuLda <> hybridUnits.map(_.io.ldout)
   io.mem_to_ooo.writebackHyuSta <> hybridUnits.map(_.io.stout)
+  io.mem_to_ooo.writebackMlsLda <> mlsUnits.map(_.io.ldout)
+  io.mem_to_ooo.writebackMlsSta <> mlsUnits.map(_.io.stout)
+
   io.mem_to_ooo.otherFastWakeup := DontCare
   io.mem_to_ooo.otherFastWakeup.drop(HyuCnt).take(LduCnt).zip(loadUnits.map(_.io.fast_uop)).foreach{case(a,b)=> a := b}
   io.mem_to_ooo.otherFastWakeup.take(HyuCnt).zip(hybridUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
-  val stOut = io.mem_to_ooo.writebackSta ++ io.mem_to_ooo.writebackHyuSta
+  io.mem_to_ooo.otherFastWakeup.drop(HyuCnt + LduCnt).zip(mlsUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
+  val stOut = io.mem_to_ooo.writebackSta ++ io.mem_to_ooo.writebackHyuSta ++ io.mem_to_ooo.writebackMlsSta
 
   // prefetch to l1 req
   // Stream's confidence is always 1
@@ -678,7 +689,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   }
 
   // dtlb
-  val dtlb_ld_tlb_ld = Module(new TLBNonBlock(LduCnt + HyuCnt + 1, 2, ldtlbParams))
+  val dtlb_ld_tlb_ld = Module(new TLBNonBlock(LduCnt + HyuCnt + 1 + MlsCnt, 2, ldtlbParams))
   val dtlb_st_tlb_st = Module(new TLBNonBlock(StaCnt, 1, sttlbParams))
   val dtlb_prefetch_tlb_prefetch = Module(new TLBNonBlock(2, 2, pftlbParams))
   val dtlb_ld = Seq(dtlb_ld_tlb_ld.io)
@@ -687,7 +698,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   /* tlb vec && constant variable */
   val dtlb = dtlb_ld ++ dtlb_st ++ dtlb_prefetch
   val (dtlb_ld_idx, dtlb_st_idx, dtlb_pf_idx) = (0, 1, 2)
-  val TlbSubSizeVec = Seq(LduCnt + HyuCnt + 1, StaCnt, 2) // (load + hyu + stream pf, store, sms+l2bop)
+  val TlbSubSizeVec = Seq(LduCnt + HyuCnt + 1 + MlsCnt, StaCnt, 2) // (load + hyu + stream pf, store, sms+l2bop)
   val DTlbSize = TlbSubSizeVec.sum
   val TlbStartVec = TlbSubSizeVec.scanLeft(0)(_ + _).dropRight(1)
   val TlbEndVec = TlbSubSizeVec.scanLeft(0)(_ + _).drop(1)
@@ -796,14 +807,21 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   for (i <- 0 until HyuCnt) {
     io.debug_ls.debugLsInfo.drop(LduCnt)(i) := hybridUnits(i).io.ldu_io.debug_ls
   }
-  for (i <- 0 until StaCnt) {
-    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt)(i) := storeUnits(i).io.debug_ls
-  }
-  for (i <- 0 until HyuCnt) {
-    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt + StaCnt)(i) := hybridUnits(i).io.stu_io.debug_ls
+  for (i <- 0 until MlsCnt) {
+    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt)(i) := mlsUnits(i).io.ldu_io.debug_ls
   }
 
-  io.mem_to_ooo.lsTopdownInfo := loadUnits.map(_.io.lsTopdownInfo) ++ hybridUnits.map(_.io.ldu_io.lsTopdownInfo)
+  for (i <- 0 until StaCnt) {
+    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt + MlsCnt)(i) := storeUnits(i).io.debug_ls
+  }
+  for (i <- 0 until HyuCnt) {
+    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt + MlsCnt + StaCnt)(i) := hybridUnits(i).io.stu_io.debug_ls
+  }
+  for (i <- 0 until MlsCnt) {
+    io.debug_ls.debugLsInfo.drop(LduCnt + HyuCnt + MlsCnt + StaCnt + HyuCnt)(i) := mlsUnits(i).io.stu_io.debug_ls
+  }
+
+  io.mem_to_ooo.lsTopdownInfo := loadUnits.map(_.io.lsTopdownInfo) ++ hybridUnits.map(_.io.ldu_io.lsTopdownInfo) ++ mlsUnits.map(_.io.ldu_io.lsTopdownInfo)
 
   // trigger
   val tdata = RegInit(VecInit(Seq.fill(TriggerNum)(0.U.asTypeOf(new MatchTriggerIO))))
@@ -1152,12 +1170,12 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     // ------------------------------------
     //  Store Port
     // ------------------------------------
-    hybridUnits(i).io.stu_io.lsq <> lsq.io.sta.storeAddrIn.takeRight(HyuCnt)(i)
-    hybridUnits(i).io.stu_io.lsq_replenish <> lsq.io.sta.storeAddrInRe.takeRight(HyuCnt)(i)
+    hybridUnits(i).io.stu_io.lsq <> lsq.io.sta.storeAddrIn.drop(StaCnt)(i)
+    hybridUnits(i).io.stu_io.lsq_replenish <> lsq.io.sta.storeAddrInRe.drop(StaCnt)(i)
 
-    lsq.io.sta.storeMaskIn.takeRight(HyuCnt)(i) <> hybridUnits(i).io.stu_io.st_mask_out
-    io.mem_to_ooo.stIn.takeRight(HyuCnt)(i).valid := hybridUnits(i).io.stu_io.issue.valid
-    io.mem_to_ooo.stIn.takeRight(HyuCnt)(i).bits := hybridUnits(i).io.stu_io.issue.bits
+    lsq.io.sta.storeMaskIn.drop(StaCnt)(i) <> hybridUnits(i).io.stu_io.st_mask_out
+    io.mem_to_ooo.stIn.drop(StaCnt)(i).valid := hybridUnits(i).io.stu_io.issue.valid
+    io.mem_to_ooo.stIn.drop(StaCnt)(i).bits := hybridUnits(i).io.stu_io.issue.bits
 
     // ------------------------------------
     //  Vector Store Port
@@ -1171,6 +1189,50 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     hybridUnits(i).io.fromCsrTrigger.tEnableVec := tEnable
     hybridUnits(i).io.fromCsrTrigger.triggerCanRaiseBpExp := triggerCanRaiseBpExp
     hybridUnits(i).io.fromCsrTrigger.debugMode := debugMode
+  }
+
+  for (i <- 0 until MlsCnt) {
+    mlsUnits(i).io.redirect <> redirect
+    mlsUnits(i).io.csrCtrl <> csrCtrl
+
+    // get input from dispatch
+    mlsUnits(i).io.lsin <> io.ooo_to_mem.issueMlsu(i)
+    mlsUnits(i).io.feedback_slow <> io.mem_to_ooo.mlsIqFeedback(i).feedbackSlow
+    mlsUnits(i).io.feedback_fast <> io.mem_to_ooo.mlsIqFeedback(i).feedbackFast
+
+    mlsUnits(i).io.tlb <> dtlb_ld.head.requestor(LduCnt + HyuCnt + 1 + i)
+    mlsUnits(i).io.pmp <> pmp_check.drop(LduCnt + HyuCnt + 1)(i).resp
+
+    io.mem_to_ooo.ldCancel.drop(LduCnt + HyuCnt)(i) := mlsUnits(i).io.ldu_io.ldCancel
+
+    mlsUnits(i).io.ldu_io.tlb_hint.id := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).id
+    mlsUnits(i).io.ldu_io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
+      tlbreplay_reg(LduCnt + HyuCnt + i) || dtlb_ld0_tlbreplay_reg(LduCnt + HyuCnt + i)
+
+    mlsUnits(i).io.ldu_io.replay <> lsq.io.replay(LduCnt + HyuCnt + i)
+    mlsUnits(i).io.ldu_io.lq_rep_full <> lsq.io.lq_rep_full
+    
+    mlsUnits(i).io.ldu_io.lsq.forward <> DontCare
+    // uncache
+    lsq.io.ldout.drop(LduCnt + HyuCnt)(i) <> mlsUnits(i).io.ldu_io.lsq.uncache
+    mlsUnits(i).io.ldu_io.lsq.ld_raw_data <> DontCare
+
+    mlsUnits(i).io.ldu_io.lsq.stld_nuke_query <> DontCare
+    mlsUnits(i).io.ldu_io.lsq.ldld_nuke_query <> DontCare
+    
+    // passdown to lsq (load s2)
+    mlsUnits(i).io.ldu_io.lsq.nc_ldin.valid := false.B
+    mlsUnits(i).io.ldu_io.lsq.nc_ldin.bits := DontCare
+    lsq.io.ldu.ldin(LduCnt + HyuCnt + i) <> mlsUnits(i).io.ldu_io.lsq.ldin
+
+    // ------------------------------------
+    //  Store Port
+    // ------------------------------------
+    mlsUnits(i).io.stu_io.lsq <> lsq.io.sta.storeAddrIn.drop(StaCnt + HyuCnt)(i)
+    mlsUnits(i).io.stu_io.lsq_replenish <> lsq.io.sta.storeAddrInRe.drop(StaCnt + HyuCnt)(i)
+
+    io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).valid := mlsUnits(i).io.stu_io.issue.valid
+    io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).bits  := mlsUnits(i).io.stu_io.issue.bits
   }
 
   // misalignBuffer
@@ -1250,7 +1312,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     stu.io.lsq_replenish <> lsq.io.sta.storeAddrInRe(i)
     // dtlb
     stu.io.tlb          <> dtlb_st.head.requestor(i)
-    stu.io.pmp          <> pmp_check(LduCnt + HyuCnt + 1 + i).resp
+    stu.io.pmp          <> pmp_check(LduCnt + HyuCnt + 1 + MlsCnt + i).resp
 
     // -------------------------
     // Store Triggers

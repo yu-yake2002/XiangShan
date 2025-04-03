@@ -96,7 +96,7 @@ case class ExeUnitParams(
   val isVfExeUnit: Boolean = schdType.isInstanceOf[VfScheduler]
   val isMemExeUnit: Boolean = schdType.isInstanceOf[MemScheduler]
 
-  def needReadRegCache: Boolean = isIntExeUnit || isMemExeUnit && readIntRf
+  def needReadRegCache: Boolean = isIntExeUnit || isMemExeUnit && readIntRf && !readMxRf
   def needWriteRegCache: Boolean = isIntExeUnit && isIQWakeUpSource || isMemExeUnit && isIQWakeUpSource && readIntRf
 
   def numCopySrc: Int = fuConfigs.map(x => if(x.srcNeedCopy) 1 else 0).reduce(_ + _)
@@ -300,17 +300,23 @@ case class ExeUnitParams(
 
   def hasStdFu = fuConfigs.map(_.name == "std").reduce(_ || _)
 
-  def hasMlsFu = fuConfigs.map(_.name == "mlsu").reduce(_ || _)
+  def hasMlsFu = fuConfigs.map(_.name == "mls").reduce(_ || _)
 
-  def hasMemAddrFu = hasLoadFu || hasStoreAddrFu || hasVLoadFu || hasHyldaFu || hasHystaFu || hasVLoadFu || hasVStoreFu
+  def hasMemAddrFu = hasLoadFu || hasStoreAddrFu || hasVLoadFu || hasHyldaFu || hasHystaFu || hasVLoadFu || hasVStoreFu || hasMlsldaFu || hasMlsstaFu
 
   def hasHyldaFu = fuConfigs.map(_.name == "hylda").reduce(_ || _)
 
   def hasHystaFu = fuConfigs.map(_.name == "hysta").reduce(_ || _)
 
-  def hasLoadExu = hasLoadFu || hasHyldaFu
+  def hasMlsldaFu = fuConfigs.map(_.name == "mlslda").reduce(_ || _)
 
-  def hasStoreAddrExu = hasStoreAddrFu || hasHystaFu
+  def hasMlsstaFu = fuConfigs.map(_.name == "mlssta").reduce(_ || _)
+
+  def hasLoadExu = hasLoadFu || hasHyldaFu || hasMlsldaFu
+
+  def hasLoadWakeupExu = hasLoadFu || hasHyldaFu
+
+  def hasStoreAddrExu = hasStoreAddrFu || hasHystaFu || hasMlsstaFu
 
   def hasVecFu = fuConfigs.map(x => FuConfig.VecArithFuConfigs.contains(x)).reduce(_ || _)
 

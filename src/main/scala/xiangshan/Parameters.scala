@@ -71,6 +71,7 @@ case class XSCoreParameters
   HasMExtension: Boolean = true,
   HasCExtension: Boolean = true,
   HasHExtension: Boolean = true,
+  HasMatrixExtension: Boolean = true,
   HasDiv: Boolean = true,
   HasICache: Boolean = true,
   HasDCache: Boolean = true,
@@ -229,8 +230,12 @@ case class XSCoreParameters
   mfSchdMxWbPort: Int = 1,
   prefetcher: Option[PrefetcherParams] = Some(SMSParams()),
   IfuRedirectNum: Int = 1,
-  LoadPipelineWidth: Int = 3,
-  StorePipelineWidth: Int = 2,
+  LoadPipelineWidth: Int = 3, // TODO: remove me
+  LoadAddrPipelineWidth: Int = 4,
+  LoadDataPipelineWidth: Int = 3,
+  StorePipelineWidth: Int = 2, // TODO: remove me
+  StoreAddrPipelineWidth: Int = 3,
+  StoreDataPipelineWidth: Int = 2,
   VecLoadPipelineWidth: Int = 2,
   VecStorePipelineWidth: Int = 2,
   VecMemSrcInWidth: Int = 2,
@@ -494,10 +499,7 @@ case class XSCoreParameters
       IssueBlockParams(Seq(
         ExeUnitParams("MEX0", Seq(MmaCfg), Seq(), Seq(Seq(), Seq(), Seq(MxRD(0, 1)), Seq(MxRD(1, 0)), Seq(MxRD(2, 0)))),
         ExeUnitParams("MEX1", Seq(MarithCfg), Seq(), Seq(Seq(), Seq(), Seq(MxRD(1, 1)), Seq(MxRD(2, 1)))),
-      ), numEntries = 16, numEnq = 2, numComp = 12),
-      IssueBlockParams(Seq(
-        ExeUnitParams("MLSU", Seq(MlsuCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
-      ), numEntries = 16, numEnq = 2, numComp = 12),
+      ), numEntries = 16, numEnq = 2, numComp = 12)
     ),
       numPregs = mxPreg.numEntries,
       numDeqOutside = 0,
@@ -534,6 +536,10 @@ case class XSCoreParameters
         ExeUnitParams("VLSU1", Seq(VlduCfg, VstuCfg), Seq(VfWB(5, 0), V0WB(5, 0), VlWB(port = 3, 0)), Seq(Seq(VfRD(9, 0)), Seq(VfRD(10, 0)), Seq(VfRD(11, 0)), Seq(V0RD(3, 0)), Seq(VlRD(3, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
+        ExeUnitParams("MLSU0", Seq(MlsldaCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
+        ExeUnitParams("MLSU1", Seq(MlsstaCfg), Seq(), Seq(Seq(IntRD(1, 2)), Seq(IntRD(4, 2)), Seq(MxRD(0, 2)), Seq(MxRD(3, 1)))),
+      ), numEntries = 16, numEnq = 2, numComp = 12),
+      IssueBlockParams(Seq(
         ExeUnitParams("STD0", Seq(StdCfg, MoudCfg), Seq(), Seq(Seq(IntRD(5, 2), FpRD(9, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
@@ -553,7 +559,7 @@ case class XSCoreParameters
     Seq(
       WakeUpConfig(
         Seq("ALU0", "ALU1", "ALU2", "ALU3", "LDU0", "LDU1", "LDU2") ->
-        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSETTYPE", "MLSU")
+        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSETTYPE", "MLSU0", "MLSU1")
       ),
       // TODO: add load -> fp slow wakeup
       WakeUpConfig(
@@ -661,6 +667,7 @@ trait HasXSParameter {
   def HasMExtension = coreParams.HasMExtension
   def HasCExtension = coreParams.HasCExtension
   def HasHExtension = coreParams.HasHExtension
+  def HasMatrixExtension = coreParams.HasMatrixExtension
   def EnableSv48 = coreParams.EnableSv48
   def HasDiv = coreParams.HasDiv
   def HasIcache = coreParams.HasICache
@@ -864,7 +871,11 @@ trait HasXSParameter {
   def FtqRedirectAheadNum = NumRedirect
   def IfuRedirectNum = coreParams.IfuRedirectNum
   def LoadPipelineWidth = coreParams.LoadPipelineWidth
-  def StorePipelineWidth = coreParams.StorePipelineWidth
+  def LoadAddrPipelineWidth = coreParams.LoadAddrPipelineWidth
+  def LoadDataPipelineWidth = coreParams.LoadDataPipelineWidth
+  def StorePipelineWidth = coreParams.StorePipelineWidth // TODO: remove me
+  def StoreAddrPipelineWidth = coreParams.StoreAddrPipelineWidth
+  def StoreDataPipelineWidth = coreParams.StoreDataPipelineWidth
   def VecLoadPipelineWidth = coreParams.VecLoadPipelineWidth
   def VecStorePipelineWidth = coreParams.VecStorePipelineWidth
   def VecMemSrcInWidth = coreParams.VecMemSrcInWidth
@@ -900,12 +911,13 @@ trait HasXSParameter {
   def EnableStorePrefetchSMS = coreParams.EnableStorePrefetchSMS
   def EnableStorePrefetchSPB = coreParams.EnableStorePrefetchSPB
   def HasCMO = coreParams.HasCMO && p(EnableCHI)
-  require(LoadPipelineWidth == backendParams.LdExuCnt, "LoadPipelineWidth must be equal exuParameters.LduCnt!")
+  require(LoadPipelineWidth == backendParams.LduCnt + backendParams.HyuCnt, "LoadPipelineWidth must be equal exuParameters.LduCnt + HyuCnt!")
+  require(LoadAddrPipelineWidth == backendParams.LdExuCnt, "LoadAddrTransWidth must be equal exuParameters.LdExuCnt!")
   require(StorePipelineWidth == backendParams.StaCnt, "StorePipelineWidth must be equal exuParameters.StuCnt!")
   def Enable3Load3Store = (LoadPipelineWidth == 3 && StorePipelineWidth == 3)
   def asidLen = coreParams.MMUAsidLen
   def vmidLen = coreParams.MMUVmidLen
-  def BTLBWidth = coreParams.LoadPipelineWidth + coreParams.StorePipelineWidth
+  // def BTLBWidth = coreParams.LoadPipelineWidth + coreParams.StorePipelineWidth
   def refillBothTlb = coreParams.refillBothTlb
   def iwpuParam = coreParams.iwpuParameters
   def dwpuParam = coreParams.dwpuParameters

@@ -62,6 +62,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   private val LduCnt = params.LduCnt
   private val StaCnt = params.StaCnt
   private val HyuCnt = params.HyuCnt
+  private val MlsCnt = params.MlsCnt
 
   val io = IO(new Bundle() {
     val hartId = Input(UInt(hartIdLen.W))
@@ -129,7 +130,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     val debugRobHead = Output(new DynInst)
     val debugEnqLsq = Input(new LsqEnqIO)
     val debugHeadLsIssue = Input(Bool())
-    val lsTopdownInfo = Vec(LduCnt + HyuCnt, Input(new LsTopdownInfo))
+    val lsTopdownInfo = Vec(LduCnt + HyuCnt + MlsCnt, Input(new LsTopdownInfo))
     val debugTopDown = new Bundle {
       val toCore = new RobCoreTopDownIO
       val toDispatch = new RobDispatchTopDownIO
@@ -147,9 +148,6 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     // to AMU
     val amuCtrl = Vec(CommitWidth, DecoupledIO(new AmuCtrlIO))
   })
-
-  dontTouch(io.writeback)
-  dontTouch(io.exuWriteback)
 
   val exuWBs: Seq[ValidIO[ExuOutput]] = io.exuWriteback.filter(!_.bits.params.hasStdFu).toSeq
   val stdWBs: Seq[ValidIO[ExuOutput]] = io.exuWriteback.filter(_.bits.params.hasStdFu).toSeq

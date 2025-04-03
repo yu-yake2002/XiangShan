@@ -165,6 +165,8 @@ class BypassNetwork()(implicit p: Parameters, params: BackendParams) extends XSM
       val bypass2ExuIdx = fromDPsHasBypass2Sink.indexOf(exuIdx)
       println(s"${exuParm.name}: bypass2ExuIdx is ${bypass2ExuIdx}")
       val readBypass2 = if (bypass2ExuIdx >= 0) dataSource.readBypass2 else false.B
+      print(s"[BypassNetwork] exuIdx: $exuIdx, srcIdx: $srcIdx, isWakeUpSink: $isWakeUpSink, isIntScheduler: $isIntScheduler, isReadVfRf: $isReadVfRf\n")
+      print(s"[BypassNetwork] exuParm.needReadRegCache: ${exuParm.needReadRegCache} exuParm.immType: ${exuParm.immType} bypass2ExuIdx: $bypass2ExuIdx\n")
       src := Mux1H(
         Seq(
           readForward    -> Mux1H(forwardOrBypassValidVec3(exuIdx)(srcIdx), forwardDataVec),

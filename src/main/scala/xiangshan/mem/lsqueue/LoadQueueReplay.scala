@@ -180,16 +180,16 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
     val vecFeedback = Vec(VecLoadPipelineWidth, Flipped(ValidIO(new FeedbackToLsqIO)))
 
     // from load unit s3
-    val enq = Vec(LoadPipelineWidth, Flipped(Decoupled(new LqWriteBundle)))
+    val enq = Vec(LoadAddrPipelineWidth, Flipped(Decoupled(new LqWriteBundle)))
 
     // from sta s1
-    val storeAddrIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle)))
+    val storeAddrIn = Vec(StoreAddrPipelineWidth, Flipped(Valid(new LsPipelineBundle)))
 
     // from std s1
-    val storeDataIn = Vec(StorePipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true))))
+    val storeDataIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true))))
 
     // queue-based replay
-    val replay = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
+    val replay = Vec(LoadAddrPipelineWidth, Decoupled(new LsPipelineBundle))
    // val refill = Flipped(ValidIO(new Refill))
     val tl_d_channel = Input(new DcacheToLduForwardIO)
 
@@ -231,8 +231,8 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   val vaddrModule = Module(new LqVAddrModule(
     gen = UInt(VAddrBits.W),
     numEntries = LoadQueueReplaySize,
-    numRead = LoadPipelineWidth,
-    numWrite = LoadPipelineWidth,
+    numRead = LoadAddrPipelineWidth,
+    numWrite = LoadAddrPipelineWidth,
     numWBank = LoadQueueNWriteBanks,
     numWDelay = 2,
     numCamPort = 0))
@@ -248,7 +248,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   // +---+---+--------------+-----+-----+
   val freeList = Module(new FreeList(
     size = LoadQueueReplaySize,
-    allocWidth = LoadPipelineWidth,
+    allocWidth = LoadAddrPipelineWidth,
     freeWidth = 4,
     enablePreAlloc = true,
     moduleName = "LoadQueueReplay freelist"
@@ -278,11 +278,11 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   val needReplay = io.enq.map(enq => enq.bits.rep_info.need_rep)
   val hasExceptions = io.enq.map(enq => ExceptionNO.selectByFu(enq.bits.uop.exceptionVec, LduCfg).asUInt.orR && !enq.bits.tlbMiss)
   val loadReplay = io.enq.map(enq => enq.bits.isLoadReplay)
-  val needEnqueue = VecInit((0 until LoadPipelineWidth).map(w => {
+  val needEnqueue = VecInit((0 until LoadAddrPipelineWidth).map(w => {
     canEnqueue(w) && !cancelEnq(w) && needReplay(w) && !hasExceptions(w)
   }))
-  val newEnqueue = Wire(Vec(LoadPipelineWidth, Bool()))
-  val canFreeVec = VecInit((0 until LoadPipelineWidth).map(w => {
+  val newEnqueue = Wire(Vec(LoadAddrPipelineWidth, Bool()))
+  val canFreeVec = VecInit((0 until LoadAddrPipelineWidth).map(w => {
     canEnqueue(w) && loadReplay(w) && (!needReplay(w) || hasExceptions(w))
   }))
 
@@ -370,33 +370,33 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   })
 
   //  Replay is splitted into 3 stages
-  require((LoadQueueReplaySize % LoadPipelineWidth) == 0)
+  require((LoadQueueReplaySize % LoadAddrPipelineWidth) == 0)
   def getRemBits(input: UInt)(rem: Int): UInt = {
-    VecInit((0 until LoadQueueReplaySize / LoadPipelineWidth).map(i => { input(LoadPipelineWidth * i + rem) })).asUInt
+    VecInit((0 until LoadQueueReplaySize / LoadAddrPipelineWidth).map(i => { input(LoadAddrPipelineWidth * i + rem) })).asUInt
   }
 
   def getRemSeq(input: Seq[Seq[Bool]])(rem: Int) = {
-    (0 until LoadQueueReplaySize / LoadPipelineWidth).map(i => { input(LoadPipelineWidth * i + rem) })
+    (0 until LoadQueueReplaySize / LoadAddrPipelineWidth).map(i => { input(LoadAddrPipelineWidth * i + rem) })
   }
 
   // stage1: select 2 entries and read their vaddr
-  val s0_oldestSel = Wire(Vec(LoadPipelineWidth, Valid(UInt(LoadQueueReplaySize.W))))
-  val s1_can_go = Wire(Vec(LoadPipelineWidth, Bool()))
-  val s1_oldestSel = Wire(Vec(LoadPipelineWidth, Valid(UInt(log2Up(LoadQueueReplaySize + 1).W))))
-  val s2_can_go = Wire(Vec(LoadPipelineWidth, Bool()))
-  val s2_oldestSel = Wire(Vec(LoadPipelineWidth, Valid(UInt(log2Up(LoadQueueReplaySize + 1).W))))
+  val s0_oldestSel = Wire(Vec(LoadAddrPipelineWidth, Valid(UInt(LoadQueueReplaySize.W))))
+  val s1_can_go = Wire(Vec(LoadAddrPipelineWidth, Bool()))
+  val s1_oldestSel = Wire(Vec(LoadAddrPipelineWidth, Valid(UInt(log2Up(LoadQueueReplaySize + 1).W))))
+  val s2_can_go = Wire(Vec(LoadAddrPipelineWidth, Bool()))
+  val s2_oldestSel = Wire(Vec(LoadAddrPipelineWidth, Valid(UInt(log2Up(LoadQueueReplaySize + 1).W))))
 
   // generate mask
   val needCancel = Wire(Vec(LoadQueueReplaySize, Bool()))
   // generate enq mask
-  val enqIndexOH = Wire(Vec(LoadPipelineWidth, UInt(LoadQueueReplaySize.W)))
+  val enqIndexOH = Wire(Vec(LoadAddrPipelineWidth, UInt(LoadQueueReplaySize.W)))
   val s0_loadEnqFireMask = newEnqueue.zip(enqIndexOH).map(x => Mux(x._1, x._2, 0.U))
-  val s0_remLoadEnqFireVec = s0_loadEnqFireMask.map(x => VecInit((0 until LoadPipelineWidth).map(rem => getRemBits(x)(rem))))
-  val s0_remEnqSelVec = Seq.tabulate(LoadPipelineWidth)(w => VecInit(s0_remLoadEnqFireVec.map(x => x(w))))
+  val s0_remLoadEnqFireVec = s0_loadEnqFireMask.map(x => VecInit((0 until LoadAddrPipelineWidth).map(rem => getRemBits(x)(rem))))
+  val s0_remEnqSelVec = Seq.tabulate(LoadAddrPipelineWidth)(w => VecInit(s0_remLoadEnqFireVec.map(x => x(w))))
 
   // generate free mask
   val s0_loadFreeSelMask = GatedRegNext(freeMaskVec.asUInt)
-  val s0_remFreeSelVec = VecInit(Seq.tabulate(LoadPipelineWidth)(rem => getRemBits(s0_loadFreeSelMask)(rem)))
+  val s0_remFreeSelVec = VecInit(Seq.tabulate(LoadAddrPipelineWidth)(rem => getRemBits(s0_loadFreeSelMask)(rem)))
 
   // l2 hint wakes up cache missed load
   // l2 will send GrantData in next 2/3 cycle, wake up the missed load early and sent them to load pipe, so them will hit the data in D channel or mshr in load S1
@@ -410,8 +410,8 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
      s0_loadHintWakeMask & dataInLastBeatReg.asUInt,
      s0_loadHintWakeMask & VecInit(dataInLastBeatReg.map(!_)).asUInt
      )
-  val s0_remLoadHintSelMask = VecInit((0 until LoadPipelineWidth).map(rem => getRemBits(s0_loadHintSelMask)(rem)))
-  val s0_remHintSelValidVec = VecInit((0 until LoadPipelineWidth).map(rem => ParallelORR(s0_remLoadHintSelMask(rem))))
+  val s0_remLoadHintSelMask = VecInit((0 until LoadAddrPipelineWidth).map(rem => getRemBits(s0_loadHintSelMask)(rem)))
+  val s0_remHintSelValidVec = VecInit((0 until LoadAddrPipelineWidth).map(rem => ParallelORR(s0_remLoadHintSelMask(rem))))
   val s0_hintSelValid = ParallelORR(s0_loadHintSelMask)
 
   // wake up cache missed load
@@ -430,15 +430,15 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
     val hasHigherPriority = cause(i)(LoadReplayCauses.C_DM) || cause(i)(LoadReplayCauses.C_FF)
     allocated(i) && !scheduled(i) && !blocking(i) && hasHigherPriority
   })).asUInt // use uint instead vec to reduce verilog lines
-  val s0_remLoadHigherPriorityReplaySelMask = VecInit((0 until LoadPipelineWidth).map(rem => getRemBits(s0_loadHigherPriorityReplaySelMask)(rem)))
+  val s0_remLoadHigherPriorityReplaySelMask = VecInit((0 until LoadAddrPipelineWidth).map(rem => getRemBits(s0_loadHigherPriorityReplaySelMask)(rem)))
   val s0_loadLowerPriorityReplaySelMask = VecInit((0 until LoadQueueReplaySize).map(i => {
     val hasLowerPriority = !cause(i)(LoadReplayCauses.C_DM) && !cause(i)(LoadReplayCauses.C_FF)
     allocated(i) && !scheduled(i) && !blocking(i) && hasLowerPriority
   })).asUInt // use uint instead vec to reduce verilog lines
-  val s0_remLoadLowerPriorityReplaySelMask = VecInit((0 until LoadPipelineWidth).map(rem => getRemBits(s0_loadLowerPriorityReplaySelMask)(rem)))
+  val s0_remLoadLowerPriorityReplaySelMask = VecInit((0 until LoadAddrPipelineWidth).map(rem => getRemBits(s0_loadLowerPriorityReplaySelMask)(rem)))
   val s0_loadNormalReplaySelMask = s0_loadLowerPriorityReplaySelMask | s0_loadHigherPriorityReplaySelMask | s0_loadHintSelMask
-  val s0_remNormalReplaySelVec = VecInit((0 until LoadPipelineWidth).map(rem => s0_remLoadLowerPriorityReplaySelMask(rem) | s0_remLoadHigherPriorityReplaySelMask(rem) | s0_remLoadHintSelMask(rem)))
-  val s0_remPriorityReplaySelVec = VecInit((0 until LoadPipelineWidth).map(rem => {
+  val s0_remNormalReplaySelVec = VecInit((0 until LoadAddrPipelineWidth).map(rem => s0_remLoadLowerPriorityReplaySelMask(rem) | s0_remLoadHigherPriorityReplaySelMask(rem) | s0_remLoadHintSelMask(rem)))
+  val s0_remPriorityReplaySelVec = VecInit((0 until LoadAddrPipelineWidth).map(rem => {
         Mux(s0_remHintSelValidVec(rem), s0_remLoadHintSelMask(rem),
           Mux(ParallelORR(s0_remLoadHigherPriorityReplaySelMask(rem)), s0_remLoadHigherPriorityReplaySelMask(rem), s0_remLoadLowerPriorityReplaySelMask(rem)))
       }))
@@ -449,10 +449,10 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   val OldestSelectStride = 4
   val oldestPtrExt = (0 until OldestSelectStride).map(i => io.ldWbPtr + i.U)
   val s0_oldestMatchMaskVec = (0 until LoadQueueReplaySize).map(i => (0 until OldestSelectStride).map(j => s0_loadNormalReplaySelMask(i) && uop(i).lqIdx === oldestPtrExt(j)))
-  val s0_remOldsetMatchMaskVec = (0 until LoadPipelineWidth).map(rem => getRemSeq(s0_oldestMatchMaskVec.map(_.take(1)))(rem))
-  val s0_remOlderMatchMaskVec = (0 until LoadPipelineWidth).map(rem => getRemSeq(s0_oldestMatchMaskVec.map(_.drop(1)))(rem))
-  val s0_remOldestSelVec = VecInit(Seq.tabulate(LoadPipelineWidth)(rem => {
-    VecInit((0 until LoadQueueReplaySize / LoadPipelineWidth).map(i => {
+  val s0_remOldsetMatchMaskVec = (0 until LoadAddrPipelineWidth).map(rem => getRemSeq(s0_oldestMatchMaskVec.map(_.take(1)))(rem))
+  val s0_remOlderMatchMaskVec = (0 until LoadAddrPipelineWidth).map(rem => getRemSeq(s0_oldestMatchMaskVec.map(_.drop(1)))(rem))
+  val s0_remOldestSelVec = VecInit(Seq.tabulate(LoadAddrPipelineWidth)(rem => {
+    VecInit((0 until LoadQueueReplaySize / LoadAddrPipelineWidth).map(i => {
       Mux(ParallelORR(s0_remOldsetMatchMaskVec(rem).map(_(0))), s0_remOldsetMatchMaskVec(rem)(i)(0), s0_remOlderMatchMaskVec(rem)(i).reduce(_|_))
     })).asUInt
   }))
@@ -461,9 +461,9 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   }
 
   // select oldest logic
-  s0_oldestSel := VecInit((0 until LoadPipelineWidth).map(rport => {
+  s0_oldestSel := VecInit((0 until LoadAddrPipelineWidth).map(rport => {
     // select enqueue earlest inst
-    val ageOldest = AgeDetector(LoadQueueReplaySize / LoadPipelineWidth, s0_remEnqSelVec(rport), s0_remFreeSelVec(rport), s0_remPriorityReplaySelVec(rport))
+    val ageOldest = AgeDetector(LoadQueueReplaySize / LoadAddrPipelineWidth, s0_remEnqSelVec(rport), s0_remFreeSelVec(rport), s0_remPriorityReplaySelVec(rport))
     assert(!(ageOldest.valid && PopCount(ageOldest.bits) > 1.U), "oldest index must be one-hot!")
     val ageOldestValid = ageOldest.valid
     val ageOldestIndexOH = ageOldest.bits
@@ -477,10 +477,10 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
     val oldestSel = Mux(issOldestValid, issOldestIndexOH, ageOldestIndexOH)
     val oldestBitsVec = Wire(Vec(LoadQueueReplaySize, Bool()))
 
-    require((LoadQueueReplaySize % LoadPipelineWidth) == 0)
+    require((LoadQueueReplaySize % LoadAddrPipelineWidth) == 0)
     oldestBitsVec.foreach(e => e := false.B)
-    for (i <- 0 until LoadQueueReplaySize / LoadPipelineWidth) {
-      oldestBitsVec(i * LoadPipelineWidth + rport) := oldestSel(i)
+    for (i <- 0 until LoadQueueReplaySize / LoadAddrPipelineWidth) {
+      oldestBitsVec(i * LoadAddrPipelineWidth + rport) := oldestSel(i)
     }
 
     oldest.valid := ageOldest.valid || issOldestValid
@@ -491,7 +491,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   // stage2: send replay request to load unit
   // replay cold down
   val ColdDownCycles = 16
-  val coldCounter = RegInit(VecInit(List.fill(LoadPipelineWidth)(0.U(log2Up(ColdDownCycles).W))))
+  val coldCounter = RegInit(VecInit(List.fill(LoadAddrPipelineWidth)(0.U(log2Up(ColdDownCycles).W))))
   val ColdDownThreshold = Wire(UInt(log2Up(ColdDownCycles).W))
   ColdDownThreshold := Constantin.createRecord(s"ColdDownThreshold_${p(XSCoreParamsKey).HartId}", initValue = 12)
   assert(ColdDownCycles.U > ColdDownThreshold, "ColdDownCycles must great than ColdDownThreshold!")
@@ -499,9 +499,9 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
   def replayCanFire(i: Int) = coldCounter(i) >= 0.U && coldCounter(i) < ColdDownThreshold
   def coldDownNow(i: Int) = coldCounter(i) >= ColdDownThreshold
 
-  val replay_req = Wire(Vec(LoadPipelineWidth, DecoupledIO(new LsPipelineBundle)))
+  val replay_req = Wire(Vec(LoadAddrPipelineWidth, DecoupledIO(new LsPipelineBundle)))
 
-  for (i <- 0 until LoadPipelineWidth) {
+  for (i <- 0 until LoadAddrPipelineWidth) {
     val s0_can_go = s1_can_go(i) ||
                     uop(s1_oldestSel(i).bits).robIdx.needFlush(io.redirect) ||
                     uop(s1_oldestSel(i).bits).robIdx.needFlush(RegNext(io.redirect))
@@ -515,8 +515,8 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
       }
     }
   }
-  val s2_cancelReplay = Wire(Vec(LoadPipelineWidth, Bool()))
-  for (i <- 0 until LoadPipelineWidth) {
+  val s2_cancelReplay = Wire(Vec(LoadAddrPipelineWidth, Bool()))
+  for (i <- 0 until LoadAddrPipelineWidth) {
     val s1_cancel = uop(s1_oldestSel(i).bits).robIdx.needFlush(io.redirect) ||
                     uop(s1_oldestSel(i).bits).robIdx.needFlush(RegNext(io.redirect))
     val s1_oldestSelV = s1_oldestSel(i).valid && !s1_cancel
@@ -528,7 +528,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
     vaddrModule.io.raddr(i) := s1_oldestSel(i).bits
   }
 
-  for (i <- 0 until LoadPipelineWidth) {
+  for (i <- 0 until LoadAddrPipelineWidth) {
     val s1_replayIdx = s1_oldestSel(i).bits
     val s2_replayUop = RegEnable(uop(s1_replayIdx), s1_can_go(i))
     val s2_vecReplay = RegEnable(vecReplay(s1_replayIdx), s1_can_go(i))
@@ -574,7 +574,7 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
 
   val EnableHybridUnitReplay = Constantin.createRecord("EnableHybridUnitReplay", true)
   when(EnableHybridUnitReplay) {
-    for (i <- 0 until LoadPipelineWidth)
+    for (i <- 0 until LoadAddrPipelineWidth)
       io.replay(i) <> replay_req(i)
   }.otherwise {
     io.replay(0) <> replay_req(0)
@@ -585,10 +585,12 @@ class LoadQueueReplay(implicit p: Parameters) extends XSModule
     arbiter.io.in(0) <> replay_req(1)
     arbiter.io.in(1) <> replay_req(2)
     io.replay(1) <> arbiter.io.out
+
+    io.replay(3) <> replay_req(3)
   }
   // update cold counter
   val lastReplay = RegNext(VecInit(io.replay.map(_.fire)))
-  for (i <- 0 until LoadPipelineWidth) {
+  for (i <- 0 until LoadAddrPipelineWidth) {
     when (lastReplay(i) && io.replay(i).fire) {
       coldCounter(i) := coldCounter(i) + 1.U
     } .elsewhen (coldDownNow(i)) {

@@ -43,7 +43,7 @@ class LoadQueueRAW(implicit p: Parameters) extends XSModule
     val query = Vec(LoadPipelineWidth, Flipped(new LoadNukeQueryIO))
 
     // from store unit s1
-    val storeIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle)))
+    val storeIn = Vec(StoreAddrPipelineWidth, Flipped(Valid(new LsPipelineBundle)))
 
     // global rollback flush
     val rollback = Vec(StorePipelineWidth,Output(Valid(new Redirect)))

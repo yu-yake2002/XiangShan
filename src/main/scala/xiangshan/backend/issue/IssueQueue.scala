@@ -72,7 +72,7 @@ class IssueQueueIO()(implicit p: Parameters, params: IssueBlockParams) extends X
   val mxFromMfIsMxmax = Input(Bool())
   val og0Cancel = Input(ExuVec())
   val og1Cancel = Input(ExuVec())
-  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt, Flipped(new LoadCancelIO))
   val replaceRCIdx = Option.when(params.needWriteRegCache)(Vec(params.numDeq, Input(UInt(RegCacheIdxWidth.W))))
 
   // Outputs
@@ -142,7 +142,7 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
 
   class WakeupQueueFlush extends Bundle {
     val redirect = ValidIO(new Redirect)
-    val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt, new LoadCancelIO)
+    val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt, new LoadCancelIO)
     val og0Fail = Output(Bool())
     val og1Fail = Output(Bool())
   }
@@ -320,9 +320,6 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
       enq.bits.status.robIdx                                    := s0_enqBits(enqIdx).robIdx
       enq.bits.status.fuType                                    := IQFuType.readFuType(VecInit(s0_enqBits(enqIdx).fuType.asBools), params.getFuCfgs.map(_.fuType))
       val numLsrc = s0_enqBits(enqIdx).srcType.size.min(enq.bits.status.srcStatus.map(_.srcType).size)
-      // print the size of srcStatus and s0_enqBits(enqIdx).useRegCache
-      println(s"[IssueQueueImp] ${params.getIQName} srcStatus size: ${enq.bits.status.srcStatus.size} " +
-        s"srcType size: ${s0_enqBits(enqIdx).srcType.size} useRegCache size: ${s0_enqBits(enqIdx).useRegCache.size}")
       for(j <- 0 until numLsrc) {
         enq.bits.status.srcStatus(j).psrc                       := s0_enqBits(enqIdx).psrc(j)
         enq.bits.status.srcStatus(j).srcType                    := s0_enqBits(enqIdx).srcType(j)
@@ -530,6 +527,7 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
     }
 
     subDeqRequest.get := canIssueVec.asUInt & ~Cat(othersEntryOldestSel(0).bits, 0.U((params.numEnq).W))
+    println(s"[IssueQueue] case 1: name = ${params.getIQName}")
 
     deqSelValidVec(0) := othersEntryOldestSel(0).valid || subDeqSelValidVec.get(1)
     deqSelValidVec(1) := subDeqSelValidVec.get(0)
@@ -554,7 +552,7 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
         enq = othersEntryEnqSelVec.get,
         canIssue = VecInit(deqCanIssue.map(_(params.numEntries - 1, params.numEnq)))
       )
-
+      println(s"[IssueQueue] case 2: name = ${params.getIQName}")
       deqSelValidVec.zip(deqSelOHVec).zipWithIndex.foreach { case ((selValid, selOH), i) =>
         if (params.exuBlockParams(i).fuConfigs.contains(FuConfig.FakeHystaCfg)) {
           selValid := false.B
@@ -585,7 +583,7 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
         enq = compEntryEnqSelVec.get,
         canIssue = VecInit(deqCanIssue.map(_(params.numEntries - 1, params.numEnq + params.numSimp)))
       )
-
+      println(s"[IssueQueue] case 3: name = ${params.getIQName}")
       deqSelValidVec.zip(deqSelOHVec).zipWithIndex.foreach { case ((selValid, selOH), i) =>
         if (params.exuBlockParams(i).fuConfigs.contains(FuConfig.FakeHystaCfg)) {
           selValid := false.B
@@ -1150,7 +1148,7 @@ class IssueQueueMemBundle(implicit p: Parameters, params: IssueBlockParams) exte
   val loadFastMatch = Output(Vec(params.LdExuCnt, new IssueQueueLoadBundle))
 
   // load wakeup
-  val loadWakeUp = Input(Vec(params.LdExuCnt, ValidIO(new DynInst())))
+  val loadWakeUp = Input(Vec(params.LdWakeupCnt, ValidIO(new DynInst())))
 
   // vector
   val sqDeqPtr = Option.when(params.isVecMemIQ)(Input(new SqPtr))
@@ -1164,9 +1162,8 @@ class IssueQueueMemIO(implicit p: Parameters, params: IssueBlockParams) extends 
 class IssueQueueMemAddrImp(override val wrapper: IssueQueue)(implicit p: Parameters, params: IssueBlockParams)
   extends IssueQueueImp(wrapper) with HasCircularQueuePtrHelper {
 
-  require(params.StdCnt == 0 && (params.LduCnt + params.StaCnt + params.HyuCnt) > 0, "IssueQueueMemAddrImp can only be instance of MemAddr IQ, " +
-    s"StdCnt: ${params.StdCnt}, LduCnt: ${params.LduCnt}, StaCnt: ${params.StaCnt}, HyuCnt: ${params.HyuCnt}")
-  println(s"[IssueQueueMemAddrImp] StdCnt: ${params.StdCnt}, LduCnt: ${params.LduCnt}, StaCnt: ${params.StaCnt}, HyuCnt: ${params.HyuCnt}")
+  require(params.StdCnt == 0 && (params.LduCnt + params.StaCnt + params.HyuCnt + params.MlsCnt) > 0, "IssueQueueMemAddrImp can only be instance of MemAddr IQ, " +
+    s"StdCnt: ${params.StdCnt}, LduCnt: ${params.LduCnt}, StaCnt: ${params.StaCnt}, HyuCnt: ${params.HyuCnt}, MlsuCnt: ${params.MlsCnt}")
 
   io.suggestName("none")
   override lazy val io = IO(new IssueQueueMemIO).suggestName("io")
@@ -1193,9 +1190,11 @@ class IssueQueueMemAddrImp(override val wrapper: IssueQueue)(implicit p: Paramet
   }
 
   // load wakeup
+  println(s"[IssueQueue] memIO.loadWakeUp.size: ${memIO.loadWakeUp.size}, io.wakeupToIQ.size: ${io.wakeupToIQ.size}, params.exuBlockParams.size: ${params.exuBlockParams.size}")
   val loadWakeUpIter = memIO.loadWakeUp.iterator
   io.wakeupToIQ.zip(params.exuBlockParams).zipWithIndex.foreach { case ((wakeup, param), i) =>
-    if (param.hasLoadExu) {
+    println(s"[IssueQueue] param.hasLoadWakeupExu: ${param.hasLoadWakeupExu}, name: ${param.name}")
+    if (param.hasLoadWakeupExu) {
       require(wakeUpQueues(i).isEmpty)
       val uop = loadWakeUpIter.next()
 

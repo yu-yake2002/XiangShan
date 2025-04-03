@@ -55,6 +55,7 @@ import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr}
 import scala.collection.mutable
 import yunsuan.VectorElementFormat.w
 import scribe.ANSI.ctrl
+import freechips.rocketchip.util.DontTouch
 
 class Backend(val params: BackendParams)(implicit p: Parameters) extends LazyModule
   with HasXSParameter {
@@ -480,6 +481,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   memScheduler.io.fromMem.get.hyuFeedback := io.mem.hyuIqFeedback
   memScheduler.io.fromMem.get.vstuFeedback := io.mem.vstuIqFeedback
   memScheduler.io.fromMem.get.vlduFeedback := io.mem.vlduIqFeedback
+  memScheduler.io.fromMem.get.mlsFeedback := io.mem.mlsIqFeedback
   memScheduler.io.fromSchedulers.wakeupVec.foreach { wakeup => wakeup := iqWakeUpMappedBundle(wakeup.bits.exuIdx) }
   memScheduler.io.fromSchedulers.wakeupVecDelayed.foreach { wakeup => wakeup := iqWakeUpMappedBundleDelayed(wakeup.bits.exuIdx) }
   memScheduler.io.fromDataPath.og0Cancel := og0Cancel
@@ -859,7 +861,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
 
   // to mem
   private val memIssueParams = params.memSchdParams.get.issueBlockParams
-  private val memExuBlocksHasLDU = memIssueParams.map(_.exuBlockParams.map(x => x.hasLoadFu || x.hasHyldaFu))
+  private val memExuBlocksHasLDU = memIssueParams.map(_.exuBlockParams.map(x => x.hasLoadFu || x.hasHyldaFu || x.hasMlsldaFu))
   private val memExuBlocksHasVecLoad = memIssueParams.map(_.exuBlockParams.map(x => x.hasVLoadFu))
   println(s"[Backend] memExuBlocksHasLDU: $memExuBlocksHasLDU")
   println(s"[Backend] memExuBlocksHasVecLoad: $memExuBlocksHasVecLoad")
@@ -1125,8 +1127,9 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val hyuIqFeedback = Vec(params.HyuCnt, Flipped(new MemRSFeedbackIO))
   val vstuIqFeedback = Flipped(Vec(params.VstuCnt, new MemRSFeedbackIO(isVector = true)))
   val vlduIqFeedback = Flipped(Vec(params.VlduCnt, new MemRSFeedbackIO(isVector = true)))
+  val mlsIqFeedback = Vec(params.MlsCnt, Flipped(new MemRSFeedbackIO))
   val ldCancel = Vec(params.LdExuCnt, Input(new LoadCancelIO))
-  val wakeup = Vec(params.LdExuCnt, Flipped(Valid(new DynInst)))
+  val wakeup = Vec(params.LdWakeupCnt, Flipped(Valid(new DynInst)))
   val storePcRead = Vec(params.StaCnt, Output(UInt(VAddrBits.W)))
   val hyuPcRead = Vec(params.HyuCnt, Output(UInt(VAddrBits.W)))
   // Input
@@ -1135,7 +1138,9 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val writebackStd = Vec(params.StdCnt, Flipped(DecoupledIO(new MemExuOutput)))
   val writebackHyuLda = Vec(params.HyuCnt, Flipped(DecoupledIO(new MemExuOutput)))
   val writebackHyuSta = Vec(params.HyuCnt, Flipped(DecoupledIO(new MemExuOutput)))
-  val writebackVldu = Vec(params.VlduCnt, Flipped(DecoupledIO(new MemExuOutput(true))))
+  val writebackVldu = Vec(params.VlduCnt, Flipped(DecoupledIO(new MemExuOutput(isVector = true))))
+  val writebackMlsLda = Vec(params.MlsCnt, Flipped(DecoupledIO(new MemExuOutput(isMatrix = true))))
+  val writebackMlsSta = Vec(params.MlsCnt, Flipped(DecoupledIO(new MemExuOutput(isMatrix = true))))
 
   val s3_delayed_load_error = Input(Vec(LoadPipelineWidth, Bool()))
   val stIn = Input(Vec(params.StaExuCnt, ValidIO(new DynInst())))
@@ -1156,12 +1161,12 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val lqCanAccept = Input(Bool())
   val sqCanAccept = Input(Bool())
 
-  val otherFastWakeup = Flipped(Vec(params.LduCnt + params.HyuCnt, ValidIO(new DynInst)))
+  val otherFastWakeup = Flipped(Vec(params.LduCnt + params.HyuCnt + params.MlsCnt, ValidIO(new DynInst)))
   val stIssuePtr = Input(new SqPtr())
 
   val debugLS = Flipped(Output(new DebugLSIO))
 
-  val lsTopdownInfo = Vec(params.LduCnt + params.HyuCnt, Flipped(Output(new LsTopdownInfo)))
+  val lsTopdownInfo = Vec(params.LduCnt + params.HyuCnt + params.MlsCnt, Flipped(Output(new LsTopdownInfo)))
   // Output
   val redirect = ValidIO(new Redirect)   // rob flush MemBlock
   val issueLda = MixedVec(Seq.fill(params.LduCnt)(DecoupledIO(new MemExuInput())))
@@ -1169,7 +1174,9 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val issueStd = MixedVec(Seq.fill(params.StdCnt)(DecoupledIO(new MemExuInput())))
   val issueHylda = MixedVec(Seq.fill(params.HyuCnt)(DecoupledIO(new MemExuInput())))
   val issueHysta = MixedVec(Seq.fill(params.HyuCnt)(DecoupledIO(new MemExuInput())))
-  val issueVldu = MixedVec(Seq.fill(params.VlduCnt)(DecoupledIO(new MemExuInput(true))))
+  val issueVldu = MixedVec(Seq.fill(params.VlduCnt)(DecoupledIO(new MemExuInput(isVector = true))))
+  val issueMlslda = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
+  val issueMlssta = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
 
   val loadFastMatch = Vec(params.LduCnt, Output(UInt(params.LduCnt.W)))
   val loadFastImm   = Vec(params.LduCnt, Output(UInt(12.W))) // Imm_I
@@ -1187,6 +1194,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
       issueHylda ++ issueHysta ++
       issueLda ++
       issueVldu ++
+      issueMlslda ++ issueMlssta ++
       issueStd
   }.toSeq
 
@@ -1196,6 +1204,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
       writebackHyuLda ++ writebackHyuSta ++
       writebackLda ++
       writebackVldu ++
+      writebackMlsLda ++ writebackMlsSta ++
       writebackStd
   }
 

@@ -120,6 +120,12 @@ object Bundles {
     def isSWPrefetch: Bool = isPrefetch && !isHWPrefetch
   }
 
+  class MlsPipelineBundle(implicit p: Parameters) extends LsPipelineBundle {
+    val stride = UInt(PAddrBits.W)
+    val mtile0 = UInt(XLEN.W)
+    val mtile1 = UInt(XLEN.W)
+  }
+
   class LsPrefetchTrainBundle(implicit p: Parameters) extends LsPipelineBundle {
     val meta_prefetch = UInt(L1PfSourceBits.W)
     val meta_access = Bool()
