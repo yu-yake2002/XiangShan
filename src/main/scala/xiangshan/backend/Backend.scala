@@ -50,7 +50,7 @@ import xiangshan.backend.issue.{Scheduler, SchedulerArithImp, SchedulerImpBase, 
 import xiangshan.backend.rob.{RobCoreTopDownIO, RobDebugRollingIO, RobLsqIO, RobPtr}
 import xiangshan.backend.trace.TraceCoreInterface
 import xiangshan.frontend.{FtqPtr, FtqRead, PreDecodeInfo}
-import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr}
+import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr, MlsqPtr}
 
 import scala.collection.mutable
 import yunsuan.VectorElementFormat.w
@@ -281,16 +281,20 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   ctrlBlock.io.fromMem.violation <> io.mem.memoryViolation
   ctrlBlock.io.lqCanAccept := io.mem.lqCanAccept
   ctrlBlock.io.sqCanAccept := io.mem.sqCanAccept
+  ctrlBlock.io.mlsqCanAccept := io.mem.mlsqCanAccept
 
   io.mem.wfi <> ctrlBlock.io.toMem.wfi
 
   io.mem.lsqEnqIO <> ctrlBlock.io.toMem.lsqEnqIO
   ctrlBlock.io.fromMemToDispatch.scommit := io.mem.sqDeq
   ctrlBlock.io.fromMemToDispatch.lcommit := io.mem.lqDeq
+  ctrlBlock.io.fromMemToDispatch.mcommit := io.mem.mlsqDeq
   ctrlBlock.io.fromMemToDispatch.sqDeqPtr := io.mem.sqDeqPtr
   ctrlBlock.io.fromMemToDispatch.lqDeqPtr := io.mem.lqDeqPtr
+  ctrlBlock.io.fromMemToDispatch.mlsqDeqPtr := io.mem.mlsqDeqPtr
   ctrlBlock.io.fromMemToDispatch.sqCancelCnt := io.mem.sqCancelCnt
   ctrlBlock.io.fromMemToDispatch.lqCancelCnt := io.mem.lqCancelCnt
+  ctrlBlock.io.fromMemToDispatch.mlsqCancelCnt := io.mem.mlsqCancelCnt
   ctrlBlock.io.toDispatch.wakeUpInt := intScheduler.io.toSchedulers.wakeupVec
   ctrlBlock.io.toDispatch.wakeUpFp  := fpScheduler.io.toSchedulers.wakeupVec
   ctrlBlock.io.toDispatch.wakeUpVec := vfScheduler.io.toSchedulers.wakeupVec
@@ -463,11 +467,14 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
   memScheduler.io.mxWriteBackDelayed := mxWriteBackDelayed
   memScheduler.io.fromMem.get.scommit := io.mem.sqDeq
   memScheduler.io.fromMem.get.lcommit := io.mem.lqDeq
+  memScheduler.io.fromMem.get.mcommit := io.mem.mlsqDeq
   memScheduler.io.fromMem.get.wakeup := io.mem.wakeup
   memScheduler.io.fromMem.get.sqDeqPtr := io.mem.sqDeqPtr
   memScheduler.io.fromMem.get.lqDeqPtr := io.mem.lqDeqPtr
+  memScheduler.io.fromMem.get.mlsqDeqPtr := io.mem.mlsqDeqPtr
   memScheduler.io.fromMem.get.sqCancelCnt := io.mem.sqCancelCnt
   memScheduler.io.fromMem.get.lqCancelCnt := io.mem.lqCancelCnt
+  memScheduler.io.fromMem.get.mlsqCancelCnt := io.mem.mlsqCancelCnt
   memScheduler.io.fromMem.get.stIssuePtr := io.mem.stIssuePtr
   require(memScheduler.io.fromMem.get.memWaitUpdateReq.robIdx.length == io.mem.stIn.length)
   memScheduler.io.fromMem.get.memWaitUpdateReq.robIdx.zip(io.mem.stIn).foreach { case (sink, source) =>
@@ -836,6 +843,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.debug_seqNum := source.bits.uop.debug_seqNum
     sink.bits.lqIdx.foreach(_ := source.bits.uop.lqIdx)
     sink.bits.sqIdx.foreach(_ := source.bits.uop.sqIdx)
+    sink.bits.mlsqIdx.foreach(_ := source.bits.uop.mlsqIdx)
     sink.bits.predecodeInfo.foreach(_ := source.bits.uop.preDecodeInfo)
     sink.bits.vls.foreach(x => {
       x.vdIdx := source.bits.vdIdx.get
@@ -885,6 +893,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
         memScheduler.io.loadFinalIssueResp(i)(j).bits.uopIdx.foreach(_ := toMem(i)(j).bits.vpu.get.vuopIdx)
         memScheduler.io.loadFinalIssueResp(i)(j).bits.sqIdx.foreach(_ := toMem(i)(j).bits.sqIdx.get)
         memScheduler.io.loadFinalIssueResp(i)(j).bits.lqIdx.foreach(_ := toMem(i)(j).bits.lqIdx.get)
+        memScheduler.io.loadFinalIssueResp(i)(j).bits.mlsqIdx.foreach(_ := toMem(i)(j).bits.mlsqIdx.get)
       }
 
       if (memScheduler.io.vecLoadFinalIssueResp(i).nonEmpty && memExuBlocksHasVecLoad(i)(j)) {
@@ -895,6 +904,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
         memScheduler.io.vecLoadFinalIssueResp(i)(j).bits.uopIdx.foreach(_ := toMem(i)(j).bits.vpu.get.vuopIdx)
         memScheduler.io.vecLoadFinalIssueResp(i)(j).bits.sqIdx.foreach(_ := toMem(i)(j).bits.sqIdx.get)
         memScheduler.io.vecLoadFinalIssueResp(i)(j).bits.lqIdx.foreach(_ := toMem(i)(j).bits.lqIdx.get)
+        memScheduler.io.vecLoadFinalIssueResp(i)(j).bits.mlsqIdx.foreach(_ := toMem(i)(j).bits.mlsqIdx.get)
       }
 
       NewPipelineConnect(
@@ -913,6 +923,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
         memScheduler.io.memAddrIssueResp(i)(j).bits.robIdx := toMem(i)(j).bits.robIdx
         memScheduler.io.memAddrIssueResp(i)(j).bits.sqIdx.foreach(_ := toMem(i)(j).bits.sqIdx.get)
         memScheduler.io.memAddrIssueResp(i)(j).bits.lqIdx.foreach(_ := toMem(i)(j).bits.lqIdx.get)
+        memScheduler.io.memAddrIssueResp(i)(j).bits.mlsqIdx.foreach(_ := toMem(i)(j).bits.mlsqIdx.get)
         memScheduler.io.memAddrIssueResp(i)(j).bits.resp := RespType.success // for load inst, firing at toMem means issuing successfully
       }
 
@@ -964,6 +975,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
     sink.bits.uop.ssid           := Mux(enableMdp, source.bits.ssid.getOrElse(0.U(SSIDWidth.W)), 0.U(SSIDWidth.W))
     sink.bits.uop.lqIdx          := source.bits.lqIdx.getOrElse(0.U.asTypeOf(new LqPtr))
     sink.bits.uop.sqIdx          := source.bits.sqIdx.getOrElse(0.U.asTypeOf(new SqPtr))
+    sink.bits.uop.mlsqIdx        := source.bits.mlsqIdx.getOrElse(0.U.asTypeOf(new MlsqPtr))
     sink.bits.uop.ftqPtr         := source.bits.ftqIdx.getOrElse(0.U.asTypeOf(new FtqPtr))
     sink.bits.uop.ftqOffset      := source.bits.ftqOffset.getOrElse(0.U)
     sink.bits.uop.debugInfo      := source.bits.perfDebugInfo
@@ -1152,14 +1164,18 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   })
   val sqDeq = Input(UInt(log2Ceil(EnsbufferWidth + 1).W))
   val lqDeq = Input(UInt(log2Up(CommitWidth + 1).W))
+  val mlsqDeq = Input(UInt(log2Up(CommitWidth + 1).W))
   val sqDeqPtr = Input(new SqPtr)
   val lqDeqPtr = Input(new LqPtr)
+  val mlsqDeqPtr = Input(new MlsqPtr)
 
   val lqCancelCnt = Input(UInt(log2Up(VirtualLoadQueueSize + 1).W))
   val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))
+  val mlsqCancelCnt = Input(UInt(log2Up(MlsQueueSize + 1).W))
 
   val lqCanAccept = Input(Bool())
   val sqCanAccept = Input(Bool())
+  val mlsqCanAccept = Input(Bool())
 
   val otherFastWakeup = Flipped(Vec(params.LduCnt + params.HyuCnt + params.MlsCnt, ValidIO(new DynInst)))
   val stIssuePtr = Input(new SqPtr())

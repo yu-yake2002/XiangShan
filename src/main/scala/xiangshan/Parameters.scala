@@ -186,6 +186,10 @@ case class XSCoreParameters
   StoreQueueNWriteBanks: Int = 8, // NOTE: make sure that StoreQueueSize is divided by StoreQueueNWriteBanks
   StoreQueueForwardWithMask: Boolean = true,
   VlsQueueSize: Int = 8,
+  MlsQueueSize: Int = 8,
+  MlsQueueReplaySize: Int = 8,
+  VirtualMlsQueueSize: Int = 8,
+  MlsQueueNWriteBanks: Int = 8,
   RobSize: Int = 160,
   RabSize: Int = 256,
   VTypeBufferSize: Int = 64, // used to reorder vtype
@@ -231,11 +235,10 @@ case class XSCoreParameters
   prefetcher: Option[PrefetcherParams] = Some(SMSParams()),
   IfuRedirectNum: Int = 1,
   LoadPipelineWidth: Int = 3, // TODO: remove me
-  LoadAddrPipelineWidth: Int = 4,
   LoadDataPipelineWidth: Int = 3,
   StorePipelineWidth: Int = 2, // TODO: remove me
-  StoreAddrPipelineWidth: Int = 3,
   StoreDataPipelineWidth: Int = 2,
+  MlsPipelineWidth: Int = 1,
   VecLoadPipelineWidth: Int = 2,
   VecStorePipelineWidth: Int = 2,
   VecMemSrcInWidth: Int = 2,
@@ -846,6 +849,7 @@ trait HasXSParameter {
   def LSQEnqWidth = RenameWidth
   def LSQLdEnqWidth = LSQEnqWidth min backendParams.numLoadDp
   def LSQStEnqWidth = LSQEnqWidth min backendParams.numStoreDp
+  def LSQMlsEnqWidth = LSQEnqWidth min backendParams.numMlsDp
   def VirtualLoadQueueSize = coreParams.VirtualLoadQueueSize
   def LoadQueueRARSize = coreParams.LoadQueueRARSize
   def LoadQueueRAWSize = coreParams.LoadQueueRAWSize
@@ -862,6 +866,11 @@ trait HasXSParameter {
   def StoreQueueNWriteBanks = coreParams.StoreQueueNWriteBanks
   def StoreQueueForwardWithMask = coreParams.StoreQueueForwardWithMask
   def VlsQueueSize = coreParams.VlsQueueSize
+  def MlsQueueSize = coreParams.MlsQueueSize
+  def MlsQueueReplaySize = coreParams.MlsQueueReplaySize
+  def VirtualMlsQueueSize = coreParams.VirtualMlsQueueSize
+  def MlsQueueNWriteBanks = coreParams.MlsQueueNWriteBanks
+  def dpParams = coreParams.dpParams
 
   def MemIQSizeMax = backendParams.memSchdParams.get.issueBlockParams.map(_.numEntries).max
   def IQSizeMax = backendParams.allSchdParams.map(_.issueBlockParams.map(_.numEntries).max).max
@@ -871,11 +880,10 @@ trait HasXSParameter {
   def FtqRedirectAheadNum = NumRedirect
   def IfuRedirectNum = coreParams.IfuRedirectNum
   def LoadPipelineWidth = coreParams.LoadPipelineWidth
-  def LoadAddrPipelineWidth = coreParams.LoadAddrPipelineWidth
   def LoadDataPipelineWidth = coreParams.LoadDataPipelineWidth
   def StorePipelineWidth = coreParams.StorePipelineWidth // TODO: remove me
-  def StoreAddrPipelineWidth = coreParams.StoreAddrPipelineWidth
   def StoreDataPipelineWidth = coreParams.StoreDataPipelineWidth
+  def MlsPipelineWidth = coreParams.MlsPipelineWidth
   def VecLoadPipelineWidth = coreParams.VecLoadPipelineWidth
   def VecStorePipelineWidth = coreParams.VecStorePipelineWidth
   def VecMemSrcInWidth = coreParams.VecMemSrcInWidth
@@ -912,7 +920,6 @@ trait HasXSParameter {
   def EnableStorePrefetchSPB = coreParams.EnableStorePrefetchSPB
   def HasCMO = coreParams.HasCMO && p(EnableCHI)
   require(LoadPipelineWidth == backendParams.LduCnt + backendParams.HyuCnt, "LoadPipelineWidth must be equal exuParameters.LduCnt + HyuCnt!")
-  require(LoadAddrPipelineWidth == backendParams.LdExuCnt, "LoadAddrTransWidth must be equal exuParameters.LdExuCnt!")
   require(StorePipelineWidth == backendParams.StaCnt, "StorePipelineWidth must be equal exuParameters.StuCnt!")
   def Enable3Load3Store = (LoadPipelineWidth == 3 && StorePipelineWidth == 3)
   def asidLen = coreParams.MMUAsidLen

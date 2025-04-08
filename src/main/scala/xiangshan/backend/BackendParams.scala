@@ -134,6 +134,8 @@ case class BackendParams(
 
   def numStoreDp = memSchdParams.get.issueBlockParams.filter(x => x.isStAddrIQ || x.isHyAddrIQ).map(_.numEnq).sum
 
+  def numMlsDp = memSchdParams.get.issueBlockParams.filter(x => x.isMatrixMemIQ).map(_.numEnq).sum
+
   def genIntIQValidNumBundle(implicit p: Parameters) = {
     this.intSchdParams.get.issueBlockParams.map(x => Vec(x.numDeq, UInt((x.numEntries).U.getWidth.W)))
   }

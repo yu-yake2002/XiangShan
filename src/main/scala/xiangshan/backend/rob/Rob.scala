@@ -39,7 +39,7 @@ import xiangshan.backend.Bundles.{DynInst, ExceptionInfo, ExuOutput}
 import xiangshan.backend.decode.isa.bitfield.XSInstBitFields
 import xiangshan.backend.fu.{FuConfig, FuType}
 import xiangshan.frontend.FtqPtr
-import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr}
+import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr, MlsqPtr}
 import xiangshan.backend.Bundles.{DynInst, ExceptionInfo, ExuOutput}
 import xiangshan.backend.ctrlblock.{DebugLSIO, DebugLsInfo, LsTopdownInfo}
 import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
@@ -580,6 +580,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       // debug for lqidx and sqidx
       debug_microOp(wbIdx).lqIdx := wb.bits.lqIdx.getOrElse(0.U.asTypeOf(new LqPtr))
       debug_microOp(wbIdx).sqIdx := wb.bits.sqIdx.getOrElse(0.U.asTypeOf(new SqPtr))
+      debug_microOp(wbIdx).mlsqIdx := wb.bits.mlsqIdx.getOrElse(0.U.asTypeOf(new MlsqPtr))
     }
     XSInfo(wb.valid,
       p"writebacked pc 0x${Hexadecimal(debug_Uop.pc)} wen ${debug_Uop.rfWen} " +
@@ -873,13 +874,16 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   val ldCommitVec = VecInit((0 until CommitWidth).map(i => io.commits.commitValid(i) && io.commits.info(i).commitType === CommitType.LOAD))
   // TODO: Check if meet the require that only set scommit when commit scala store uop
   val stCommitVec = VecInit((0 until CommitWidth).map(i => io.commits.commitValid(i) && io.commits.info(i).commitType === CommitType.STORE && !robEntries(deqPtrVec(i).value).vls ))
+  val mlsCommitVec = VecInit((0 until CommitWidth).map(i => io.commits.commitValid(i) && io.commits.info(i).commitType === CommitType.MLS))
   io.lsq.lcommit := RegNext(Mux(io.commits.isCommit, PopCount(ldCommitVec), 0.U))
   io.lsq.scommit := RegNext(Mux(io.commits.isCommit, PopCount(stCommitVec), 0.U))
+  io.lsq.mcommit := RegNext(Mux(io.commits.isCommit, PopCount(mlsCommitVec), 0.U))
   // indicate a pending load or store
   io.lsq.pendingMMIOld := RegNext(io.commits.isCommit && io.commits.info(0).commitType === CommitType.LOAD && deqPtrEntryValid && deqPtrEntry.mmio)
   io.lsq.pendingld := RegNext(io.commits.isCommit && io.commits.info(0).commitType === CommitType.LOAD && deqPtrEntryValid)
   // TODO: Check if need deassert pendingst when it is vst
   io.lsq.pendingst := RegNext(io.commits.isCommit && io.commits.info(0).commitType === CommitType.STORE && deqPtrEntryValid)
+  io.lsq.pendingmls := RegNext(io.commits.isCommit && io.commits.info(0).commitType === CommitType.MLS && deqPtrEntryValid)
   // TODO: Check if set correctly when vector store is at the head of ROB
   io.lsq.pendingVst := RegNext(io.commits.isCommit && io.commits.info(0).commitType === CommitType.STORE && deqPtrEntryValid && deqPtrEntry.vls)
   io.lsq.commit := RegNext(io.commits.isCommit && io.commits.commitValid(0))
@@ -1617,6 +1621,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
         difftest.robIdx := ZeroExt(ptr, 10)
         difftest.lqIdx := ZeroExt(uop.lqIdx.value, 7)
         difftest.sqIdx := ZeroExt(uop.sqIdx.value, 7)
+        difftest.mlsqIdx := ZeroExt(uop.mlsqIdx.value, 7)
         difftest.isLoad := io.commits.info(i).commitType === CommitType.LOAD
         difftest.isStore := io.commits.info(i).commitType === CommitType.STORE
         // Check LoadEvent only when isAmo or isLoad and skip MMIO

@@ -260,9 +260,11 @@ class RobCSRIO(implicit p: Parameters) extends XSBundle {
 class RobLsqIO(implicit p: Parameters) extends XSBundle {
   val lcommit = Output(UInt(log2Up(CommitWidth + 1).W))
   val scommit = Output(UInt(log2Up(CommitWidth + 1).W))
+  val mcommit = Output(UInt(log2Up(CommitWidth + 1).W))
   val pendingMMIOld = Output(Bool())
   val pendingld = Output(Bool())
   val pendingst = Output(Bool())
+  val pendingmls = Output(Bool())
   // set when vector store at the head of ROB
   val pendingVst = Output(Bool())
   val commit = Output(Bool())

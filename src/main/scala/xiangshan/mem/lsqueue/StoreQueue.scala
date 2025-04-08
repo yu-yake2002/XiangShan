@@ -53,6 +53,7 @@ object SqPtr {
 class SqEnqIO(implicit p: Parameters) extends MemBlockBundle {
   val canAccept = Output(Bool())
   val lqCanAccept = Input(Bool())
+  val mlsqCanAccept = Input(Bool())
   val needAlloc = Vec(LSQEnqWidth, Input(Bool()))
   val req = Vec(LSQEnqWidth, Flipped(ValidIO(new DynInst)))
   val resp = Vec(LSQEnqWidth, Output(new SqPtr))
@@ -169,8 +170,8 @@ class StoreQueue(implicit p: Parameters) extends XSModule
     val enq = new SqEnqIO
     val brqRedirect = Flipped(ValidIO(new Redirect))
     val vecFeedback = Vec(VecLoadPipelineWidth, Flipped(ValidIO(new FeedbackToLsqIO)))
-    val storeAddrIn = Vec(StoreAddrPipelineWidth, Flipped(Valid(new LsPipelineBundle))) // store addr, data is not included
-    val storeAddrInRe = Vec(StoreAddrPipelineWidth, Input(new LsPipelineBundle())) // store more mmio and exception
+    val storeAddrIn = Vec(StorePipelineWidth, Flipped(Valid(new LsPipelineBundle))) // store addr, data is not included
+    val storeAddrInRe = Vec(StorePipelineWidth, Input(new LsPipelineBundle())) // store more mmio and exception
     val storeDataIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // store data, send to sq from rs
     val storeMaskIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new StoreMaskBundle))) // store mask, send to sq from rs
     val sbuffer = Vec(EnsbufferWidth, Decoupled(new DCacheWordReqWithVaddrAndPfFlag)) // write committed store to sbuffer

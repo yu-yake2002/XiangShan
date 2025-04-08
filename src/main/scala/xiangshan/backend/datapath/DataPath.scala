@@ -20,7 +20,7 @@ import xiangshan.backend.regfile._
 import xiangshan.backend.regcache._
 import xiangshan.backend.fu.FuConfig
 import xiangshan.backend.fu.FuType.is0latency
-import xiangshan.mem.{LqPtr, SqPtr}
+import xiangshan.mem.{LqPtr, SqPtr, MlsqPtr}
 
 class DataPath(params: BackendParams)(implicit p: Parameters) extends LazyModule {
   override def shouldBeInlined: Boolean = false
@@ -711,6 +711,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
           og0resp.bits.uopIdx.foreach(_ := fromIQ(iqIdx)(iuIdx).bits.common.vpu.get.vuopIdx)
           og0resp.bits.sqIdx.foreach(_ := 0.U.asTypeOf(new SqPtr))
           og0resp.bits.lqIdx.foreach(_ := 0.U.asTypeOf(new LqPtr))
+          og0resp.bits.mlsqIdx.foreach(_ := 0.U.asTypeOf(new MlsqPtr))
           og0resp.bits.resp             := RespType.block
           og0resp.bits.fuType           := fromIQ(iqIdx)(iuIdx).bits.common.fuType
 
@@ -721,6 +722,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
           og1resp.bits.uopIdx.foreach(_ := s1_toExuData(iqIdx)(iuIdx).vpu.get.vuopIdx)
           og1resp.bits.sqIdx.foreach(_ :=  0.U.asTypeOf(new SqPtr))
           og1resp.bits.lqIdx.foreach(_ :=  0.U.asTypeOf(new LqPtr))
+          og1resp.bits.mlsqIdx.foreach(_ := 0.U.asTypeOf(new MlsqPtr))
           // respType:  success    -> IQ entry clear
           //            uncertain  -> IQ entry no action
           //            block      -> IQ entry issued set false, then re-issue

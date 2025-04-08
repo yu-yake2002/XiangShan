@@ -58,11 +58,15 @@ case class IssueBlockParams(
 
   def isVecStuIQ: Boolean = inMemSchd && (VstuCnt + VsegstuCnt) > 0
 
+  def isMatrixMemIQ: Boolean = inMemSchd && MlsCnt > 0
+
   def isVecMemIQ: Boolean = isVecLduIQ || isVecStuIQ
 
   def needFeedBackSqIdx: Boolean = isVecMemIQ || isStAddrIQ
 
   def needFeedBackLqIdx: Boolean = isVecMemIQ || isLdAddrIQ
+
+  def needFeedBackMlsqIdx: Boolean = isMatrixMemIQ
 
   def needLoadDependency: Boolean = exuBlockParams.map(_.needLoadDependency).reduce(_ || _)
 

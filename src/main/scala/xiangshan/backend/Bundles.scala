@@ -21,7 +21,7 @@ import xiangshan.backend.issue.EntryBundles._
 import xiangshan.backend.regfile.{RfReadPortWithConfig, RfWritePortWithConfig}
 import xiangshan.backend.rob.RobPtr
 import xiangshan.frontend._
-import xiangshan.mem.{LqPtr, SqPtr}
+import xiangshan.mem.{LqPtr, SqPtr, MlsqPtr}
 import yunsuan.vector.VIFuParam
 import xiangshan.backend.trace._
 import utility._
@@ -260,6 +260,7 @@ object Bundles {
     // Todo
     val lqIdx = new LqPtr
     val sqIdx = new SqPtr
+    val mlsqIdx = new MlsqPtr
     // debug module
     val singleStep      = Bool()
     // schedule
@@ -772,6 +773,7 @@ object Bundles {
 
     val sqIdx = if (params.hasMemAddrFu || params.hasStdFu) Some(new SqPtr) else None
     val lqIdx = if (params.hasMemAddrFu) Some(new LqPtr) else None
+    val mlsqIdx = if (params.hasMemAddrFu) Some(new MlsqPtr) else None
     val dataSources = Vec(params.numRegSrc, DataSource())
     val exuSources = OptionWrapper(params.isIQWakeUpSink, Vec(params.numRegSrc, ExuSource(params)))
     val srcTimer = OptionWrapper(params.isIQWakeUpSink, Vec(params.numRegSrc, UInt(3.W)))
@@ -817,6 +819,7 @@ object Bundles {
       this.ssid          .foreach(_ := source.common.ssid.get)
       this.lqIdx         .foreach(_ := source.common.lqIdx.get)
       this.sqIdx         .foreach(_ := source.common.sqIdx.get)
+      this.mlsqIdx       .foreach(_ := source.common.mlsqIdx.get)
       this.numLsElem     .foreach(_ := source.common.numLsElem.get)
       this.srcTimer      .foreach(_ := source.common.srcTimer.get)
       this.loadDependency.foreach(_ := source.common.loadDependency.get.map(_ << 1))
@@ -849,6 +852,7 @@ object Bundles {
     val lqIdx        = if (params.hasLoadFu)    Some(new LqPtr())             else None
     val sqIdx        = if (params.hasStoreAddrFu || params.hasStdFu)
                                                 Some(new SqPtr())             else None
+    val mlsqIdx      = if (params.hasMlsFu)     Some(new MlsqPtr())           else None
     val trigger      = if (params.trigger)      Some(TriggerAction())         else None
     // uop info
     val predecodeInfo = if(params.hasPredecode) Some(new PreDecodeInfo) else None

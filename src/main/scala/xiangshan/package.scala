@@ -171,6 +171,7 @@ package object xiangshan {
     def BRANCH = "b001".U  // branch
     def LOAD   = "b010".U  // load
     def STORE  = "b011".U  // store
+    def MLS    = "b100".U  // mls
 
     def apply() = UInt(3.W)
     def isFused(commitType: UInt): Bool = commitType(2)

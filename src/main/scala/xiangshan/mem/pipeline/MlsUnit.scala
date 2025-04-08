@@ -493,6 +493,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   io.feedback_fast.bits.dataInvalidSqIdx := DontCare
   io.feedback_fast.bits.lqIdx            := s2_in.uop.lqIdx
   io.feedback_fast.bits.sqIdx            := s2_in.uop.sqIdx
+  io.feedback_fast.bits.mlsqIdx          := s2_in.uop.mlsqIdx
 
   io.stu_io.lsq_replenish := s2_out
   io.stu_io.lsq_replenish.miss := false.B
@@ -619,6 +620,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   io.feedback_slow.bits.dataInvalidSqIdx := DontCare
   io.feedback_slow.bits.lqIdx            := s3_in.uop.lqIdx
   io.feedback_slow.bits.sqIdx            := s3_in.uop.sqIdx
+  io.feedback_slow.bits.mlsqIdx          := s3_in.uop.mlsqIdx
 
   io.ldu_io.ldCancel.ld2Cancel := s3_valid && s3_ld_flow && (                          // is load
     io.ldu_io.lsq.ldin.bits.rep_info.need_rep || s3_in.mmio                            // exe fail or is mmio

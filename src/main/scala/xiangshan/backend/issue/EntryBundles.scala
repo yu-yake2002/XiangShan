@@ -12,7 +12,7 @@ import xiangshan.backend.datapath.DataSource
 import xiangshan.backend.fu.FuType
 import xiangshan.backend.fu.vector.Bundles.NumLsElem
 import xiangshan.backend.rob.RobPtr
-import xiangshan.mem.{LqPtr, SqPtr}
+import xiangshan.mem.{LqPtr, SqPtr, MlsqPtr}
 import xiangshan.mem.Bundles.MemWaitUpdateReqBundle
 
 object EntryBundles extends HasCircularQueuePtrHelper {
@@ -62,6 +62,7 @@ object EntryBundles extends HasCircularQueuePtrHelper {
   class StatusVecMemPart(implicit p:Parameters, params: IssueBlockParams) extends Bundle {
     val sqIdx                 = new SqPtr
     val lqIdx                 = new LqPtr
+    val mlsqIdx               = new MlsqPtr
     val numLsElem             = NumLsElem()
   }
 
@@ -72,6 +73,7 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     val uopIdx                = Option.when(params.isVecMemIQ)(Output(UopIdx()))
     val sqIdx                 = Option.when(params.needFeedBackSqIdx)(new SqPtr())
     val lqIdx                 = Option.when(params.needFeedBackLqIdx)(new LqPtr())
+    val mlsqIdx               = Option.when(params.needFeedBackMlsqIdx)(new MlsqPtr())
   }
 
   object RespType {

@@ -9,7 +9,7 @@ import xiangshan.backend.BackendParams
 import xiangshan.backend.Bundles._
 import xiangshan.backend.issue.EntryBundles.{EntryDeqRespBundle, RespType}
 import xiangshan.backend.issue.{MemScheduler, VfScheduler}
-import xiangshan.mem.{SqPtr, LqPtr}
+import xiangshan.mem.{SqPtr, LqPtr, MlsqPtr}
 
 
 class Og2ForVector(params: BackendParams)(implicit p: Parameters) extends XSModule {
@@ -67,6 +67,7 @@ class Og2ForVector(params: BackendParams)(implicit p: Parameters) extends XSModu
           og2Resp.bits.fuType := s2_toExuData(iqId)(exuId).fuType
           og2Resp.bits.sqIdx.foreach(_ := 0.U.asTypeOf(new SqPtr))
           og2Resp.bits.lqIdx.foreach(_ := 0.U.asTypeOf(new LqPtr))
+          og2Resp.bits.mlsqIdx.foreach(_ := 0.U.asTypeOf(new MlsqPtr))
       }
   }
   io.toBypassNetworkImmInfo := io.fromOg1ImmInfo.zip(s1_validVec2.flatten).map{

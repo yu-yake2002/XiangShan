@@ -99,9 +99,11 @@ class ooo_to_mem(implicit p: Parameters) extends MemBlockBundle {
   val lsqio = new Bundle {
     val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     val scommit = Input(UInt(log2Up(CommitWidth + 1).W))
+    val mcommit = Input(UInt(log2Up(CommitWidth + 1).W))
     val pendingMMIOld = Input(Bool())
     val pendingld = Input(Bool())
     val pendingst = Input(Bool())
+    val pendingmls = Input(Bool())
     val pendingVst = Input(Bool())
     val commit = Input(Bool())
     val pendingPtr = Input(new RobPtr)
@@ -132,11 +134,14 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   val otherFastWakeup = Vec(LdExuCnt, ValidIO(new DynInst))
   val lqCancelCnt = Output(UInt(log2Up(VirtualLoadQueueSize + 1).W))
   val sqCancelCnt = Output(UInt(log2Up(StoreQueueSize + 1).W))
+  val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize + 1).W))
   val sqDeq = Output(UInt(log2Ceil(EnsbufferWidth + 1).W))
   val lqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
+  val mlsqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
   // used by VLSU issue queue, the vector store would wait all store before it, and the vector load would wait all load
   val sqDeqPtr = Output(new SqPtr)
   val lqDeqPtr = Output(new LqPtr)
+  val mlsqDeqPtr = Output(new MlsqPtr)
   val stIn = MixedVec(Seq.fill(StaCnt + HyuCnt)(ValidIO(new MemExuInput)) ++
     Seq.fill(MlsCnt)(ValidIO(new MemExuInput(isMatrix = true))))
   val stIssuePtr = Output(new SqPtr())
@@ -156,6 +161,7 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
     val uop = Output(Vec(LoadPipelineWidth, new DynInst))
     val lqCanAccept = Output(Bool())
     val sqCanAccept = Output(Bool())
+    val mlsqCanAccept = Output(Bool())
   }
 
   val storeDebugInfo = Vec(EnsbufferWidth, new Bundle {
@@ -1209,12 +1215,12 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     mlsUnits(i).io.ldu_io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
       tlbreplay_reg(LduCnt + HyuCnt + i) || dtlb_ld0_tlbreplay_reg(LduCnt + HyuCnt + i)
 
-    mlsUnits(i).io.ldu_io.replay <> lsq.io.replay(LduCnt + HyuCnt + i)
+    mlsUnits(i).io.ldu_io.replay <> lsq.io.mls_replay(i)
     mlsUnits(i).io.ldu_io.lq_rep_full <> lsq.io.lq_rep_full
     
     mlsUnits(i).io.ldu_io.lsq.forward <> DontCare
     // uncache
-    lsq.io.ldout.drop(LduCnt + HyuCnt)(i) <> mlsUnits(i).io.ldu_io.lsq.uncache
+    mlsUnits(i).io.ldu_io.lsq.uncache <> DontCare
     mlsUnits(i).io.ldu_io.lsq.ld_raw_data <> DontCare
 
     mlsUnits(i).io.ldu_io.lsq.stld_nuke_query <> DontCare
@@ -1223,13 +1229,13 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     // passdown to lsq (load s2)
     mlsUnits(i).io.ldu_io.lsq.nc_ldin.valid := false.B
     mlsUnits(i).io.ldu_io.lsq.nc_ldin.bits := DontCare
-    lsq.io.ldu.ldin(LduCnt + HyuCnt + i) <> mlsUnits(i).io.ldu_io.lsq.ldin
+    lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.ldu_io.lsq.ldin
 
     // ------------------------------------
     //  Store Port
     // ------------------------------------
-    mlsUnits(i).io.stu_io.lsq <> lsq.io.sta.storeAddrIn.drop(StaCnt + HyuCnt)(i)
-    mlsUnits(i).io.stu_io.lsq_replenish <> lsq.io.sta.storeAddrInRe.drop(StaCnt + HyuCnt)(i)
+    mlsUnits(i).io.stu_io.lsq <> DontCare
+    mlsUnits(i).io.stu_io.lsq_replenish <> DontCare
 
     io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).valid := mlsUnits(i).io.stu_io.issue.valid
     io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).bits  := mlsUnits(i).io.stu_io.issue.bits
@@ -1239,9 +1245,11 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   loadMisalignBuffer.io.redirect                <> redirect
   loadMisalignBuffer.io.rob.lcommit             := io.ooo_to_mem.lsqio.lcommit
   loadMisalignBuffer.io.rob.scommit             := io.ooo_to_mem.lsqio.scommit
+  loadMisalignBuffer.io.rob.mcommit             := io.ooo_to_mem.lsqio.mcommit
   loadMisalignBuffer.io.rob.pendingMMIOld       := io.ooo_to_mem.lsqio.pendingMMIOld
   loadMisalignBuffer.io.rob.pendingld           := io.ooo_to_mem.lsqio.pendingld
   loadMisalignBuffer.io.rob.pendingst           := io.ooo_to_mem.lsqio.pendingst
+  loadMisalignBuffer.io.rob.pendingmls          := io.ooo_to_mem.lsqio.pendingmls
   loadMisalignBuffer.io.rob.pendingVst          := io.ooo_to_mem.lsqio.pendingVst
   loadMisalignBuffer.io.rob.commit              := io.ooo_to_mem.lsqio.commit
   loadMisalignBuffer.io.rob.pendingPtr          := io.ooo_to_mem.lsqio.pendingPtr
@@ -1253,9 +1261,11 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   storeMisalignBuffer.io.redirect               <> redirect
   storeMisalignBuffer.io.rob.lcommit            := io.ooo_to_mem.lsqio.lcommit
   storeMisalignBuffer.io.rob.scommit            := io.ooo_to_mem.lsqio.scommit
+  storeMisalignBuffer.io.rob.mcommit            := io.ooo_to_mem.lsqio.mcommit
   storeMisalignBuffer.io.rob.pendingMMIOld      := io.ooo_to_mem.lsqio.pendingMMIOld
   storeMisalignBuffer.io.rob.pendingld          := io.ooo_to_mem.lsqio.pendingld
   storeMisalignBuffer.io.rob.pendingst          := io.ooo_to_mem.lsqio.pendingst
+  storeMisalignBuffer.io.rob.pendingmls         := io.ooo_to_mem.lsqio.pendingmls
   storeMisalignBuffer.io.rob.pendingVst         := io.ooo_to_mem.lsqio.pendingVst
   storeMisalignBuffer.io.rob.commit             := io.ooo_to_mem.lsqio.commit
   storeMisalignBuffer.io.rob.pendingPtr         := io.ooo_to_mem.lsqio.pendingPtr
@@ -1457,9 +1467,11 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   io.mem_to_ooo.lsqio.uop        := lsq.io.rob.uop
   lsq.io.rob.lcommit             := io.ooo_to_mem.lsqio.lcommit
   lsq.io.rob.scommit             := io.ooo_to_mem.lsqio.scommit
+  lsq.io.rob.mcommit             := io.ooo_to_mem.lsqio.mcommit
   lsq.io.rob.pendingMMIOld       := io.ooo_to_mem.lsqio.pendingMMIOld
   lsq.io.rob.pendingld           := io.ooo_to_mem.lsqio.pendingld
   lsq.io.rob.pendingst           := io.ooo_to_mem.lsqio.pendingst
+  lsq.io.rob.pendingmls          := io.ooo_to_mem.lsqio.pendingmls
   lsq.io.rob.pendingVst          := io.ooo_to_mem.lsqio.pendingVst
   lsq.io.rob.commit              := io.ooo_to_mem.lsqio.commit
   lsq.io.rob.pendingPtr          := io.ooo_to_mem.lsqio.pendingPtr
@@ -1489,6 +1501,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   io.mem_to_ooo.memoryViolation := oldestRedirect
   io.mem_to_ooo.lsqio.lqCanAccept  := lsq.io.lqCanAccept
   io.mem_to_ooo.lsqio.sqCanAccept  := lsq.io.sqCanAccept
+  io.mem_to_ooo.lsqio.mlsqCanAccept := lsq.io.mlsqCanAccept
 
   // lsq.io.uncache        <> uncache.io.lsq
   val s_idle :: s_scalar_uncache :: s_vector_uncache :: Nil = Enum(3)
@@ -1558,11 +1571,14 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   lsq.io.release        := dcache.io.lsu.release
   lsq.io.lqCancelCnt <> io.mem_to_ooo.lqCancelCnt
   lsq.io.sqCancelCnt <> io.mem_to_ooo.sqCancelCnt
+  lsq.io.mlsqCancelCnt <> io.mem_to_ooo.mlsqCancelCnt
   lsq.io.lqDeq <> io.mem_to_ooo.lqDeq
   lsq.io.sqDeq <> io.mem_to_ooo.sqDeq
+  lsq.io.mlsqDeq <> io.mem_to_ooo.mlsqDeq
   // Todo: assign these
   io.mem_to_ooo.sqDeqPtr := lsq.io.sqDeqPtr
   io.mem_to_ooo.lqDeqPtr := lsq.io.lqDeqPtr
+  io.mem_to_ooo.mlsqDeqPtr := lsq.io.mlsqDeqPtr
   lsq.io.tl_d_channel <> dcache.io.lsu.tl_d_channel
 
   // LSQ to store buffer
