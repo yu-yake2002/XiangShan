@@ -173,8 +173,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   backend.io.mem.writebackHyuSta <> memBlock.io.mem_to_ooo.writebackHyuSta
   backend.io.mem.writebackStd <> memBlock.io.mem_to_ooo.writebackStd
   backend.io.mem.writebackVldu <> memBlock.io.mem_to_ooo.writebackVldu
-  backend.io.mem.writebackMlsLda <> memBlock.io.mem_to_ooo.writebackMlsLda
-  backend.io.mem.writebackMlsSta <> memBlock.io.mem_to_ooo.writebackMlsSta
+  backend.io.mem.writebackMls <> memBlock.io.mem_to_ooo.writebackMls
   backend.io.mem.robLsqIO.mmio := memBlock.io.mem_to_ooo.lsqio.mmio
   backend.io.mem.robLsqIO.uop := memBlock.io.mem_to_ooo.lsqio.uop
 
@@ -221,8 +220,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   memBlock.io.ooo_to_mem.issueHya <> backend.io.mem.issueHylda
   backend.io.mem.issueHysta.foreach(_.ready := false.B) // this fake port should not be used
   memBlock.io.ooo_to_mem.issueVldu <> backend.io.mem.issueVldu
-  memBlock.io.ooo_to_mem.issueMlsu <> backend.io.mem.issueMlslda
-  backend.io.mem.issueMlssta.foreach(_.ready := false.B) // this fake port should not be used
+  memBlock.io.ooo_to_mem.issueMlsu <> backend.io.mem.issueMls
 
   // By default, instructions do not have exceptions when they enter the function units.
   memBlock.io.ooo_to_mem.issueUops.map(_.bits.uop.clearExceptions())

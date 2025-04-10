@@ -51,7 +51,7 @@ class MlsQueue(implicit p: Parameters) extends XSModule
     val mlsq_rep_full = Output(Bool())
     val mlsqEmpty = Output(Bool())
     val mlsqDeqPtr = Output(new MlsqPtr)
-    val mlsqDeq = Output(UInt(1.W)) // TODO: determine the width
+    val mlsqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize + 1).W))
 
     val tlb_hint = Flipped(new TlbHintIO)

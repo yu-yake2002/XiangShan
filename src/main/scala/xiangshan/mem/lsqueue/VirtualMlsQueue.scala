@@ -6,7 +6,7 @@ import org.chipsalliance.cde.config._
 import xiangshan._
 import xiangshan.backend.Bundles.UopIdx
 import xiangshan.backend._
-import xiangshan.backend.fu.FuConfig.MlsldaCfg
+import xiangshan.backend.fu.FuConfig.MlsCfg
 import xiangshan.backend.rob._
 import xiangshan.cache._
 import xiangshan.mem._
@@ -16,6 +16,7 @@ import utility._
 class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   with HasDCacheParameters
   with HasCircularQueuePtrHelper
+  with HasVLSUParameters
 {
   val io = IO(new Bundle {
     // control
@@ -30,7 +31,7 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
     val mlsqFull = Output(Bool())
     val mlsqEmpty = Output(Bool())
     // to dispatch
-    val mlsqDeq = Output(UInt(1.W)) // TODO: determine the width
+    val mlsqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize + 1).W))
   })
 
@@ -76,6 +77,31 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   val lastCycleCancelCount = PopCount(lastNeedCancel)
   val redirectCancelCount = RegEnable(lastCycleCancelCount + lastEnqCancel, 0.U, lastCycleRedirect.valid)
 
+  // update enqueue pointer
+  val vLoadFlow = io.enq.req.map(_.bits.numLsElem.asTypeOf(UInt(elemIdxBits.W)))
+  val validVLoadFlow = vLoadFlow.zipWithIndex.map{case (vLoadFlowNumItem, index) => Mux(canEnqueue(index), vLoadFlowNumItem, 0.U)}
+  val validVLoadOffset = vLoadFlow.zip(io.enq.needAlloc).map{case (flow, needAllocItem) => Mux(needAllocItem, flow, 0.U)}
+  val validVLoadOffsetRShift = 0.U +: validVLoadOffset.take(validVLoadFlow.length - 1)
+
+  val enqNumber = validVLoadFlow.reduce(_ + _)
+  val enqPtrExtNextVec = Wire(Vec(io.enq.req.length, new MlsqPtr))
+  val enqPtrExtNext = Wire(Vec(io.enq.req.length, new MlsqPtr))
+  when (lastLastCycleRedirect.valid) {
+    // we recover the pointers in the next cycle after redirect
+    enqPtrExtNextVec := VecInit(enqPtrExt.map(_ - redirectCancelCount))
+  } .otherwise {
+    enqPtrExtNextVec := VecInit(enqPtrExt.map(_ + enqNumber))
+  }
+  assert(!(lastCycleRedirect.valid && enqNumber =/= 0.U))
+
+  when (isAfter(enqPtrExtNextVec(0), deqPtrNext)) {
+    enqPtrExtNext := enqPtrExtNextVec
+  } .otherwise {
+    enqPtrExtNext := VecInit((0 until io.enq.req.length).map(i => deqPtrNext + i.U))
+  }
+  enqPtrExt := enqPtrExtNext
+
+  // update dequeue pointer
   val DeqPtrMoveStride = CommitWidth
   val deqLookupVec = VecInit((0 until DeqPtrMoveStride).map(deqPtr + _.U))
   val deqLookup = VecInit(deqLookupVec.map(ptr => allocated(ptr.value) && committed(ptr.value) && ptr =/= enqPtrExt(0)))
@@ -91,7 +117,7 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   // cycle 2: update deqPtr
   val deqPtrUpdateEna = lastCommitCount =/= 0.U
   deqPtrNext := deqPtr + lastCommitCount
-  deqPtr := RegEnable(deqPtrNext, 0.U.asTypeOf(new LqPtr), deqPtrUpdateEna)
+  deqPtr := RegEnable(deqPtrNext, 0.U.asTypeOf(new MlsqPtr), deqPtrUpdateEna)
 
   io.mlsqDeq := GatedRegNext(lastCommitCount)
   io.mlsqCancelCnt := redirectCancelCount
@@ -100,8 +126,8 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   io.mlsqEmpty := RegNext(validCount === 0.U)
 
   io.enq.canAccept := allowEnqueue
-  val enqLowBound = io.enq.req.map(_.bits.lqIdx)
-  val enqUpBound  = io.enq.req.map(x => x.bits.lqIdx + x.bits.numLsElem)
+  val enqLowBound = io.enq.req.map(_.bits.mlsqIdx)
+  val enqUpBound  = io.enq.req.map(x => x.bits.mlsqIdx + x.bits.numLsElem)
   val enqCrossLoop = enqLowBound.zip(enqUpBound).map{case (low, up) => low.flag =/= up.flag}
 
   for (i <- 0 until VirtualMlsQueueSize) {
@@ -124,11 +150,11 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   }
 
   for (i <- 0 until io.enq.req.length) {
-    val lqIdx = enqPtrExt(0)
-    val index = io.enq.req(i).bits.lqIdx
-    XSError(canEnqueue(i) && !enqCancel(i) && (!io.enq.canAccept || !io.enq.sqCanAccept), s"must accept $i\n")
-    XSError(canEnqueue(i) && !enqCancel(i) && index.value =/= lqIdx.value, s"must be the same entry $i\n")
-    io.enq.resp(i) := lqIdx
+    val mlsqIdx = enqPtrExt(0) + validVLoadOffsetRShift.take(i + 1).reduce(_ + _)
+    val index = io.enq.req(i).bits.mlsqIdx
+    // XSError(canEnqueue(i) && !enqCancel(i) && (!io.enq.canAccept || !io.enq.sqCanAccept), s"must accept $i\n")
+    XSError(canEnqueue(i) && !enqCancel(i) && index.value =/= mlsqIdx.value, s"must be the same entry $i\n")
+    io.enq.resp(i) := mlsqIdx
   }
 
   /**
@@ -162,10 +188,10 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
     //   most lq status need to be updated immediately after load writeback to lq
     //   flag bits in lq needs to be updated accurately
     io.lsin(i).ready := true.B
-    val loadWbIndex = io.lsin(i).bits.uop.lqIdx.value
+    val loadWbIndex = io.lsin(i).bits.uop.mlsqIdx.value
 
     when (io.lsin(i).valid) {
-      val hasExceptions = ExceptionNO.selectByFu(io.lsin(i).bits.uop.exceptionVec, MlsldaCfg).asUInt.orR
+      val hasExceptions = ExceptionNO.selectByFu(io.lsin(i).bits.uop.exceptionVec, MlsCfg).asUInt.orR
       val need_rep = io.lsin(i).bits.rep_info.need_rep
       val need_valid = io.lsin(i).bits.updateAddrValid
 
@@ -175,7 +201,7 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
 
       XSInfo(!need_rep && need_valid,
         "matrix load/store hit write to lq idx %d pc 0x%x vaddr %x paddr %x mask %x forwardData %x forwardMask: %x mmio %x\n",
-        io.lsin(i).bits.uop.lqIdx.asUInt,
+        io.lsin(i).bits.uop.mlsqIdx.asUInt,
         io.lsin(i).bits.uop.pc,
         io.lsin(i).bits.vaddr,
         io.lsin(i).bits.paddr,

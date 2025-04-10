@@ -302,21 +302,17 @@ case class ExeUnitParams(
 
   def hasMlsFu = fuConfigs.map(_.name == "mls").reduce(_ || _)
 
-  def hasMemAddrFu = hasLoadFu || hasStoreAddrFu || hasVLoadFu || hasHyldaFu || hasHystaFu || hasVLoadFu || hasVStoreFu || hasMlsldaFu || hasMlsstaFu
+  def hasMemAddrFu = hasLoadFu || hasStoreAddrFu || hasVLoadFu || hasHyldaFu || hasHystaFu || hasVLoadFu || hasVStoreFu || hasMlsFu
 
   def hasHyldaFu = fuConfigs.map(_.name == "hylda").reduce(_ || _)
 
   def hasHystaFu = fuConfigs.map(_.name == "hysta").reduce(_ || _)
 
-  def hasMlsldaFu = fuConfigs.map(_.name == "mlslda").reduce(_ || _)
-
-  def hasMlsstaFu = fuConfigs.map(_.name == "mlssta").reduce(_ || _)
-
-  def hasLoadExu = hasLoadFu || hasHyldaFu || hasMlsldaFu
+  def hasLoadExu = hasLoadFu || hasHyldaFu || hasMlsFu
 
   def hasLoadWakeupExu = hasLoadFu || hasHyldaFu
 
-  def hasStoreAddrExu = hasStoreAddrFu || hasHystaFu || hasMlsstaFu
+  def hasStoreAddrExu = hasStoreAddrFu || hasHystaFu
 
   def hasVecFu = fuConfigs.map(x => FuConfig.VecArithFuConfigs.contains(x)).reduce(_ || _)
 

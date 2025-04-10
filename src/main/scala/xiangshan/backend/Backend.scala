@@ -869,7 +869,7 @@ class BackendInlinedImp(override val wrapper: BackendInlined)(implicit p: Parame
 
   // to mem
   private val memIssueParams = params.memSchdParams.get.issueBlockParams
-  private val memExuBlocksHasLDU = memIssueParams.map(_.exuBlockParams.map(x => x.hasLoadFu || x.hasHyldaFu || x.hasMlsldaFu))
+  private val memExuBlocksHasLDU = memIssueParams.map(_.exuBlockParams.map(x => x.hasLoadFu || x.hasHyldaFu || x.hasMlsFu))
   private val memExuBlocksHasVecLoad = memIssueParams.map(_.exuBlockParams.map(x => x.hasVLoadFu))
   println(s"[Backend] memExuBlocksHasLDU: $memExuBlocksHasLDU")
   println(s"[Backend] memExuBlocksHasVecLoad: $memExuBlocksHasVecLoad")
@@ -1151,8 +1151,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val writebackHyuLda = Vec(params.HyuCnt, Flipped(DecoupledIO(new MemExuOutput)))
   val writebackHyuSta = Vec(params.HyuCnt, Flipped(DecoupledIO(new MemExuOutput)))
   val writebackVldu = Vec(params.VlduCnt, Flipped(DecoupledIO(new MemExuOutput(isVector = true))))
-  val writebackMlsLda = Vec(params.MlsCnt, Flipped(DecoupledIO(new MemExuOutput(isMatrix = true))))
-  val writebackMlsSta = Vec(params.MlsCnt, Flipped(DecoupledIO(new MemExuOutput(isMatrix = true))))
+  val writebackMls = Vec(params.MlsCnt, Flipped(DecoupledIO(new MemExuOutput(isMatrix = true))))
 
   val s3_delayed_load_error = Input(Vec(LoadPipelineWidth, Bool()))
   val stIn = Input(Vec(params.StaExuCnt, ValidIO(new DynInst())))
@@ -1191,8 +1190,8 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val issueHylda = MixedVec(Seq.fill(params.HyuCnt)(DecoupledIO(new MemExuInput())))
   val issueHysta = MixedVec(Seq.fill(params.HyuCnt)(DecoupledIO(new MemExuInput())))
   val issueVldu = MixedVec(Seq.fill(params.VlduCnt)(DecoupledIO(new MemExuInput(isVector = true))))
-  val issueMlslda = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
-  val issueMlssta = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
+  val issueMls = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
+  // val issueMlssta = MixedVec(Seq.fill(params.MlsCnt)(DecoupledIO(new MemExuInput(isMatrix = true))))
 
   val loadFastMatch = Vec(params.LduCnt, Output(UInt(params.LduCnt.W)))
   val loadFastImm   = Vec(params.LduCnt, Output(UInt(12.W))) // Imm_I
@@ -1210,7 +1209,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
       issueHylda ++ issueHysta ++
       issueLda ++
       issueVldu ++
-      issueMlslda ++ issueMlssta ++
+      issueMls ++
       issueStd
   }.toSeq
 
@@ -1220,7 +1219,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
       writebackHyuLda ++ writebackHyuSta ++
       writebackLda ++
       writebackVldu ++
-      writebackMlsLda ++ writebackMlsSta ++
+      writebackMls ++
       writebackStd
   }
 

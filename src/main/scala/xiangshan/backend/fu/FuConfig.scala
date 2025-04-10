@@ -604,9 +604,9 @@ object FuConfig {
     immType = Set(SelImm.IMM_S),
   )
 
-  val MlsldaCfg: FuConfig = FuConfig (
-    name = "mlslda",
-    fuType = FuType.mlslda,
+  val MlsCfg: FuConfig = FuConfig (
+    name = "mls",
+    fuType = FuType.mls,
     fuGen = null,
     srcData = Seq(
       Seq(IntData(), IntData(), MxData(), MxData()),
@@ -616,40 +616,11 @@ object FuConfig {
     exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, hardwareError),
     replayInst = true,
     hasLoadError = true,
-    // If TLB hits, it will take 2 cycle.
+    // If TLB hits, it will take 3 cycle.
     // Otherwise, it will take uncertain cycles.
-    latency = UncertainLatency(2),
+    latency = UncertainLatency(3),
     immType = Set(SelImm.IMM_MATRIXREG)
   )
-
-  val MlsstaCfg: FuConfig = FuConfig (
-    name = "mlssta",
-    fuType = FuType.mlssta,
-    fuGen = null,
-    srcData = Seq(
-      Seq(IntData(), IntData(), MxData(), MxData()),
-    ),
-    piped = false, // Todo: check it
-    needAmuCtrl = true,
-    exceptionOut = Seq(loadAddrMisaligned, loadAccessFault, loadPageFault, loadGuestPageFault, hardwareError),
-    replayInst = true,
-    // If TLB hits, it will take 2 cycle.
-    // Otherwise, it will take uncertain cycles.
-    latency = UncertainLatency(2),
-    immType = Set(SelImm.IMM_MATRIXREG)
-  )
-
-  // val FakeMlsstaCfg: FuConfig = FuConfig (
-  //   name = "fakeMlssta",
-  //   fuType = FuType.mlsu,
-  //   fuGen = null,
-  //   srcData = Seq(),
-  //   piped = false,
-  //   latency = UncertainLatency(),
-  //   needAmuCtrl = true,
-  //   exceptionOut = Seq(storeAddrMisaligned, storeAccessFault, storePageFault, storeGuestPageFault),
-  //   immType = Set(),
-  // )
 
   val FakeHystaCfg = FuConfig (
     name = "hysta",
@@ -1005,7 +976,7 @@ object FuConfig {
     VfaluCfg, VfmaCfg, VfcvtCfg, HyldaCfg, HystaCfg,
     MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg, MSetMtilexRmfWmfCfg,
     MSetMtypeRiWiCfg, MsetMtypeRiWmfCfg,
-    MmaCfg, MarithCfg, MlsldaCfg, MlsstaCfg
+    MmaCfg, MarithCfg, MlsCfg,
   )
 
   def VecArithFuConfigs = Seq(

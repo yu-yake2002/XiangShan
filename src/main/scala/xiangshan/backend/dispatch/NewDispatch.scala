@@ -133,7 +133,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val fromMem = new Bundle {
       val lcommit = Input(UInt(log2Up(CommitWidth + 1).W))
       val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W)) // connected to `memBlock.io.sqDeq` instead of ROB
-      val mcommit = Input(UInt(1.W)) // TODO: determine the width
+      val mcommit = Input(UInt(log2Up(CommitWidth + 1).W)) // TODO: determine the width
       val lqDeqPtr = Input(new LqPtr)
       val sqDeqPtr = Input(new SqPtr)
       val mlsqDeqPtr = Input(new MlsqPtr)
@@ -922,7 +922,7 @@ class NewDispatch(implicit p: Parameters) extends XSModule with HasPerfEvents wi
     val headIsDiv = FuType.isDivSqrt(io.robHead.getDebugFuType) && io.robHeadNotReady
     val headIsLd  = io.robHead.getDebugFuType === FuType.ldu.U && io.robHeadNotReady || !io.lqCanAccept
     val headIsSt  = io.robHead.getDebugFuType === FuType.stu.U && io.robHeadNotReady || !io.sqCanAccept
-    val headIsMls = io.robHead.getDebugFuType === FuType.mlslda.U && io.robHeadNotReady || !io.mlsqCanAccept
+    val headIsMls = io.robHead.getDebugFuType === FuType.mls.U && io.robHeadNotReady || !io.mlsqCanAccept
     val headIsAmo = io.robHead.getDebugFuType === FuType.mou.U && io.robHeadNotReady
     val headIsLs  = headIsLd || headIsSt
     val robLsFull = io.robFull || !io.lqCanAccept || !io.sqCanAccept || !io.mlsqCanAccept

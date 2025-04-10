@@ -8,7 +8,7 @@ import utility._
 import xiangshan._
 import xiangshan.backend.BackendParams
 import xiangshan.backend.Bundles.DynInst
-import xiangshan.backend.fu.FuConfig.MlsldaCfg
+import xiangshan.backend.fu.FuConfig.MlsCfg
 import xiangshan.cache._
 import xiangshan.cache.mmu._
 import xiangshan.ExceptionNO._
@@ -110,7 +110,7 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
   val canEnqueue = io.enq.map(_.valid)
   val cancelEnq = io.enq.map(enq => enq.bits.uop.robIdx.needFlush(io.redirect))
   val needReplay = io.enq.map(enq => enq.bits.rep_info.need_rep)
-  val hasExceptions = io.enq.map(enq => ExceptionNO.selectByFu(enq.bits.uop.exceptionVec, MlsldaCfg).asUInt.orR && !enq.bits.tlbMiss)
+  val hasExceptions = io.enq.map(enq => ExceptionNO.selectByFu(enq.bits.uop.exceptionVec, MlsCfg).asUInt.orR && !enq.bits.tlbMiss)
   val loadReplay = io.enq.map(enq => enq.bits.isLoadReplay)
   val needEnqueue = VecInit((0 until MlsPipelineWidth).map(w => {
     canEnqueue(w) && !cancelEnq(w) && needReplay(w) && !hasExceptions(w)

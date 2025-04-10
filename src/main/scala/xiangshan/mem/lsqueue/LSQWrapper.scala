@@ -118,7 +118,7 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
     val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize+1).W))
     val lqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val sqDeq = Output(UInt(log2Ceil(EnsbufferWidth + 1).W))
-    val mlsqDeq = Output(UInt(1.W)) // TODO: determine the width
+    val mlsqDeq = Output(UInt(log2Up(CommitWidth + 1).W))
     val lqCanAccept = Output(Bool())
     val sqCanAccept = Output(Bool())
     val mlsqCanAccept = Output(Bool())
@@ -368,7 +368,7 @@ class LsqEnqCtrl(implicit p: Parameters) extends XSModule
     // from `memBlock.io.sqDeq`
     val scommit = Input(UInt(log2Ceil(EnsbufferWidth + 1).W))
     // from `memBlock.io.mlsqDeq`
-    val mcommit = Input(UInt(1.W)) // TODO: determine the width
+    val mcommit = Input(UInt(log2Up(CommitWidth + 1).W)) // TODO: determine the width
     // from/tp lsq
     val lqCancelCnt = Input(UInt(log2Up(VirtualLoadQueueSize + 1).W))
     val sqCancelCnt = Input(UInt(log2Up(StoreQueueSize + 1).W))

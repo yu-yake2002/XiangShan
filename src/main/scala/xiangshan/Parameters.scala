@@ -539,8 +539,7 @@ case class XSCoreParameters
         ExeUnitParams("VLSU1", Seq(VlduCfg, VstuCfg), Seq(VfWB(5, 0), V0WB(5, 0), VlWB(port = 3, 0)), Seq(Seq(VfRD(9, 0)), Seq(VfRD(10, 0)), Seq(VfRD(11, 0)), Seq(V0RD(3, 0)), Seq(VlRD(3, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
-        ExeUnitParams("MLSU0", Seq(MlsldaCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
-        ExeUnitParams("MLSU1", Seq(MlsstaCfg), Seq(), Seq(Seq(IntRD(1, 2)), Seq(IntRD(4, 2)), Seq(MxRD(0, 2)), Seq(MxRD(3, 1)))),
+        ExeUnitParams("MLSU0", Seq(MlsCfg), Seq(), Seq(Seq(IntRD(8, 1)), Seq(IntRD(9, 1)), Seq(MxRD(3, 0)), Seq(MxRD(4, 0)))),
       ), numEntries = 16, numEnq = 2, numComp = 12),
       IssueBlockParams(Seq(
         ExeUnitParams("STD0", Seq(StdCfg, MoudCfg), Seq(), Seq(Seq(IntRD(5, 2), FpRD(9, 0)))),
@@ -562,7 +561,7 @@ case class XSCoreParameters
     Seq(
       WakeUpConfig(
         Seq("ALU0", "ALU1", "ALU2", "ALU3", "LDU0", "LDU1", "LDU2") ->
-        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSETTYPE", "MLSU0", "MLSU1")
+        Seq("ALU0", "BJU0", "ALU1", "BJU1", "ALU2", "BJU2", "ALU3", "BJU3", "LDU0", "LDU1", "LDU2", "STA0", "STA1", "STD0", "STD1", "MSET0", "MSETTYPE", "MLSU0")
       ),
       // TODO: add load -> fp slow wakeup
       WakeUpConfig(

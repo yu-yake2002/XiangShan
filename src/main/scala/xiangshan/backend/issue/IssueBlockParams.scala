@@ -212,7 +212,7 @@ case class IssueBlockParams(
 
   def VstuCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vstu)).sum
 
-  def MlsCnt: Int = exuBlockParams.count(_.hasMlsldaFu) // only count mlslda, since it equals to mlssta
+  def MlsCnt: Int = exuBlockParams.count(_.hasMlsFu)
 
   def VseglduCnt: Int = exuBlockParams.map(_.fuConfigs.count(_.fuType == FuType.vsegldu)).sum
 
