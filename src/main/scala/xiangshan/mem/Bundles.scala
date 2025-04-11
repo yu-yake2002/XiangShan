@@ -175,6 +175,17 @@ object Bundles {
     val need_rep = Bool()
   }
 
+  class MlsqWriteBundle(implicit p: Parameters) extends LsPipelineBundle {
+    val rep_info = new MlsToMlsqReplayIO
+
+    // valid bit in LqWriteBundle will be ignored
+    val data_wen_dup = Vec(6, Bool()) // dirty reg dup
+
+    val stride = UInt(PAddrBits.W)
+    val mtile0 = UInt(XLEN.W)
+    val mtile1 = UInt(XLEN.W)
+  }
+
   class LoadForwardQueryIO(implicit p: Parameters) extends XSBundle {
     val vaddr = Output(UInt(VAddrBits.W))
     val paddr = Output(UInt(PAddrBits.W))

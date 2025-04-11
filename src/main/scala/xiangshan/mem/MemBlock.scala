@@ -65,7 +65,7 @@ trait HasMemBlockParameters extends HasXSParameter {
   val MlsCnt = backendParams.MlsCnt
 
   val LdExuCnt  = LduCnt + HyuCnt + MlsCnt
-  val StAddrCnt = StaCnt + HyuCnt + MlsCnt
+  val StAddrCnt = StaCnt + HyuCnt
   val StDataCnt = StdCnt
   val MemExuCnt = LduCnt + HyuCnt + StaCnt + StdCnt
   val MemAddrExtCnt = LdExuCnt + StaCnt
@@ -142,8 +142,7 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   val sqDeqPtr = Output(new SqPtr)
   val lqDeqPtr = Output(new LqPtr)
   val mlsqDeqPtr = Output(new MlsqPtr)
-  val stIn = MixedVec(Seq.fill(StaCnt + HyuCnt)(ValidIO(new MemExuInput)) ++
-    Seq.fill(MlsCnt)(ValidIO(new MemExuInput(isMatrix = true))))
+  val stIn = Vec(StAddrCnt, ValidIO(new MemExuInput))
   val stIssuePtr = Output(new SqPtr())
 
   val memoryViolation = ValidIO(new Redirect)
@@ -563,7 +562,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   io.mem_to_ooo.otherFastWakeup.drop(HyuCnt).take(LduCnt).zip(loadUnits.map(_.io.fast_uop)).foreach{case(a,b)=> a := b}
   io.mem_to_ooo.otherFastWakeup.take(HyuCnt).zip(hybridUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
   io.mem_to_ooo.otherFastWakeup.drop(HyuCnt + LduCnt).zip(mlsUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
-  val stOut = io.mem_to_ooo.writebackSta ++ io.mem_to_ooo.writebackHyuSta // ++ io.mem_to_ooo.writebackMlsSta
+  val stOut = io.mem_to_ooo.writebackSta ++ io.mem_to_ooo.writebackHyuSta
 
   // prefetch to l1 req
   // Stream's confidence is always 1
@@ -1206,36 +1205,19 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
 
     io.mem_to_ooo.ldCancel.drop(LduCnt + HyuCnt)(i) := mlsUnits(i).io.ldu_io.ldCancel
 
-    mlsUnits(i).io.ldu_io.tlb_hint.id := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).id
-    mlsUnits(i).io.ldu_io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
+    mlsUnits(i).io.tlb_hint.id := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).id
+    mlsUnits(i).io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
       tlbreplay_reg(LduCnt + HyuCnt + i) || dtlb_ld0_tlbreplay_reg(LduCnt + HyuCnt + i)
 
-    mlsUnits(i).io.ldu_io.replay <> lsq.io.mls_replay(i)
-    mlsUnits(i).io.ldu_io.lq_rep_full <> lsq.io.lq_rep_full
-    
-    mlsUnits(i).io.ldu_io.lsq.forward <> DontCare
-    // uncache
-    mlsUnits(i).io.ldu_io.lsq.uncache <> DontCare
-    mlsUnits(i).io.ldu_io.lsq.ld_raw_data <> DontCare
+    mlsUnits(i).io.replay <> lsq.io.mls_replay(i)
+    mlsUnits(i).io.mlsq_rep_full <> lsq.io.mlsq_rep_full
 
-    mlsUnits(i).io.ldu_io.lsq.stld_nuke_query <> DontCare
-    mlsUnits(i).io.ldu_io.lsq.ldld_nuke_query <> DontCare
-    
-    // passdown to lsq (load s2)
-    mlsUnits(i).io.ldu_io.lsq.nc_ldin.valid := false.B
-    mlsUnits(i).io.ldu_io.lsq.nc_ldin.bits := DontCare
     lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.ldu_io.lsq.ldin
 
     // ------------------------------------
     //  Store Port
     // ------------------------------------
-    // mlsUnits(i).io.stu_io.lsq <> lsq.io.mlsu.storeAddrIn(i)
-    // mlsUnits(i).io.stu_io.lsq_replenish <> lsq.io.mlsu.storeAddrInRe(i)
     mlsUnits(i).io.stu_io.lsq <> DontCare
-    mlsUnits(i).io.stu_io.lsq_replenish <> DontCare
-
-    io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).valid := mlsUnits(i).io.stu_io.issue.valid
-    io.mem_to_ooo.stIn.drop(StaCnt + HyuCnt)(i).bits  := mlsUnits(i).io.stu_io.issue.bits
   }
 
   // misalignBuffer

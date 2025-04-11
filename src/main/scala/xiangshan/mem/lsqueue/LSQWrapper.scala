@@ -85,13 +85,13 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
       val storeDataIn = Vec(StoreDataPipelineWidth, Flipped(Valid(new MemExuOutput(isVector = true)))) // from store_s0, store data, send to sq from rs
     }
     val mlsu = new Bundle() {
-      val mlsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new LqWriteBundle))) // from load_s3
+      val mlsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new MlsqWriteBundle))) // from load_s3
     }
     val ldout = Vec(LoadPipelineWidth, DecoupledIO(new MemExuOutput))
     val ld_raw_data = Vec(LoadPipelineWidth, Output(new LoadDataFromLQBundle))
     val ncOut = Vec(LoadPipelineWidth, DecoupledIO(new LsPipelineBundle))
     val replay = Vec(LoadPipelineWidth, Decoupled(new LsPipelineBundle))
-    val mls_replay = Vec(backendParams.MlsCnt, Decoupled(new LsPipelineBundle))
+    val mls_replay = Vec(backendParams.MlsCnt, Decoupled(new MlsPipelineBundle))
     val sbuffer = Vec(EnsbufferWidth, Decoupled(new DCacheWordReqWithVaddrAndPfFlag))
     val sbufferVecDifftestInfo = Vec(EnsbufferWidth, Decoupled(new DynInst)) // The vector store difftest needs is
     val forward = Vec(LoadPipelineWidth, Flipped(new PipeLoadForwardQueryIO))
@@ -110,6 +110,7 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
     val vecmmioStout = DecoupledIO(new MemExuOutput(isVector = true)) // vec writeback uncached store
     val sqEmpty = Output(Bool())
     val lq_rep_full = Output(Bool())
+    val mlsq_rep_full = Output(Bool())
     val sqFull = Output(Bool())
     val lqFull = Output(Bool())
     val mlsqFull = Output(Bool())
@@ -268,6 +269,7 @@ class LsqWrapper(implicit p: Parameters) extends XSModule with HasDCacheParamete
   mlsQueue.io.replay                <> io.mls_replay
   mlsQueue.io.tlb_hint              <> io.tlb_hint
   mlsQueue.io.tlbReplayDelayCycleCtrl := tlbReplayDelayCycleCtrl
+  mlsQueue.io.mlsq_rep_full         <> io.mlsq_rep_full
   // TODO: Implement me!
 
   // rob commits for lsq is delayed for two cycles, which causes the delayed update for deqPtr in lq/sq

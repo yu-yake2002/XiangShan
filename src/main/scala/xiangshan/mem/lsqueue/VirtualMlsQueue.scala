@@ -24,7 +24,7 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
     // from dispatch
     val enq = new MlsEnqIO
     // from mlsu s3
-    val lsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new LqWriteBundle)))
+    val lsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new MlsqWriteBundle)))
     // to LoadQueueReplay and LoadQueueRAR
     val mlsWbPtr = Output(new MlsqPtr)
     // global

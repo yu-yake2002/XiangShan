@@ -12,6 +12,7 @@ import xiangshan.backend.fu.FuConfig.MlsCfg
 import xiangshan.cache._
 import xiangshan.cache.mmu._
 import xiangshan.ExceptionNO._
+import math._
 
 object MlsReplayCauses {
   // these causes have priority, lower coding has higher priority.
@@ -33,6 +34,26 @@ object MlsReplayCauses {
   val allCauses = 1
 }
 
+class MlsReplayInfo(implicit p: Parameters) extends XSBundle with HasVLSUParameters {
+  val isvec = Bool()
+  val isLastElem = Bool()
+  val is128bit = Bool()
+  val uop_unit_stride_fof = Bool()
+  val usSecondInv = Bool()
+  val elemIdx = UInt(elemIdxBits.W)
+  val alignedType = UInt(alignTypeBits.W)
+  val mbIndex = UInt(max(vlmBindexBits, vsmBindexBits).W)
+  val elemIdxInsideVd = UInt(elemIdxBits.W)
+  val reg_offset = UInt(vOffsetBits.W)
+  val vecActive = Bool()
+  val is_first_ele = Bool()
+  val mask = UInt((VLEN/8).W)
+
+  val stride = UInt(PAddrBits.W)
+  val mtile0 = UInt(XLEN.W)
+  val mtile1 = UInt(XLEN.W)
+}
+
 class MlsQueueReplay(implicit p: Parameters) extends XSModule 
   with HasDCacheParameters
   with HasCircularQueuePtrHelper
@@ -44,10 +65,10 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
     val redirect = Flipped(Valid(new Redirect))
 
     // from Mls unit s3
-    val enq = Vec(backendParams.MlsCnt, Flipped(Decoupled(new LqWriteBundle)))
+    val enq = Vec(backendParams.MlsCnt, Flipped(Decoupled(new MlsqWriteBundle)))
 
     // queue-based replay
-    val replay = Vec(backendParams.MlsCnt, Decoupled(new LsPipelineBundle))
+    val replay = Vec(backendParams.MlsCnt, Decoupled(new MlsPipelineBundle))
 
     val mlsqFull = Output(Bool())
     val mlsWbPtr = Input(new MlsqPtr)
@@ -68,7 +89,7 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
   val allocated = RegInit(VecInit(List.fill(MlsQueueReplaySize)(false.B))) // The control signals need to explicitly indicate the initial value
   val scheduled = RegInit(VecInit(List.fill(MlsQueueReplaySize)(false.B)))
   val uop = Reg(Vec(MlsQueueReplaySize, new DynInst))
-  val vecReplay = Reg(Vec(MlsQueueReplaySize, new VecReplayInfo))
+  val vecReplay = Reg(Vec(MlsQueueReplaySize, new MlsReplayInfo))
   val vaddrModule = Module(new LqVAddrModule(
     gen = UInt(VAddrBits.W),
     numEntries = MlsQueueReplaySize,
@@ -285,7 +306,7 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
   def replayCanFire(i: Int) = coldCounter(i) >= 0.U && coldCounter(i) < ColdDownThreshold
   def coldDownNow(i: Int) = coldCounter(i) >= ColdDownThreshold
 
-  val replay_req = Wire(Vec(MlsPipelineWidth, DecoupledIO(new LsPipelineBundle)))
+  val replay_req = Wire(Vec(MlsPipelineWidth, DecoupledIO(new MlsPipelineBundle)))
 
   for (i <- 0 until MlsPipelineWidth) {
     val s0_can_go = s1_can_go(i) ||
@@ -350,6 +371,9 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
     replay_req(i).bits.forward_tlDchannel := false.B
     replay_req(i).bits.schedIndex   := s2_oldestSel(i).bits
     replay_req(i).bits.uop.loadWaitStrict := false.B
+    replay_req(i).bits.stride       := s2_vecReplay.stride
+    replay_req(i).bits.mtile0       := s2_vecReplay.mtile0
+    replay_req(i).bits.mtile1       := s2_vecReplay.mtile1
 
     XSError(replay_req(i).fire && !allocated(s2_oldestSel(i).bits), p"LoadQueueReplay: why replay an invalid entry ${s2_oldestSel(i).bits} ?")
   }
@@ -428,6 +452,9 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
       vecReplay(enqIndex).vecActive := enq.bits.vecActive
       vecReplay(enqIndex).is_first_ele := enq.bits.is_first_ele
       vecReplay(enqIndex).mask         := enq.bits.mask
+      vecReplay(enqIndex).stride       := enq.bits.stride
+      vecReplay(enqIndex).mtile0       := enq.bits.mtile0
+      vecReplay(enqIndex).mtile1       := enq.bits.mtile1
 
       vaddrModule.io.wen(w)   := true.B
       vaddrModule.io.waddr(w) := enqIndex

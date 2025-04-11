@@ -40,12 +40,11 @@ class MlsQueue(implicit p: Parameters) extends XSModule
     val redirect = Flipped(ValidIO(new Redirect))
     val enq = new MlsEnqIO
 
-    val mlsu = new Bundle(){ 
-      // TODO: design a MlsPipelineBundle
-      val mlsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new LqWriteBundle)))
+    val mlsu = new Bundle(){
+      val mlsin = Vec(backendParams.MlsCnt, Flipped(Decoupled(new MlsqWriteBundle)))
     }
 
-    val replay = Vec(backendParams.MlsCnt, Decoupled(new LsPipelineBundle))
+    val replay = Vec(backendParams.MlsCnt, Decoupled(new MlsPipelineBundle))
 
     val mlsqFull = Output(Bool())
     val mlsq_rep_full = Output(Bool())
