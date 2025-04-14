@@ -552,7 +552,7 @@ class EntriesIO(implicit p: Parameters, params: IssueBlockParams) extends XSBund
   val mxFromMfIsMxmax     = Input(Bool())
   val og0Cancel           = Input(ExuVec())
   val og1Cancel           = Input(ExuVec())
-  val ldCancel            = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+  val ldCancel            = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
   //entries status
   val valid               = Output(UInt(params.numEntries.W))
   val issued              = Output(UInt(params.numEntries.W))

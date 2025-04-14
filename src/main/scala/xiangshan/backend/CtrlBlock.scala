@@ -931,7 +931,7 @@ class CtrlBlockIO()(implicit p: Parameters, params: BackendParams) extends XSBun
     val maxIQSize = allIssueParams.map(_.numEntries).max
     val IQValidNumVec = Vec(exuNum, Input(UInt(maxIQSize.U.getWidth.W)))
     val og0Cancel = Input(ExuVec())
-    val ldCancel = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
     val wbPregsInt = Vec(backendParams.numPregWb(IntData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsFp = Vec(backendParams.numPregWb(FpData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))
     val wbPregsVec = Vec(backendParams.numPregWb(VecData()), Flipped(ValidIO(UInt(PhyRegIdxWidth.W))))

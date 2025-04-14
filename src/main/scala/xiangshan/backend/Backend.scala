@@ -1140,7 +1140,7 @@ class BackendMemIO(implicit p: Parameters, params: BackendParams) extends XSBund
   val vstuIqFeedback = Flipped(Vec(params.VstuCnt, new MemRSFeedbackIO(isVector = true)))
   val vlduIqFeedback = Flipped(Vec(params.VlduCnt, new MemRSFeedbackIO(isVector = true)))
   val mlsIqFeedback = Vec(params.MlsCnt, Flipped(new MemRSFeedbackIO))
-  val ldCancel = Vec(params.LdExuCnt, Input(new LoadCancelIO))
+  val ldCancel = Vec(params.LdWakeupCnt, Input(new LoadCancelIO))
   val wakeup = Vec(params.LdWakeupCnt, Flipped(Valid(new DynInst)))
   val storePcRead = Vec(params.StaCnt, Output(UInt(VAddrBits.W)))
   val hyuPcRead = Vec(params.HyuCnt, Output(UInt(VAddrBits.W)))

@@ -117,7 +117,7 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     //cancel
     val og0Cancel             = Input(ExuVec())
     val og1Cancel             = Input(ExuVec())
-    val ldCancel              = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel              = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
     //deq sel
     val deqSel                = Input(Bool())
     val deqPortIdxWrite       = Input(UInt(1.W))
@@ -541,7 +541,7 @@ object EntryBundles extends HasCircularQueuePtrHelper {
     //cancel
     val srcLoadDependency     = Input(Vec(params.numRegSrc, Vec(LoadPipelineWidth, UInt(LoadDependencyWidth.W))))
     val og0Cancel             = Input(ExuVec())
-    val ldCancel              = Vec(backendParams.LdExuCnt, Flipped(new LoadCancelIO))
+    val ldCancel              = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
   }
 
   class EnqDelayOutBundle(implicit p: Parameters, params: IssueBlockParams) extends XSBundle {

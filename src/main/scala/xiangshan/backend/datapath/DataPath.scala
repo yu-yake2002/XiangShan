@@ -1023,7 +1023,7 @@ class DataPathIO()(implicit p: Parameters, params: BackendParams) extends XSBund
 
   val og1Cancel = Output(ExuVec())
 
-  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
 
   val toIntExu: MixedVec[MixedVec[DecoupledIO[ExuInput]]] = intSchdParams.genExuInputBundle
 

@@ -65,6 +65,7 @@ trait HasMemBlockParameters extends HasXSParameter {
   val MlsCnt = backendParams.MlsCnt
 
   val LdExuCnt  = LduCnt + HyuCnt + MlsCnt
+  val LdWakeupCnt = LdExuCnt + HyuCnt
   val StAddrCnt = StaCnt + HyuCnt
   val StDataCnt = StdCnt
   val MemExuCnt = LduCnt + HyuCnt + StaCnt + StdCnt
@@ -131,7 +132,7 @@ class ooo_to_mem(implicit p: Parameters) extends MemBlockBundle {
 class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   val topToBackendBypass = new TopToBackendBundle
 
-  val otherFastWakeup = Vec(LdExuCnt, ValidIO(new DynInst))
+  val otherFastWakeup = Vec(LdWakeupCnt, ValidIO(new DynInst))
   val lqCancelCnt = Output(UInt(log2Up(VirtualLoadQueueSize + 1).W))
   val sqCancelCnt = Output(UInt(log2Up(StoreQueueSize + 1).W))
   val mlsqCancelCnt = Output(UInt(log2Up(MlsQueueSize + 1).W))
@@ -190,7 +191,7 @@ class mem_to_ooo(implicit p: Parameters) extends MemBlockBundle {
   val vstuIqFeedback = Vec(VstuCnt, new MemRSFeedbackIO(isVector = true))
   val vlduIqFeedback = Vec(VlduCnt, new MemRSFeedbackIO(isVector = true))
   val mlsIqFeedback = Vec(MlsCnt, new MemRSFeedbackIO)
-  val ldCancel = Vec(backendParams.LdExuCnt, new LoadCancelIO)
+  val ldCancel = Vec(backendParams.LdWakeupCnt, new LoadCancelIO)
   val wakeup = Vec(backendParams.LdWakeupCnt, Valid(new DynInst))
 
   val s3_delayed_load_error = Vec(LoadPipelineWidth, Output(Bool()))
@@ -561,7 +562,6 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   io.mem_to_ooo.otherFastWakeup := DontCare
   io.mem_to_ooo.otherFastWakeup.drop(HyuCnt).take(LduCnt).zip(loadUnits.map(_.io.fast_uop)).foreach{case(a,b)=> a := b}
   io.mem_to_ooo.otherFastWakeup.take(HyuCnt).zip(hybridUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
-  io.mem_to_ooo.otherFastWakeup.drop(HyuCnt + LduCnt).zip(mlsUnits.map(_.io.ldu_io.fast_uop)).foreach{case(a,b)=> a:=b}
   val stOut = io.mem_to_ooo.writebackSta ++ io.mem_to_ooo.writebackHyuSta
 
   // prefetch to l1 req
@@ -1197,13 +1197,13 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
 
     // get input from dispatch
     mlsUnits(i).io.lsin <> io.ooo_to_mem.issueMlsu(i)
+
+    // TODO: check whether we need to connect feedbackFast
     mlsUnits(i).io.feedback_slow <> io.mem_to_ooo.mlsIqFeedback(i).feedbackSlow
     mlsUnits(i).io.feedback_fast <> io.mem_to_ooo.mlsIqFeedback(i).feedbackFast
 
     mlsUnits(i).io.tlb <> dtlb_ld.head.requestor(LduCnt + HyuCnt + 1 + i)
     mlsUnits(i).io.pmp <> pmp_check.drop(LduCnt + HyuCnt + 1)(i).resp
-
-    io.mem_to_ooo.ldCancel.drop(LduCnt + HyuCnt)(i) := mlsUnits(i).io.ldu_io.ldCancel
 
     mlsUnits(i).io.tlb_hint.id := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).id
     mlsUnits(i).io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
@@ -1212,12 +1212,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     mlsUnits(i).io.replay <> lsq.io.mls_replay(i)
     mlsUnits(i).io.mlsq_rep_full <> lsq.io.mlsq_rep_full
 
-    lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.ldu_io.lsq.ldin
-
-    // ------------------------------------
-    //  Store Port
-    // ------------------------------------
-    mlsUnits(i).io.stu_io.lsq <> DontCare
+    lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.lsq.ldin
   }
 
   // misalignBuffer

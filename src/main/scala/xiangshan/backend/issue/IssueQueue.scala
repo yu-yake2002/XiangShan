@@ -72,7 +72,7 @@ class IssueQueueIO()(implicit p: Parameters, params: IssueBlockParams) extends X
   val mxFromMfIsMxmax = Input(Bool())
   val og0Cancel = Input(ExuVec())
   val og1Cancel = Input(ExuVec())
-  val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt, Flipped(new LoadCancelIO))
+  val ldCancel = Vec(backendParams.LdWakeupCnt, Flipped(new LoadCancelIO))
   val replaceRCIdx = Option.when(params.needWriteRegCache)(Vec(params.numDeq, Input(UInt(RegCacheIdxWidth.W))))
 
   // Outputs
@@ -142,7 +142,7 @@ class IssueQueueImp(override val wrapper: IssueQueue)(implicit p: Parameters, va
 
   class WakeupQueueFlush extends Bundle {
     val redirect = ValidIO(new Redirect)
-    val ldCancel = Vec(backendParams.LduCnt + backendParams.HyuCnt + backendParams.MlsCnt, new LoadCancelIO)
+    val ldCancel = Vec(backendParams.LdWakeupCnt, new LoadCancelIO)
     val og0Fail = Output(Bool())
     val og1Fail = Output(Bool())
   }
