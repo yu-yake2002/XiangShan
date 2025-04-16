@@ -1003,7 +1003,11 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   // update robEntries valid
   for (i <- 0 until RobSize) {
     val enqOH = VecInit(canEnqueue.zip(allocatePtrVec.map(_.value === i.U)).map(x => x._1 && x._2))
-    val commitCond = io.commits.isCommit && io.commits.commitValid.zip(deqPtrVec.map(_.value === i.U)).map(x => x._1 && x._2).reduce(_ || _)
+    val deqSelOH = deqPtrVec.map(_.value === i.U)
+    val needAmuCtrlOH = io.commits.info.zip(deqSelOH).map{ case (info, sel) => info.needAmuCtrl && sel }
+    val amuFireOH = io.amuCtrl.zip(needAmuCtrlOH).map{ case (amuIO, needAmu) => amuIO.ready & needAmu }
+    val commitValidOH = io.commits.commitValid.zip(deqSelOH.zip(amuFireOH)).map { case (v, (s, a)) => v & s & a }
+    val commitCond = io.commits.isCommit && commitValidOH.reduce(_ || _)
     assert(PopCount(enqOH) < 2.U, s"robEntries$i enqOH is not one hot")
     val needFlush = redirectValidReg && (Mux(
       redirectEnd > redirectBegin,
