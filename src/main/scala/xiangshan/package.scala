@@ -580,9 +580,9 @@ package object xiangshan {
     def isLoad (func: UInt) = func(8) === "b0".U
     def isStore(func: UInt) = func(8) === "b1".U
 
-    def isMatrixC (func: UInt) = func(7, 3) === "b00001".U
-    def isMatrixA (func: UInt) = func(7, 3) === "b00010".U
-    def isMatrixB (func: UInt) = func(7, 3) === "b00100".U
+    def isMatrixA (func: UInt) = func(7, 3) === "b00001".U
+    def isMatrixB (func: UInt) = func(7, 3) === "b00010".U
+    def isMatrixC (func: UInt) = func(7, 3) === "b00100".U
     def isTile    (func: UInt) = func(7, 3) === "b01000".U
     def isAccum   (func: UInt) = func(7, 3) === "b10000".U
 
