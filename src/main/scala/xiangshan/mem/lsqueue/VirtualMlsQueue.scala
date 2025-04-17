@@ -45,7 +45,6 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
   //  Flags       : load flags
   val allocated = RegInit(VecInit(List.fill(VirtualMlsQueueSize)(false.B))) // The control signals need to explicitly indicate the initial value
   val robIdx = Reg(Vec(VirtualMlsQueueSize, new RobPtr))
-  val uopIdx = Reg(Vec(VirtualMlsQueueSize, UopIdx()))
   val committed = Reg(Vec(VirtualMlsQueueSize, Bool()))
 
   //  maintain pointers
@@ -144,7 +143,6 @@ class VirtualMlsQueue(implicit p: Parameters) extends XSModule
     when (entryCanEnq) {
       allocated(i) := true.B
       robIdx(i) := selectBits.robIdx
-      uopIdx(i) := selectBits.uopIdx
       committed(i) := false.B
     }
   }

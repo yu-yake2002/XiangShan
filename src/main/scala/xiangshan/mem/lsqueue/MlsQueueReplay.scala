@@ -102,8 +102,7 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
   val debug_vaddr = RegInit(VecInit(List.fill(MlsQueueReplaySize)(0.U(VAddrBits.W))))
   val cause = RegInit(VecInit(List.fill(MlsQueueReplaySize)(0.U(MlsReplayCauses.allCauses.W))))
   val blocking = RegInit(VecInit(List.fill(MlsQueueReplaySize)(false.B)))
-  val strict = RegInit(VecInit(List.fill(MlsQueueReplaySize)(false.B)))
-
+  
   // freeliset: store valid entries index.
   // +---+---+--------------+-----+-----+
   // | 0 | 1 |      ......  | n-2 | n-1 |
@@ -119,7 +118,6 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
   /**
    * used for re-select control
    */
-  val blockSqIdx = Reg(Vec(MlsQueueReplaySize, new SqPtr))
   val tlbHintId = RegInit(VecInit(List.fill(MlsQueueReplaySize)(0.U((log2Up(loadfiltersize+1).W)))))
   val missDbUpdated = RegInit(VecInit(List.fill(MlsQueueReplaySize)(false.B)))
   //  LoadQueueReplay deallocate
@@ -472,7 +470,6 @@ class MlsQueueReplay(implicit p: Parameters) extends XSModule
 
       // init
       blocking(enqIndex)     := true.B
-      strict(enqIndex)       := false.B
 
       // special case: tlb miss
       when (replayInfo.cause(MlsReplayCauses.C_TM)) {
