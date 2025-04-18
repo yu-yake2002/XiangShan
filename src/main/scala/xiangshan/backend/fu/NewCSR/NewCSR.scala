@@ -51,8 +51,8 @@ object CSRConfig {
 
   // Matrix extension
   // TODO: use XSParams to configure them
-  final val MLEN = 128
-  final val RLEN = 128
+  final val MLEN = 0x20000
+  final val RLEN = 0x00800
   final val AMUL = 4
 
   final val MlWidth = 8
