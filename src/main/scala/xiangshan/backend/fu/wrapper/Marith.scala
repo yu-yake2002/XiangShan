@@ -4,6 +4,8 @@ import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit}
 
+// TODO: It's unused now. Further work is needed.
+
 class Marith(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   protected val in = io.in.bits
   protected val out = io.out.bits
@@ -17,5 +19,6 @@ class Marith(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
 
   out.res.data := 0.U
 
+  out.ctrl.amuCtrl.get.op   := 0.U
   out.ctrl.amuCtrl.get.data := 0.U
 }

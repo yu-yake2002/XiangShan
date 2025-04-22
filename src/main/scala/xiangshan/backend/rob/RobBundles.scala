@@ -153,7 +153,7 @@ object RobBundles extends HasCircularQueuePtrHelper {
     robEntry.dirtyVs := robEnq.dirtyVs
     robEntry.dirtyMs := robEnq.dirtyMs
     robEntry.needAmuCtrl := robEnq.needAmuCtrl
-    robEntry.amuCtrl.data := 0.U
+    robEntry.amuCtrl := 0.U.asTypeOf(robEntry.amuCtrl) // it will be filled at writeback
     // flushPipe needFlush but not exception
     robEntry.needFlush := robEnq.hasException || robEnq.flushPipe
     // trace

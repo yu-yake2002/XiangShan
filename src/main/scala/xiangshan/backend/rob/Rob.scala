@@ -1178,7 +1178,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
 
     val amuCtrlCanWbSeq = amuCtrl_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === needUpdateRobIdx(i))
     val amuCtrlRes = amuCtrlCanWbSeq.zip(amuCtrl_wb).map { case (canWb, wb) => Mux(canWb, wb.bits.amuCtrl.get.asUInt, 0.U) }.fold(0.U)(_ | _)
-    needUpdate(i).amuCtrl.data := Mux(!robBanksRdata(i).valid && instCanEnqFlag, 0.U, robBanksRdata(i).amuCtrl.data | amuCtrlRes)
+    needUpdate(i).amuCtrl := Mux(!robBanksRdata(i).valid && instCanEnqFlag, 0.U, robBanksRdata(i).amuCtrl.asUInt | amuCtrlRes).asTypeOf(AmuCtrlIO())
 
     val fflagsCanWbSeq = fflags_wb.map(writeback => writeback.valid && writeback.bits.robIdx.value === needUpdateRobIdx(i) && writeback.bits.wflags.getOrElse(false.B))
     val fflagsRes = fflagsCanWbSeq.zip(fflags_wb).map { case (canWb, wb) => Mux(canWb, wb.bits.fflags.get, 0.U) }.fold(false.B)(_ | _)

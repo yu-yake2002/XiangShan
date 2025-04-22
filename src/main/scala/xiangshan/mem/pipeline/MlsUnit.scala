@@ -45,8 +45,7 @@ class MlsToMlsqReplayIO(implicit p: Parameters) extends XSBundle
 }
 
 class MlsToMlsqIO(implicit p: Parameters) extends XSBundle {
-  // ldu -> lsq UncacheBuffer
-  val ldin            = DecoupledIO(new MlsqWriteBundle)
+  val lsin            = DecoupledIO(new MlsqWriteBundle)
 }
 
 class MlsUnit(implicit p: Parameters) extends XSModule
@@ -382,6 +381,8 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   val s2_ld_exception = ExceptionNO.selectByFu(s2_exception_vec, LduCfg).asUInt.orR && s2_ld_flow
   val s2_st_exception = ExceptionNO.selectByFu(s2_exception_vec, StaCfg).asUInt.orR && !s2_ld_flow
   val s2_exception    = s2_ld_exception || s2_st_exception
+  val s2_safe_wakeup = !s2_out.rep_info.need_rep && !s2_exception
+  val s2_safe_writeback = s2_exception || s2_safe_wakeup
 
   // writeback access fault caused by ecc error / bus error
   // * ecc data error is slow to generate, so we will not use it until load stage 3
@@ -404,8 +405,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
 
   val s2_troublem        = !s2_exception &&
                            !s2_ld_mmio &&
-                           !s2_in.lateKill &&
-                           s2_ld_flow
+                           !s2_in.lateKill
 
   // need allocate new entry
   val s2_can_query = !s2_tlb_miss && s2_troublem
@@ -430,12 +430,11 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   s2_out.rep_info.tlb_full        := io.tlb_hint.full
 
   // to be removed
-  val s2_ld_need_fb = !s2_in.isLoadReplay &&      // already feedbacked
-                      io.mlsq_rep_full &&         // MlsQueueReplay is full
-                      s2_out.rep_info.need_rep && // need replay
-                      !s2_exception               // no exception is triggered
-  val s2_st_need_fb = !s2_ld_flow
-  io.feedback_fast.valid                 := s2_valid && (s2_ld_need_fb || s2_st_need_fb)
+  val s2_need_fb = !s2_in.isLoadReplay &&      // already feedbacked
+                   io.mlsq_rep_full &&         // MlsQueueReplay is full
+                   s2_out.rep_info.need_rep && // need replay
+                   !s2_exception               // no exception is triggered
+  io.feedback_fast.valid                 := s2_valid && s2_need_fb
   io.feedback_fast.bits.hit              := Mux(s2_ld_flow, false.B, !s2_tlb_miss)
   io.feedback_fast.bits.flushState       := s2_in.ptwBack
   io.feedback_fast.bits.robIdx           := s2_in.uop.robIdx
@@ -466,22 +465,19 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   val s3_kill         = s3_in.uop.robIdx.needFlush(io.redirect)
   s3_ready := !s3_valid || s3_kill || io.lsout.ready
 
-  io.lsq.ldin.valid := s3_valid &&
-                              !s3_in.feedbacked &&
-                              !s3_in.lateKill &&
-                              s3_ld_flow
-  io.lsq.ldin.bits := s3_in
-  io.lsq.ldin.bits.miss := s3_in.miss
+  io.lsq.lsin.valid := s3_valid && !s3_in.feedbacked && !s3_in.lateKill
+  io.lsq.lsin.bits := s3_in
+  io.lsq.lsin.bits.miss := s3_in.miss
 
   /* <------- DANGEROUS: Don't change sequence here ! -------> */
-  io.lsq.ldin.bits.data_wen_dup := s3_ld_valid_dup.asBools
-  io.lsq.ldin.bits.missDbUpdated := RegNext(s2_fire && s2_in.hasROBEntry && !s2_in.tlbMiss && !s2_in.missDbUpdated)
-  io.lsq.ldin.bits.updateAddrValid := true.B
-  io.lsq.ldin.bits.dcacheRequireReplay  := false.B
+  io.lsq.lsin.bits.data_wen_dup := s3_ld_valid_dup.asBools
+  io.lsq.lsin.bits.missDbUpdated := RegNext(s2_fire && s2_in.hasROBEntry && !s2_in.tlbMiss && !s2_in.missDbUpdated)
+  io.lsq.lsin.bits.updateAddrValid := true.B
+  io.lsq.lsin.bits.dcacheRequireReplay  := false.B
 
   val s3_vp_match_fail = s3_troublem
   val s3_ldld_rep_inst = false.B
-
+  val s3_safe_writeback = RegEnable(s2_safe_writeback, s2_fire)
   val s3_rep_info = WireInit(s3_in.rep_info)
   val s3_rep_frm_fetch = s3_vp_match_fail
   val s3_flushPipe = s3_ldld_rep_inst
@@ -494,9 +490,9 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   val s3_st_exception = ExceptionNO.selectByFu(s3_in.uop.exceptionVec, StaCfg).asUInt.orR && !s3_ld_flow
   val s3_exception    = s3_ld_exception || s3_st_exception
   when ((s3_ld_exception || s3_rep_frm_fetch) && !s3_force_rep) {
-    io.lsq.ldin.bits.rep_info.cause := 0.U.asTypeOf(s3_rep_info.cause.cloneType)
+    io.lsq.lsin.bits.rep_info.cause := 0.U.asTypeOf(s3_rep_info.cause.cloneType)
   } .otherwise {
-    io.lsq.ldin.bits.rep_info.cause := VecInit(s3_sel_rep_cause.asBools)
+    io.lsq.lsin.bits.rep_info.cause := VecInit(s3_sel_rep_cause.asBools)
   }
 
   val amuCtrl = Wire(new AmuLsuIO)
@@ -514,13 +510,15 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   amuCtrl.column    := s3_in.mtile1
 
   // Int flow, if hit, will be writebacked at s3
-  s3_out.valid                 := s3_valid &&
-                                (!s3_ld_flow && !s3_in.feedbacked || !io.lsq.ldin.bits.rep_info.need_rep) &&
-                                !s3_in.mmio
+  // s3_out.valid                 := s3_valid &&
+  //                               (!s3_ld_flow && !s3_in.feedbacked || !io.lsq.lsin.bits.rep_info.need_rep) &&
+  //                               !s3_in.mmio
+  s3_out.valid                 := s3_valid && s3_safe_writeback
   s3_out.bits.uop              := s3_in.uop
   s3_out.bits.uop.exceptionVec(loadAccessFault) := s3_in.uop.exceptionVec(loadAccessFault) && s3_ld_flow
   s3_out.bits.uop.replayInst   := false.B
   s3_out.bits.data             := s3_in.data
+  s3_out.bits.amuCtrl.get.op   := AmuCtrlIO.mlsOp()
   s3_out.bits.amuCtrl.get.data := amuCtrl.asUInt
   s3_out.bits.debug.isMMIO     := s3_in.mmio
   s3_out.bits.debug.isNC       := s3_in.nc
@@ -534,15 +532,15 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   }
 
   /* <------- DANGEROUS: Don't change sequence here ! -------> */
-  io.lsq.ldin.bits.uop := s3_out.bits.uop
+  io.lsq.lsin.bits.uop := s3_out.bits.uop
 
-  val s3_revoke = s3_exception || io.lsq.ldin.bits.rep_info.need_rep
+  val s3_revoke = s3_exception || io.lsq.lsin.bits.rep_info.need_rep
 
   val s3_fb_no_waiting = !s3_in.isLoadReplay && !s3_in.feedbacked
 
   //
   io.feedback_slow.valid                 := s3_valid && !s3_in.uop.robIdx.needFlush(io.redirect) && s3_fb_no_waiting && s3_ld_flow
-  io.feedback_slow.bits.hit              := !io.lsq.ldin.bits.rep_info.need_rep || io.lsq.ldin.ready
+  io.feedback_slow.bits.hit              := !io.lsq.lsin.bits.rep_info.need_rep || io.lsq.lsin.ready
   io.feedback_slow.bits.flushState       := s3_in.ptwBack
   io.feedback_slow.bits.robIdx           := s3_in.uop.robIdx
   io.feedback_slow.bits.sourceType       := RSFeedbackType.lrqFull
