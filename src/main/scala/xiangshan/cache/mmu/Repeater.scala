@@ -358,6 +358,7 @@ class PTWNewFilter(Width: Int, Size: Int, FenceDelay: Int)(implicit p: Parameter
   val io = IO(new PTWFilterIO(Width, hasHint = true))
 
   val load_filter = VecInit(Seq.fill(1) {
+    // +1 for prefetch
     val load_entry = Module(new PTWFilterEntry(Width = LdExuCnt + 1, Size = loadfiltersize, hasHint = true))
     load_entry.io
   })

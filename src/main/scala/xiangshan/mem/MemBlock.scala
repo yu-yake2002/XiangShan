@@ -701,7 +701,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   /* tlb vec && constant variable */
   val dtlb = dtlb_ld ++ dtlb_st ++ dtlb_prefetch
   val (dtlb_ld_idx, dtlb_st_idx, dtlb_pf_idx) = (0, 1, 2)
-  val TlbSubSizeVec = Seq(LduCnt + HyuCnt + 1 + MlsCnt, StaCnt, 2) // (load + hyu + stream pf, store, sms+l2bop)
+  val TlbSubSizeVec = Seq(LduCnt + HyuCnt + MlsCnt + 1, StaCnt, 2) // (load + hyu + mlsu + stream pf, store, sms+l2bop)
   val DTlbSize = TlbSubSizeVec.sum
   val TlbStartVec = TlbSubSizeVec.scanLeft(0)(_ + _).dropRight(1)
   val TlbEndVec = TlbSubSizeVec.scanLeft(0)(_ + _).drop(1)
@@ -1202,8 +1202,8 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     mlsUnits(i).io.feedback_slow <> io.mem_to_ooo.mlsIqFeedback(i).feedbackSlow
     mlsUnits(i).io.feedback_fast <> io.mem_to_ooo.mlsIqFeedback(i).feedbackFast
 
-    mlsUnits(i).io.tlb <> dtlb_ld.head.requestor(LduCnt + HyuCnt + 1 + i)
-    mlsUnits(i).io.pmp <> pmp_check.drop(LduCnt + HyuCnt + 1)(i).resp
+    mlsUnits(i).io.tlb <> dtlb_ld.head.requestor(LduCnt + HyuCnt + i)
+    mlsUnits(i).io.pmp <> pmp_check.drop(LduCnt + HyuCnt)(i).resp
 
     mlsUnits(i).io.tlb_hint.id := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).id
     mlsUnits(i).io.tlb_hint.full := dtlbRepeater.io.hint.get.req(LduCnt + HyuCnt + i).full ||
@@ -1212,7 +1212,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
     mlsUnits(i).io.replay <> lsq.io.mls_replay(i)
     mlsUnits(i).io.mlsq_rep_full <> lsq.io.mlsq_rep_full
 
-    lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.lsq.ldin
+    lsq.io.mlsu.mlsin(i) <> mlsUnits(i).io.lsq.lsin
   }
 
   // misalignBuffer
@@ -1251,7 +1251,7 @@ class MemBlockInlinedImp(outer: MemBlockInlined) extends LazyModuleImp(outer)
   lsq.io.cmoOpResp <> dcache.io.cmoOpResp
 
   // Prefetcher
-  val StreamDTLBPortIndex = TlbStartVec(dtlb_ld_idx) + LduCnt + HyuCnt
+  val StreamDTLBPortIndex = TlbStartVec(dtlb_ld_idx) + LduCnt + HyuCnt + MlsCnt
   val PrefetcherDTLBPortIndex = TlbStartVec(dtlb_pf_idx)
   val L2toL1DLBPortIndex = TlbStartVec(dtlb_pf_idx) + 1
   prefetcherOpt match {
