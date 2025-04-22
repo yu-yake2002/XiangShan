@@ -266,11 +266,11 @@ object Bundles {
     val sat    = Bool()    // 4
     val ms1    = UInt(4.W) // 8 : 5
     val ms2    = UInt(4.W) // 12 : 9
-    val mtilem = Mtilex()  // 
-    val mtilen = Mtilex()  //
-    val mtilek = Mtilex()  //
-    val types  = UInt(3.W) // 
-    val typed  = UInt(3.W) //
+    val mtilem = Mtilex()  // 21 : 13
+    val mtilen = Mtilex()  // 30 : 22
+    val mtilek = Mtilex()  // 39 : 31
+    val types  = UInt(3.W) // 42 : 40
+    val typed  = UInt(3.W) // 45 : 43
   }
 
   object AmuMmaIO {
@@ -290,9 +290,9 @@ object Bundles {
     val baseAddr  = UInt(PAddrBits.W) // 53 : 6
     val stride    = UInt(PAddrBits.W) // 101 : 54
     
-    val row       = Mtilex()          // 
-    val column    = Mtilex()          //
-    val widths    = MtypeMSew()       // matrix elements width
+    val row       = Mtilex()          // 110 : 102
+    val column    = Mtilex()          // 119 : 111
+    val widths    = MtypeMSew()       // 122 : 120
   }
 
   object AmuLsuIO {
