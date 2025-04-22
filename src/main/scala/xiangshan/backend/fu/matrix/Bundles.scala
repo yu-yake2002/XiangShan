@@ -262,15 +262,15 @@ object Bundles {
   }
 
   class AmuMmaIO(implicit p: Parameters) extends XSBundle {
-    val ms1    = UInt(4.W)
-    val ms2    = UInt(4.W)
-    val md     = UInt(4.W)
-    val types  = UInt(3.W)
-    val typed  = UInt(3.W)
-    val sat    = Bool()
-    val mtilem = Mtilex()
-    val mtilen = Mtilex()
-    val mtilek = Mtilex()
+    val md     = UInt(4.W) // 3 : 0
+    val sat    = Bool()    // 4
+    val ms1    = UInt(4.W) // 8 : 5
+    val ms2    = UInt(4.W) // 12 : 9
+    val mtilem = Mtilex()  // 
+    val mtilen = Mtilex()  //
+    val mtilek = Mtilex()  //
+    val types  = UInt(3.W) // 
+    val typed  = UInt(3.W) //
   }
 
   object AmuMmaIO {
@@ -280,14 +280,19 @@ object Bundles {
   }
 
   class AmuLsuIO(implicit p: Parameters) extends XSBundle {
-    val ls        = Bool()       // load/store
-    val ms        = UInt(4.W)    // src/dest matrix register
-    val widths    = MtypeMSew()  // matrix elements width
-    val baseAddr  = UInt(PAddrBits.W)
-    val stride    = UInt(PAddrBits.W)
-    val transpose = Bool()       // whether transposed
-    val row       = Mtilex()
-    val column    = Mtilex()
+    // src/dest matrix register
+    val ms        = UInt(4.W)         // 3 : 0
+    // load(0)/store(1)
+    val ls        = Bool()            // 4
+    // whether transposed
+    val transpose = Bool()            // 5
+
+    val baseAddr  = UInt(PAddrBits.W) // 53 : 6
+    val stride    = UInt(PAddrBits.W) // 101 : 54
+    
+    val row       = Mtilex()          // 
+    val column    = Mtilex()          //
+    val widths    = MtypeMSew()       // matrix elements width
   }
 
   object AmuLsuIO {
@@ -297,7 +302,24 @@ object Bundles {
   }
 
   class AmuCtrlIO(implicit p: Parameters) extends XSBundle {
-    // TODO: add more control signals
+    // op: Determine the operation
+    // 0: MMA
+    // 1: Load/Store
+    val op = UInt(1.W)
+    
+    def isMma() : Bool = op === AmuCtrlIO.mmaOp()
+    def isMls() : Bool = op === AmuCtrlIO.mlsOp()
+    
+    // data: The ctrl signal for op
     val data = UInt(128.W)
+  }
+
+  object AmuCtrlIO {
+    def apply()(implicit p: Parameters) : AmuCtrlIO = {
+      new AmuCtrlIO()
+    }
+
+    def mmaOp() : UInt = "b0".U
+    def mlsOp() : UInt = "b1".U
   }
 }

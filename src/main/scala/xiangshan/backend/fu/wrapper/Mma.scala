@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.util._
 import xiangshan._
 import xiangshan.backend.fu.{FuConfig, FuncUnit, PipedFuncUnit}
-import xiangshan.backend.fu.matrix.Bundles.{AmuMmaIO, MtypeMSew}
+import xiangshan.backend.fu.matrix.Bundles.{AmuMmaIO, MtypeMSew, AmuCtrlIO}
 import xiangshan.MmulOpType
 
 class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
@@ -41,5 +41,6 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   
   out.res.data := output.asUInt
 
+  out.ctrl.amuCtrl.get.op   := AmuCtrlIO.mmaOp()
   out.ctrl.amuCtrl.get.data := output.asUInt
 }
