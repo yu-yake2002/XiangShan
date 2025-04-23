@@ -109,9 +109,10 @@ case class BackendParams(
   def VstuCnt = allSchdParams.map(_.VstuCnt).sum
   def MlsCnt = allSchdParams.map(_.MlsCnt).sum
   def LsExuCnt = StaCnt + LduCnt + HyuCnt
-  val LdExuCnt = LduCnt + HyuCnt + MlsCnt
-  val LdWakeupCnt = LduCnt + HyuCnt
-  val StaExuCnt = StaCnt + HyuCnt
+  def LdExuCnt = LduCnt + HyuCnt + MlsCnt
+  def LdWakeupCnt = LduCnt + HyuCnt
+  def LdPfTrainCnt = LduCnt + HyuCnt
+  def StaExuCnt = StaCnt + HyuCnt
   def JmpCnt = allSchdParams.map(_.JmpCnt).sum
   def BrhCnt = allSchdParams.map(_.BrhCnt).sum
   def CsrCnt = allSchdParams.map(_.CsrCnt).sum
