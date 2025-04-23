@@ -186,7 +186,7 @@ object EntryBundles extends HasCircularQueuePtrHelper {
       commonIn.issueResp.valid && RespType.succeed(commonIn.issueResp.bits.resp) && !common.srcLoadCancelVec.asUInt.orR
     common.srcWakeupByWB      := commonIn.wakeUpFromWB.map{ bundle =>
                                     val psrcSrcTypeVec = status.srcStatus.map(_.psrc) zip status.srcStatus.map(_.srcType)
-                                    if (params.numRegSrc == 5) {
+                                    if (params.numRegSrc == 5 && params.numMxSrc == 0) {
                                       bundle.bits.wakeUp(psrcSrcTypeVec.take(3), bundle.valid) :+
                                       bundle.bits.wakeUpV0(psrcSrcTypeVec(3), bundle.valid) :+
                                       bundle.bits.wakeUpVl(psrcSrcTypeVec(4), bundle.valid)
@@ -555,12 +555,16 @@ object EntryBundles extends HasCircularQueuePtrHelper {
   def EnqDelayWakeupConnect(enqDelayIn: EnqDelayInBundle, enqDelayOut: EnqDelayOutBundle, status: Status, delay: Int)(implicit p: Parameters, params: IssueBlockParams) = {
     enqDelayOut.srcWakeUpByWB.zipWithIndex.foreach { case (wakeup, i) =>
       wakeup := enqDelayIn.wakeUpFromWB.map{ x =>
-        if (i == 3)
-          x.bits.wakeUpV0((status.srcStatus(i).psrc, status.srcStatus(i).srcType), x.valid)
-        else if (i == 4)
-          x.bits.wakeUpVl((status.srcStatus(i).psrc, status.srcStatus(i).srcType), x.valid)
-        else
+        if (params.isMfSchd) {
           x.bits.wakeUp(Seq((status.srcStatus(i).psrc, status.srcStatus(i).srcType)), x.valid).head
+        } else {
+          if (i == 3)
+            x.bits.wakeUpV0((status.srcStatus(i).psrc, status.srcStatus(i).srcType), x.valid)
+          else if (i == 4)
+            x.bits.wakeUpVl((status.srcStatus(i).psrc, status.srcStatus(i).srcType), x.valid)
+          else
+            x.bits.wakeUp(Seq((status.srcStatus(i).psrc, status.srcStatus(i).srcType)), x.valid).head
+        }
       }.reduce(_ || _)
     }
 
