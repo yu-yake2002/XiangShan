@@ -429,10 +429,22 @@ class DecodeUnitComp()(implicit p : Parameters) extends XSModule with DecodeUnit
       val mType = io.mtypeBypass
       csBundle(0).srcType(0) := SrcType.xp
       csBundle(0).srcType(1) := SrcType.xp
-      csBundle(0).srcType(2) := SrcType.mx
-      csBundle(0).srcType(3) := SrcType.mx
-      csBundle(0).lsrc(2) := Mtilem_IDX.U
-      csBundle(0).lsrc(3) := Mtilen_IDX.U
+      when (MldstOpType.isWholeReg(latchedInst.fuOpType)) {
+        csBundle(0).srcType(2) := SrcType.no
+        csBundle(0).srcType(3) := SrcType.no
+      }.otherwise {
+        csBundle(0).srcType(2) := SrcType.mx
+        csBundle(0).srcType(3) := SrcType.mx
+      }
+      csBundle(0).srcType(4) := SrcType.no
+      csBundle(0).lsrc(2) := Mux1H(
+        latchedInst.fuOpType(7, 3),
+        Seq(Mtilem_IDX.U, Mtilek_IDX.U, Mtilem_IDX.U, 0.U, 0.U)
+      )
+      csBundle(0).lsrc(3) := Mux1H(
+        latchedInst.fuOpType(7, 3),
+        Seq(Mtilek_IDX.U, Mtilen_IDX.U, Mtilen_IDX.U, 0.U, 0.U)
+      )
     }
     is(UopSplitType.MAT_MUL) {
       csBundle(0).fuType := latchedInst.fuType

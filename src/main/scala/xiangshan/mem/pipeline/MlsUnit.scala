@@ -506,8 +506,17 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   amuCtrl.baseAddr  := s3_in.paddr
   amuCtrl.stride    := s3_in.stride
   amuCtrl.transpose := MldstOpType.isTransposed(s3_in.uop.fuOpType)
-  amuCtrl.row       := s3_in.mtile0
-  amuCtrl.column    := s3_in.mtile1
+  when (MldstOpType.isWholeReg(s3_in.uop.fuOpType)) {
+    amuCtrl.row     := (coreParams.MLEN / coreParams.RLEN).U
+    amuCtrl.column  := Mux1H(Seq(
+      MldstOpType.isFp8(s3_in.uop.fuOpType)  -> (coreParams.RLEN / 8).U,
+      MldstOpType.isFp16(s3_in.uop.fuOpType) -> (coreParams.RLEN / 16).U,
+      MldstOpType.isFp32(s3_in.uop.fuOpType) -> (coreParams.RLEN / 32).U,
+    ))
+  } .otherwise {
+    amuCtrl.row     := s3_in.mtile0
+    amuCtrl.column  := s3_in.mtile1
+  }
 
   // Int flow, if hit, will be writebacked at s3
   // s3_out.valid                 := s3_valid &&
