@@ -1673,9 +1673,9 @@ class NewCSR(implicit val p: Parameters) extends Module
     val diffMatrixCSRState = DifftestModule(new DiffMatrixCSRState)
     diffMatrixCSRState.coreid := hartId
     diffMatrixCSRState.mtype := mtype.rdata.asUInt
-    diffMatrixCSRState.mtilem := mtilem.rdata.asUInt
-    diffMatrixCSRState.mtilen := mtilen.rdata.asUInt
-    diffMatrixCSRState.mtilek := mtilek.rdata.asUInt
+    diffMatrixCSRState.mtilem := RegNext(io.fromRob.commit.mtilem)
+    diffMatrixCSRState.mtilen := RegNext(io.fromRob.commit.mtilen)
+    diffMatrixCSRState.mtilek := RegNext(io.fromRob.commit.mtilek)
     diffMatrixCSRState.mlenb := mlenb.rdata.asUInt
     diffMatrixCSRState.mrlenb := mrlenb.rdata.asUInt
     diffMatrixCSRState.mamul := mamul.rdata.asUInt
