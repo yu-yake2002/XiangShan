@@ -42,7 +42,7 @@ import xiangshan.frontend.FtqPtr
 import xiangshan.mem.{LqPtr, LsqEnqIO, SqPtr, MlsqPtr}
 import xiangshan.backend.Bundles.{DynInst, ExceptionInfo, ExuOutput}
 import xiangshan.backend.ctrlblock.{DebugLSIO, DebugLsInfo, LsTopdownInfo}
-import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO}
+import xiangshan.backend.fu.matrix.Bundles.{MType, AmuCtrlIO, AmuMmaIO, AmuLsuIO}
 import xiangshan.backend.fu.vector.Bundles.VType
 import xiangshan.backend.rename.SnapshotGenerator
 import yunsuan.VfaluType
@@ -1595,6 +1595,37 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       val isVLoad = instr.isVecLoad
 
       val difftest = DifftestModule(new DiffInstrCommit(MaxPhyRegs), delay = 3, dontCare = true)
+      if (env.EnableDifftest && HasMatrixExtension) {
+        val difftestAmuCtrl = DifftestModule(new DiffAmuCtrlEvent, delay = 3, dontCare = true)
+        difftestAmuCtrl := DontCare
+        difftestAmuCtrl.valid := io.commits.commitValid(i) && io.commits.isCommit && io.amuCtrl(i).fire
+        difftestAmuCtrl.op    := io.amuCtrl(i).bits.op
+        difftestAmuCtrl.pc    := SignExt(uop.pc, XLEN)
+        val mmaio = io.amuCtrl(i).bits.data.asTypeOf(new AmuMmaIO)
+        val mlsio = io.amuCtrl(i).bits.data.asTypeOf(new AmuLsuIO)
+        when (io.amuCtrl(i).bits.isMma()) {
+          difftestAmuCtrl.md     := mmaio.md
+          difftestAmuCtrl.sat    := mmaio.sat
+          difftestAmuCtrl.ms1    := mmaio.ms1
+          difftestAmuCtrl.ms2    := mmaio.ms2
+          difftestAmuCtrl.mtilem := mmaio.mtilem
+          difftestAmuCtrl.mtilen := mmaio.mtilen
+          difftestAmuCtrl.mtilek := mmaio.mtilek
+          difftestAmuCtrl.types  := mmaio.types
+          difftestAmuCtrl.typed  := mmaio.typed
+        }
+        when (io.amuCtrl(i).bits.isMls()) {
+          difftestAmuCtrl.ms        := mlsio.ms
+          difftestAmuCtrl.ls        := mlsio.ls
+          difftestAmuCtrl.transpose := mlsio.transpose
+          difftestAmuCtrl.isacc     := mlsio.isacc
+          difftestAmuCtrl.base      := mlsio.baseAddr
+          difftestAmuCtrl.stride    := mlsio.stride
+          difftestAmuCtrl.row       := mlsio.row
+          difftestAmuCtrl.column    := mlsio.column
+          difftestAmuCtrl.widths    := mlsio.widths
+        }
+      }
       val dt_skip = Mux(eliminatedMove, false.B, exuOut.isSkipDiff)
       difftest.coreid := io.hartId
       difftest.index := i.U
