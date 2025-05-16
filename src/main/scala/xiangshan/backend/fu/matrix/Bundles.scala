@@ -286,13 +286,15 @@ object Bundles {
     val ls        = Bool()            // 4
     // whether transposed
     val transpose = Bool()            // 5
+    // whether accumulation register
+    val isacc     = Bool()            // 6
 
-    val baseAddr  = UInt(PAddrBits.W) // 53 : 6
-    val stride    = UInt(PAddrBits.W) // 101 : 54
+    val baseAddr  = UInt(PAddrBits.W) // 54 : 7
+    val stride    = UInt(PAddrBits.W) // 102 : 55
     
-    val row       = Mtilex()          // 110 : 102
-    val column    = Mtilex()          // 119 : 111
-    val widths    = MtypeMSew()       // 122 : 120
+    val row       = Mtilex()          // 111 : 103
+    val column    = Mtilex()          // 120 : 112
+    val widths    = MtypeMSew()       // 123 : 121
   }
 
   object AmuLsuIO {

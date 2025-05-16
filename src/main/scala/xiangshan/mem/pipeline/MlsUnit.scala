@@ -506,6 +506,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   amuCtrl.baseAddr  := s3_in.paddr
   amuCtrl.stride    := s3_in.stride
   amuCtrl.transpose := MldstOpType.isTransposed(s3_in.uop.fuOpType)
+  amuCtrl.isacc     := MldstOpType.isMatrixC(s3_in.uop.fuOpType)
   when (MldstOpType.isWholeReg(s3_in.uop.fuOpType)) {
     amuCtrl.row     := (coreParams.MLEN / coreParams.RLEN).U
     amuCtrl.column  := Mux1H(Seq(
