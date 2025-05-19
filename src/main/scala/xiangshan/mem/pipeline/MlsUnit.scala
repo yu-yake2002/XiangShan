@@ -497,7 +497,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
 
   val amuCtrl = Wire(new AmuLsuIO)
   amuCtrl.ls := MldstOpType.isStore(s3_in.uop.fuOpType)
-  amuCtrl.ms := s3_in.uop.instr(3, 0)
+  amuCtrl.ms := s3_in.uop.imm(3, 0)
   amuCtrl.widths    := Mux1H(Seq(
     MldstOpType.isFp8(s3_in.uop.fuOpType)  -> 3.U,
     MldstOpType.isFp16(s3_in.uop.fuOpType) -> 4.U,
