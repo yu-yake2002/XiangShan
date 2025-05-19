@@ -31,8 +31,8 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   output.ms2    := in.data.imm(11, 8)
   output.md     := in.data.imm(3, 0)
 
-  output.types  := MmulOpType.getFromType(realFuOpType)
-  output.typed  := MmulOpType.getToType(realFuOpType)
+  output.types  := MmulOpType.getFromType(realFuOpType) + 3.U
+  output.typed  := MmulOpType.getToType(realFuOpType) + 3.U
   
   output.sat    := MmulOpType.isSat(realFuOpType)
   output.mtilem := mtilem

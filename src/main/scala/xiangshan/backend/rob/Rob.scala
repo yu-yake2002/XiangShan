@@ -1597,10 +1597,11 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
       val difftest = DifftestModule(new DiffInstrCommit(MaxPhyRegs), delay = 3, dontCare = true)
       if (env.EnableDifftest && HasMatrixExtension) {
         val difftestAmuCtrl = DifftestModule(new DiffAmuCtrlEvent, delay = 3, dontCare = true)
-        difftestAmuCtrl := DontCare
-        difftestAmuCtrl.valid := io.commits.commitValid(i) && io.commits.isCommit && io.amuCtrl(i).fire
-        difftestAmuCtrl.op    := io.amuCtrl(i).bits.op
-        difftestAmuCtrl.pc    := SignExt(uop.pc, XLEN)
+        difftestAmuCtrl.valid  := io.commits.commitValid(i) && io.commits.isCommit && io.amuCtrl(i).fire
+        difftestAmuCtrl.op     := io.amuCtrl(i).bits.op
+        difftestAmuCtrl.pc     := SignExt(uop.pc, XLEN)
+        difftestAmuCtrl.coreid := io.hartId
+        difftestAmuCtrl.index  := i.U
         val mmaio = io.amuCtrl(i).bits.data.asTypeOf(new AmuMmaIO)
         val mlsio = io.amuCtrl(i).bits.data.asTypeOf(new AmuLsuIO)
         when (io.amuCtrl(i).bits.isMma()) {
