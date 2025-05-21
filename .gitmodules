@@ -1,9 +1,9 @@
 [submodule "rocket-chip"]
 	path = rocket-chip
-	url = https://github.com/OpenXiangShan/rocket-chip.git
+	url = https://github.com/yu-yake2002/rocket-chip
 [submodule "difftest"]
 	path = difftest
-	url = https://github.com/OpenXiangShan/difftest.git
+	url = https://github.com/yu-yake2002/difftest
 [submodule "ready-to-run"]
 	path = ready-to-run
 	url = https://github.com/OpenXiangShan/ready-to-run.git
