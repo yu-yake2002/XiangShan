@@ -18,7 +18,7 @@ package xiangshan
 
 import org.chipsalliance.cde.config.{Config, Parameters}
 import chisel3._
-import chisel3.util.{Valid, ValidIO, log2Up}
+import chisel3.util.{Valid, ValidIO, log2Up, Arbiter}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.tile.{BusErrorUnit, BusErrorUnitParams, BusErrors}
@@ -31,6 +31,9 @@ import utility.sram.SramBroadcastBundle
 import coupledL2.EnableCHI
 import coupledL2.tl2chi.PortIO
 import xiangshan.backend.trace.TraceCoreInterface
+import xiangshan.backend.fu.matrix._
+import xiangshan.backend.fu.matrix.Bundles._
+import hbl2demo.AMU
 
 class XSTile()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
@@ -39,6 +42,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   override def shouldBeInlined: Boolean = false
   val core = LazyModule(new XSCore())
   val l2top = LazyModule(new L2Top())
+  val amu = LazyModule(new AMU())
 
   val enableL2 = coreParams.L2CacheParamsOpt.isDefined
   // =========== Public Ports ============
@@ -69,6 +73,11 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   l2top.inner.misc_l2_pmu := l2top.inner.l1i_logger := memBlock.frontendBridge.icache_node
   if (!coreParams.softPTW) {
     l2top.inner.misc_l2_pmu := l2top.inner.ptw_logger := l2top.inner.ptw_to_l2_buffer.node := memBlock.ptw_to_l2_buffer.node
+  }
+
+  // AMU to L2
+  amu.matrix_nodes.foreach { node =>
+    l2top.inner.misc_l2_pmu := TLLogger("AMUtoL2") := node
   }
 
   // L2 Prefetch
@@ -210,6 +219,14 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     if (debugOpts.ResetGen && enableL2) {
       core.module.reset := l2top.module.reset_core
     }
+
+    /** AMU related wiring */
+    val amuCtrlArbiter = Module(new Arbiter(new AmuCtrlIO, CommitWidth))
+    val amuCtrlTranslators = Module(new AmuCtrlTranslator)
+    amuCtrlArbiter.io.in <> core.module.io.amuCtrl
+    amuCtrlTranslators.io.ctrl <> amuCtrlArbiter.io.out
+    amu.module.io <> amuCtrlTranslators.io.amu
+    amu.module.io.matrix_data_in <> l2top.module.io.matrixDataOut512L2
   }
 
   lazy val module = new XSTileImp(this)

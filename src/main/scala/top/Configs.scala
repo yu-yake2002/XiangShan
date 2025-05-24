@@ -211,7 +211,7 @@ class MinimalConfig(n: Int = 1) extends Config(
             isKeywordBitsOpt = p.dcacheParametersOpt.get.isKeywordBitsOpt
           )),
         )),
-        L2NBanks = 2,
+        L2NBanks = 8,
         prefetcher = None // if L2 pf_recv_node does not exist, disable SMS prefetcher
       )
     )
