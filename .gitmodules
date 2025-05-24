@@ -21,10 +21,13 @@
 	url = https://github.com/OpenXiangShan/YunSuan.git
 [submodule "coupledL2"]
 	path = coupledL2
-	url = https://github.com/OpenXiangShan/CoupledL2.git
+	url = https://github.com/Wonicon/Demo-HBL2
 [submodule "openLLC"]
 	path = openLLC
 	url = https://github.com/OpenXiangShan/OpenLLC.git
 [submodule "ChiselAIA"]
 	path = ChiselAIA
 	url = https://github.com/OpenXiangShan/ChiselAIA.git
+[submodule "HBL2-AMU-Demo"]
+	path = HBL2-AMU-Demo
+	url = https://github.com/Wonicon/HBL2-AMU-Demo
