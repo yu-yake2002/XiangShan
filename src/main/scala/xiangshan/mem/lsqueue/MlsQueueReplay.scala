@@ -11,6 +11,7 @@ import xiangshan.backend.Bundles.DynInst
 import xiangshan.backend.fu.FuConfig.MlsCfg
 import xiangshan.cache._
 import xiangshan.cache.mmu._
+import xiangshan.mem.Bundles.{MlsqWriteBundle, MlsPipelineBundle}
 import xiangshan.ExceptionNO._
 import math._
 
