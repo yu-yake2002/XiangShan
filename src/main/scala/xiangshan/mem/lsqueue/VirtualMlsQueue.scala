@@ -10,6 +10,7 @@ import xiangshan.backend.fu.FuConfig.MlsCfg
 import xiangshan.backend.rob._
 import xiangshan.cache._
 import xiangshan.mem._
+import xiangshan.mem.Bundles.{MlsqWriteBundle, MlsPipelineBundle}
 import utils._
 import utility._
 
