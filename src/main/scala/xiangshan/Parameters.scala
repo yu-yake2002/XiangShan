@@ -506,8 +506,7 @@ case class XSCoreParameters
       numPregs = mxPreg.numEntries,
       numDeqOutside = 0,
       schdType = schdType,
-      rfDataWidth = mxPreg.dataCfg.dataWidth,
-      numUopIn = dpParams.VecDqDeqWidth,
+      rfDataWidth = mxPreg.dataCfg.dataWidth
     )
   }
 
@@ -868,7 +867,6 @@ trait HasXSParameter {
   def MlsQueueReplaySize = coreParams.MlsQueueReplaySize
   def VirtualMlsQueueSize = coreParams.VirtualMlsQueueSize
   def MlsQueueNWriteBanks = coreParams.MlsQueueNWriteBanks
-  def dpParams = coreParams.dpParams
 
   def MemIQSizeMax = backendParams.memSchdParams.get.issueBlockParams.map(_.numEntries).max
   def IQSizeMax = backendParams.allSchdParams.map(_.issueBlockParams.map(_.numEntries).max).max

@@ -99,6 +99,7 @@ class CSRPermitModule(implicit p: Parameters) extends Module {
 
   io.out.hasLegalWriteFcsr := mLevelPermitMod.io.out.hasLegalWriteFcsr
   io.out.hasLegalWriteVcsr := mLevelPermitMod.io.out.hasLegalWriteVcsr
+  io.out.hasLegalWriteMcsr := mLevelPermitMod.io.out.hasLegalWriteMcsr
 }
 
 class XRetPermitModule extends Module {
@@ -172,6 +173,7 @@ class MLevelPermitModule extends Module {
       val mLevelPermit_EX_II = Bool()
       val hasLegalWriteFcsr = Bool()
       val hasLegalWriteVcsr = Bool()
+      val hasLegalWriteMcsr = Bool()
     })
   })
 

@@ -17,8 +17,7 @@ import xiangshan.cache.mmu._
 import xiangshan.cache.wpu.ReplayCarry
 import xiangshan.ExceptionNO._
 import xiangshan.MldstOpType
-import xiangshan.MldstOpType
-import xiangshan.MldstOpType
+import xiangshan.mem.Bundles.{LsPipelineBundle, MlsqWriteBundle, MlsPipelineBundle}
 
 class MlsToMlsqReplayIO(implicit p: Parameters) extends XSBundle
   with HasDCacheParameters
@@ -415,7 +414,6 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   s2_out.data             := 0.U // data will be generated in load s3
   s2_out.uop.fpWen        := s2_in.uop.fpWen && !s2_exception && s2_ld_flow
   s2_out.mmio             := s2_ld_mmio || s2_st_mmio
-  s2_out.atomic           := s2_st_atomic
   s2_out.uop.flushPipe    := false.B
   s2_out.uop.exceptionVec := s2_exception_vec
   s2_out.miss             := false.B
@@ -531,7 +529,7 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   s3_out.bits.amuCtrl.get.op   := AmuCtrlIO.mlsOp()
   s3_out.bits.amuCtrl.get.data := amuCtrl.asUInt
   s3_out.bits.debug.isMMIO     := s3_in.mmio
-  s3_out.bits.debug.isNC       := s3_in.nc
+  s3_out.bits.debug.isNCIO     := false.B
   s3_out.bits.debug.isPerfCnt  := false.B
   s3_out.bits.debug.paddr      := s3_in.paddr
   s3_out.bits.debug.vaddr      := s3_in.vaddr

@@ -9,6 +9,7 @@ import xiangshan._
 import xiangshan.backend.Bundles.{DynInst, MemExuOutput, MemMicroOpRbExt}
 import xiangshan.cache._
 import xiangshan.cache.mmu._
+import xiangshan.mem.Bundles.{MlsqWriteBundle, MlsPipelineBundle}
 
 class MlsqPtr(implicit p: Parameters) extends CircularQueuePtr[MlsqPtr](
   p => p(XSCoreParamsKey).MlsQueueSize
