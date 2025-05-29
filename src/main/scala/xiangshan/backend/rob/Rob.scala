@@ -1599,7 +1599,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
         val difftestAmuCtrl = DifftestModule(new DiffAmuCtrlEvent, delay = 3, dontCare = true)
         difftestAmuCtrl.valid  := io.commits.commitValid(i) && io.commits.isCommit && io.amuCtrl(i).fire
         difftestAmuCtrl.op     := io.amuCtrl(i).bits.op
-        difftestAmuCtrl.pc     := SignExt(uop.pc, XLEN)
+        val pcTransType = dt_pcTransType.get(deqPtrVec(i).value)
+        difftestAmuCtrl.pc     := Mux(pcTransType.shouldBeSext, SignExt(uop.pc, XLEN), uop.pc)
         difftestAmuCtrl.coreid := io.hartId
         difftestAmuCtrl.index  := i.U
         val mmaio = io.amuCtrl(i).bits.data.asTypeOf(new AmuMmaIO)
