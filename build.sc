@@ -26,6 +26,7 @@ import $file.huancun.common
 import $file.coupledL2.common
 import $file.openLLC.common
 import $file.`HBL2-AMU-Demo`.common
+import $file.AME.common
 
 /* for publishVersion */
 import $ivy.`de.tototec::de.tobiasroeser.mill.vcs.version::0.4.0`
@@ -246,6 +247,32 @@ object hbl2demo extends $file.`HBL2-AMU-Demo`.common.hbl2demoModule with HasChis
   }
 }
 
+object fpu extends SbtModule with HasChisel {
+
+  override def millSourcePath = pwd / "AME" / "FP8fpu"
+
+  override def moduleDeps = super.moduleDeps ++ Seq(rocketchip, utility)
+
+}
+
+object AME extends $file.AME.common.AMEModule with HasChisel {
+
+  override def millSourcePath = pwd / "AME"
+
+  def rocketModule: ScalaModule = rocketchip
+
+  def utilityModule: ScalaModule = utility
+
+  def fpuModule: ScalaModule = fpu
+
+  object test extends ScalaTests with TestModule.ScalaTest with ScalafmtModule {
+    override def ivyDeps = Agg(
+      ivy"org.scalatest::scalatest::3.2.19",
+      ivy"edu.berkeley.cs::chiseltest:6.0.0"
+    )
+  }
+}
+
 // extends this trait to use XiangShan in other projects
 trait XiangShanModule extends ScalaModule {
 
@@ -271,6 +298,8 @@ trait XiangShanModule extends ScalaModule {
 
   def hbl2demoModule: ScalaModule
 
+  def ameModule: ScalaModule
+
   override def moduleDeps = super.moduleDeps ++ Seq(
     rocketModule,
     difftestModule,
@@ -282,7 +311,8 @@ trait XiangShanModule extends ScalaModule {
     utilityModule,
     chiselAIAModule,
     macrosModule,
-    hbl2demoModule
+    hbl2demoModule,
+    ameModule,
   )
 
   val resourcesPATH = pwd.toString() + "/src/main/resources"
@@ -316,6 +346,8 @@ object xiangshan extends XiangShanModule with HasChisel with ScalafmtModule {
   def macrosModule = macros
 
   def hbl2demoModule = hbl2demo
+
+  def ameModule = AME
 
   // properties may be changed by user. Use `Task.Input` here.
   def forkArgsTask = Task.Input {
