@@ -455,10 +455,10 @@ object MatrixDecoder extends DecodeConstants {
   val mmul: Array[(BitPat, XSDecodeBase)] = Array(
     // 4.5.1. Matrix Multiplication Instructions
     // Unigned integer matrix multiplication and add, md = md + ms1 * ms2.
-    // MMAU_MM -> MMUL(MmulOpType.placeholder),
-    // MMAU_H_MM -> MMUL(MmulOpType.placeholder),
-    // MMAU_W_MM -> MMUL(MmulOpType.placeholder),
-    // MMAU_DW_MM -> MMUL(MmulOpType.placeholder),
+    MMAU_MM -> MMUL(MmulOpType.MMAU),
+    MMAU_H_MM -> MMUL(MmulOpType.MMAU_H),
+    MMAU_W_MM -> MMUL(MmulOpType.MMAU_W),
+    MMAU_DW_MM -> MMUL(MmulOpType.MMAU_DW),
     // MWMAU_MM -> MMUL(MmulOpType.placeholder),
     // MWMAU_H_MM -> MMUL(MmulOpType.placeholder),
     // MWMAU_W_MM -> MMUL(MmulOpType.placeholder),
