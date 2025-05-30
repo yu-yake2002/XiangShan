@@ -31,3 +31,6 @@
 [submodule "HBL2-AMU-Demo"]
 	path = HBL2-AMU-Demo
 	url = https://github.com/Wonicon/HBL2-AMU-Demo
+[submodule "AME"]
+	path = AME
+	url = https://github.com/LeonZ03/AME.git
