@@ -12,12 +12,14 @@ import xiangshan.backend.fu.matrix.Bundles._
 class AmuCtrlBufferIO()(implicit val p: Parameters, val params: BackendParams) extends Bundle with HasXSParameter {
   // rob enq
   class EnqBundle extends Bundle {
-    val valid = Bool()
+    val valid = Bool()  // Req valid and canEnqueue
+    val reqValid = Bool()  // Req valid
     val allocPtr = new RobPtr
     val needAMU = Bool()
   }
   val enq = Input(Vec(RenameWidth, new EnqBundle))
-  val outCanEnqueue = Output(Bool())
+  val canEnqueue = Output(Bool())
+  val canEnqueueForDispatch = Output(Bool())
 
   // rob wb
   val wb = Flipped(params.genWrite2CtrlBundles)
@@ -94,10 +96,11 @@ class AmuCtrlBuffer()(implicit override val p: Parameters, val params: BackendPa
   val io = IO(new AmuCtrlBufferIO)
 
   def connectROB(robImp: RobImp) = {
-    io.enq.zip(robImp.io.enq.req).zip(robImp.allocatePtrVec) foreach { case ((enq, req), ptr) =>
-      enq.valid := req.valid
-      enq.allocPtr := ptr
-      enq.needAMU := req.bits.needAmuCtrl
+    for (i <- 0 until RenameWidth) {
+      io.enq(i).valid := robImp.io.enq.req(i).valid && robImp.canEnqueue(i) && !robImp.io.redirect.valid
+      io.enq(i).reqValid := robImp.io.enq.req(i).valid
+      io.enq(i).allocPtr := robImp.allocatePtrVec(i)
+      io.enq(i).needAMU := robImp.io.enq.req(i).bits.needAmuCtrl
     }
     io.wb := robImp.io.writeback
     io.deqCommit.zip(robImp.deqPtrVec).zip(robImp.io.commits.commitValid) foreach { case ((deq, ptr), valid) =>
@@ -115,10 +118,19 @@ class AmuCtrlBuffer()(implicit override val p: Parameters, val params: BackendPa
 
   // Calculate number of valid entries and new entries to be enqueued
   val numValidEntries = PopCount(amuCtrlEntries.map(_.valid))
-  val numNewEntries = PopCount(io.enq.map(_.valid))
+  val numNewEntries = PopCount(io.enq.map(_.reqValid))
 
   // Check if there's enough space in the queue
-  io.outCanEnqueue := numValidEntries + numNewEntries <= (RobSize - RenameWidth).U
+  val canEnqueue = GatedValidRegNext(
+    numValidEntries + numNewEntries <= (RobSize - RenameWidth).U,
+    true.B
+  )
+  val canEnqueueForDispatch = GatedValidRegNext(
+    numValidEntries + numNewEntries <= (RobSize - RenameWidth * 2).U,
+    true.B
+  )
+  io.canEnqueue := canEnqueue
+  io.canEnqueueForDispatch := canEnqueueForDispatch
 
   // Enqueue (Sync with outer ROB)
   // DynInst does not carry amuCtrl info,
@@ -179,7 +191,7 @@ class AmuCtrlBuffer()(implicit override val p: Parameters, val params: BackendPa
 
   // To AMU
   val deqPtr = RegInit(0.U.asTypeOf(new RobPtr))
-  val deqEntries = (0 until CommitWidth).map(i => amuCtrlEntries(deqPtr.value + i.U))
+  val deqEntries = (0 until CommitWidth).map(i => amuCtrlEntries((deqPtr + i.U).value))
   io.toAMU.zipWithIndex.foreach { case (amuCtrl, i) =>
     val deqEntry = deqEntries(i)
     deqEntry.checkSanity(s"AMUCtrlBuffer: deqEntry[$i]")
@@ -202,5 +214,5 @@ class AmuCtrlBuffer()(implicit override val p: Parameters, val params: BackendPa
     }
   }
 
-  XSPerfAccumulate("stall_by_matrix_fire", !io.outCanEnqueue && deqPtr =/= io.deqCommit(0).ptr)
+  XSPerfAccumulate("stall_by_matrix_fire", !io.canEnqueue && deqPtr =/= io.deqCommit(0).ptr)
 }
