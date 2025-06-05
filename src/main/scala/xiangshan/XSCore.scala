@@ -31,6 +31,7 @@ import utility.sram.{SramBroadcastBundle, SramHelper}
 import xiangshan.frontend._
 import xiangshan.backend._
 import xiangshan.backend.fu.PMPRespBundle
+import xiangshan.backend.fu.matrix.Bundles._
 import xiangshan.backend.trace.TraceCoreInterface
 import xiangshan.mem._
 import xiangshan.cache.mmu._
@@ -114,6 +115,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
     })
     val dft = Option.when(hasDFT)(Input(new SramBroadcastBundle))
     val dft_reset = Option.when(hasDFT)(Input(new DFTResetSignals()))
+    val amuCtrl = Vec(CommitWidth, Decoupled(new AmuCtrlIO))
   })
 
   dontTouch(io.l2_flush_done)
@@ -202,7 +204,9 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   backend.io.mem.storeDebugInfo <> memBlock.io.mem_to_ooo.storeDebugInfo
   
   // top -> AMU
-  backend.io.toAmu.foreach(_.ready := true.B)
+  io.amuCtrl.zip(backend.io.toAmu).foreach { case (amuIO, amuBackend) =>
+    amuIO <> amuBackend
+  }
 
   // top -> memBlock
   memBlock.io.fromTopToBackend.clintTime := io.clintTime

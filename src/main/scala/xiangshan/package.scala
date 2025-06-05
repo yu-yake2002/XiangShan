@@ -651,6 +651,15 @@ package object xiangshan {
   object MmulOpType {
     def placeholder = "b11_111_111".U
 
+    // bit encoding:
+    // | 7  | 6  | 5 4 3 | 2 1 | 0 |
+    // |int | sgn| from  | to  |sat|
+    // int: 0 for int, 1 for float
+    // sgn: 0 for unsigned, 1 for signed (only for int)
+    // from: source element width, 3'b100 for msew
+    // to: target element width, 2'b00 for 1W, 2'b01 for 2W, 2'b10 for 4W
+    // sat: 0 for no saturation, 1 for saturation
+
     def isInt         (func: UInt) = func(7) === "b0".U
     def isFloat       (func: UInt) = func(7) === "b1".U
 
@@ -669,6 +678,15 @@ package object xiangshan {
     def isTo4W     (func: UInt) = func(2, 1) === "b10".U
 
     def isSat      (func: UInt) = func(0) === "b1".U
+
+    // MMAU.MM: int,unsigned,msew,nowiden(1W),nosaturate
+    def MMAU    = "b0_0_100_00_0".U
+    // MMAU.H: int,unsigned,int16,nowiden(1W),nosaturate
+    def MMAU_H  = "b0_0_001_00_0".U
+    // MMAU.W: int,unsigned,int32,nowiden(1W),nosaturate
+    def MMAU_W  = "b0_0_010_00_0".U
+    // MMAU.DW: int,unsigned,int64,nowiden(1W),nosaturate
+    def MMAU_DW = "b0_0_011_00_0".U
 
     def hfmaFp8ToFp8   = "b10_000_00_0".U
     def hfmaFp8ToFp16  = "b10_000_01_0".U

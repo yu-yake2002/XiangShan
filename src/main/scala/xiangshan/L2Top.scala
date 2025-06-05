@@ -18,6 +18,7 @@ package xiangshan
 
 import chisel3._
 import chisel3.util._
+import coupledL2.MatrixDataBundle
 import org.chipsalliance.cde.config._
 import chisel3.util.{Valid, ValidIO}
 import freechips.rocketchip.devices.debug.DebugModuleKey
@@ -226,6 +227,8 @@ class L2TopInlined()(implicit p: Parameters) extends LazyModule
       val dft_out = Option.when(hasDFT)(Output(new SramBroadcastBundle))
       val dft_reset_out = Option.when(hasMbist)(Output(new DFTResetSignals()))
       // val reset_core = IO(Output(Reset()))
+
+      val matrixDataOut512L2 = Vec(coreParams.L2NBanks, DecoupledIO(new MatrixDataBundle()))
     })
     io.dft_out.zip(io.dft).foreach({ case(a, b) => a := b })
     io.dft_reset_out.zip(io.dft_reset).foreach({ case(a, b) => a := b })
@@ -277,6 +280,12 @@ class L2TopInlined()(implicit p: Parameters) extends LazyModule
     dontTouch(io.cpu_halt)
     dontTouch(io.cpu_critical_error)
     if (!io.chi.isEmpty) { dontTouch(io.chi.get) }
+
+    // Initialize matrixDataOut512L2 with zero
+    io.matrixDataOut512L2.foreach { data =>
+      data.valid := false.B
+      data.bits := 0.U.asTypeOf(new MatrixDataBundle)
+    }
 
     val hartIsInReset = RegInit(true.B)
     hartIsInReset := io.hartIsInReset.resetInFrontend || reset.asBool
@@ -337,6 +346,7 @@ class L2TopInlined()(implicit p: Parameters) extends LazyModule
           io.chi.get <> l2.io_chi
           l2.io_cpu_halt.foreach { _:= io.cpu_halt.fromCore }
         case l2cache: TL2TLCoupledL2 =>
+          io.matrixDataOut512L2 <> l2.io.matrixDataOut512L2
       }
 
       beu.module.io.errors.l2.ecc_error.valid := l2.io.error.valid

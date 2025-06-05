@@ -18,7 +18,7 @@ package xiangshan
 
 import org.chipsalliance.cde.config.{Config, Parameters}
 import chisel3._
-import chisel3.util.{Valid, ValidIO, log2Up}
+import chisel3.util.{Valid, ValidIO, log2Up, Arbiter}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.interrupts._
 import freechips.rocketchip.tile.{BusErrorUnit, BusErrorUnitParams, BusErrors}
@@ -31,6 +31,10 @@ import utility.sram.SramBroadcastBundle
 import coupledL2.EnableCHI
 import coupledL2.tl2chi.PortIO
 import xiangshan.backend.trace.TraceCoreInterface
+import xiangshan.backend.fu.matrix._
+import xiangshan.backend.fu.matrix.Bundles._
+import hbl2demo.AMU
+import AME.AME
 
 class XSTile()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
@@ -210,6 +214,28 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     if (debugOpts.ResetGen && enableL2) {
       core.module.reset := l2top.module.reset_core
     }
+
+    /** AMU related wiring */
+    val ame = Module(new AME())
+    val amuCtrlArbiter = Module(new Arbiter(new AmuCtrlIO, CommitWidth))
+    val ameTranslator = Module(new AmeTranslator)
+
+    ame.io <> DontCare
+    amuCtrlArbiter.io.in <> core.module.io.amuCtrl
+    ameTranslator.io.amuCtrl <> amuCtrlArbiter.io.out
+
+    ame.io.Uop_io.ShakeHands_io <> ameTranslator.io.uop.ShakeHands_io
+    ame.io.Uop_io.Operands_io <> ameTranslator.io.uop.Operands_io
+    ame.io.Uop_io.InsType_io <> ameTranslator.io.uop.InsType_io
+    ame.io.Uop_io.mtileConfig_io <> ameTranslator.io.uop.mtileConfig_io
+    ame.io.MLU_L2_io <> ameTranslator.io.mlu_l2
+
+    l2top.module.io.matrixDataOut512L2.foreach(_.ready := true.B)
+
+    // ChiselDB for uop
+    val ameDB = ChiselDB.createTable("ame", ame.io, basicDB = true)
+    val ameLogEn = ame.io.Uop_io.ShakeHands_io.valid || ame.io.MLU_L2_io.Cacheline_Read_io.map(_.valid).reduce(_ || _)
+    ameDB.log(ame.io, ameLogEn, "ame io", clock, reset)
   }
 
   lazy val module = new XSTileImp(this)
