@@ -91,9 +91,14 @@ class AmeTranslator(implicit p: Parameters) extends Module {
 
   /** mlu_l2_io logic */
   for (i <- 0 until mem_port_length) {
+    when(respValidVec(i)) {
+      respValidVec(i) := false.B
+      idRegVec(i) := 0.U
+    }
+    // Put io assign after next state update ensures a back-to-back update
     when(io.mlu_l2.Cacheline_Read_io(i).valid) {
-      idRegVec(i) := io.mlu_l2.Cacheline_Read_io(i).id
       respValidVec(i) := true.B
+      idRegVec(i) := io.mlu_l2.Cacheline_Read_io(i).id
     }
   }
 
