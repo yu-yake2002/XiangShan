@@ -36,6 +36,7 @@ import xiangshan.backend.fu.matrix.Bundles._
 import hbl2demo.AMU
 import AME.AME
 import utility.RegNextN
+import hbl2demo.AMEModule
 
 class XSTile()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
@@ -44,6 +45,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   override def shouldBeInlined: Boolean = false
   val core = LazyModule(new XSCore())
   val l2top = LazyModule(new L2Top())
+  val ame = LazyModule(new AMEModule())
 
   val enableL2 = coreParams.L2CacheParamsOpt.isDefined
   // =========== Public Ports ============
@@ -69,6 +71,10 @@ class XSTile()(implicit p: Parameters) extends LazyModule
   coreParams.dcacheParametersOpt.map { _ =>
     l2top.inner.misc_l2_pmu := l2top.inner.l1d_logger := memBlock.dcache_port :=
       memBlock.l1d_to_l2_buffer.node := memBlock.dcache.clientNode
+  }
+
+  ame.matrix_nodes.zipWithIndex.foreach { case (node, i) =>
+    l2top.inner.misc_l2_pmu :=* TLLogger("AmeReq" + i.toString) :=* node
   }
 
   l2top.inner.misc_l2_pmu := l2top.inner.l1i_logger := memBlock.frontendBridge.icache_node
@@ -217,22 +223,23 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     }
 
     /** AMU related wiring */
-    val ame = Module(new AME())
     val amuCtrlArbiter = Module(new Arbiter(new AmuCtrlIO, CommitWidth))
     val ameTranslator = Module(new AmeTranslator)
+    require(ameTranslator.io.uop.Operands_io.rs1.getWidth == 48, "rs1 width should be 48")
 
-    ame.io <> DontCare
+    ame.module.io <> DontCare
     amuCtrlArbiter.io.in <> core.module.io.amuCtrl
     dontTouch(amuCtrlArbiter.io.in)
     ameTranslator.io.amuCtrl <> amuCtrlArbiter.io.out
 
-    ame.io.Uop_io.ShakeHands_io <> ameTranslator.io.uop.ShakeHands_io
-    ame.io.Uop_io.Operands_io <> ameTranslator.io.uop.Operands_io
-    ame.io.Uop_io.InsType_io <> ameTranslator.io.uop.InsType_io
-    ame.io.Uop_io.mtileConfig_io <> ameTranslator.io.uop.mtileConfig_io
-    ame.io.MLU_L2_io <> ameTranslator.io.mlu_l2
+    ame.module.io.Uop_io.ShakeHands_io <> ameTranslator.io.uop.ShakeHands_io
+    ame.module.io.Uop_io.Operands_io <> ameTranslator.io.uop.Operands_io
+    ame.module.io.Uop_io.InsType_io <> ameTranslator.io.uop.InsType_io
+    ame.module.io.Uop_io.mtileConfig_io <> ameTranslator.io.uop.mtileConfig_io
+    ameTranslator.io.mlu_l2 <> DontCare
 
-    l2top.module.io.matrixDataOut512L2.foreach(_.ready := true.B)
+    val l2_matrix_d = l2top.module.io.matrixDataOut512L2
+    ame.module.io.matrix_data_in.zip(l2_matrix_d).foreach { case (sink, src) => sink <> src }
 
     // FIXME: Just for debug. Remove me when AME is ready.
     val mreleaseValid = RegInit(false.B)
@@ -253,9 +260,9 @@ class XSTile()(implicit p: Parameters) extends LazyModule
     // core.module.io.amuRelease.valid := false.B
 
     // ChiselDB for uop
-    val ameDB = ChiselDB.createTable("ame", ame.io, basicDB = true)
-    val ameLogEn = ame.io.Uop_io.ShakeHands_io.valid || ame.io.MLU_L2_io.Cacheline_Read_io.map(_.valid).reduce(_ || _)
-    ameDB.log(ame.io, ameLogEn, "ame io", clock, reset)
+    val ameDB = ChiselDB.createTable("ame", ame.module.io, basicDB = true)
+    val ameLogEn = ame.module.io.Uop_io.ShakeHands_io.valid || ame.module.io.matrix_data_in.map(_.valid).reduce(_ || _)
+    ameDB.log(ame.module.io, ameLogEn, "ame io", clock, reset)
   }
 
   lazy val module = new XSTileImp(this)

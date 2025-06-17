@@ -33,6 +33,7 @@ class AmeTranslator(implicit p: Parameters) extends Module {
     e.data := 0.U
     e.id := 0.U
   }
+  io.mlu_l2.Cacheline_Read_io.foreach(_.ready := true.B)
 
   /** Decode the control signals */
   when(io.amuCtrl.valid) {

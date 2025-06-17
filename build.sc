@@ -27,6 +27,7 @@ import $file.coupledL2.common
 import $file.openLLC.common
 import $file.`HBL2-AMU-Demo`.common
 import $file.AME.common
+import $file.`HBL2-Demo`.common
 
 /* for publishVersion */
 import $ivy.`de.tototec::de.tobiasroeser.mill.vcs.version::0.4.0`
@@ -228,7 +229,7 @@ object macros extends ScalaModule {
   def scalaReflectIvy = ivy"org.scala-lang:scala-reflect:${defaultScalaVersion}"
 }
 
-object hbl2demo extends $file.`HBL2-AMU-Demo`.common.hbl2demoModule with HasChisel {
+object hbl2AMUdemo extends $file.`HBL2-AMU-Demo`.common.hbl2demoModule with HasChisel {
 
   override def millSourcePath = pwd / "HBL2-AMU-Demo"
 
@@ -273,6 +274,32 @@ object AME extends $file.AME.common.AMEModule with HasChisel {
   }
 }
 
+object hbl2demo extends SbtModule with HasChisel with $file.`HBL2-Demo`.common.hbl2demoModule {
+  override def millSourcePath = pwd / "HBL2-Demo"
+  def rocketModule:    ScalaModule = rocketchip
+  def utilityModule:   ScalaModule = utility
+  def huancunModule:   ScalaModule = huancun
+  def coupledL2Module: ScalaModule = coupledL2
+  def ameModule:       ScalaModule = AME
+  def fpuModule:       ScalaModule = fpu
+
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    coupledL2Module,
+    rocketModule,
+    utilityModule,
+    huancunModule,
+    ameModule,
+    fpuModule
+  )
+
+  object test extends SbtModuleTests with TestModule.ScalaTest {
+    override def ivyDeps = super.ivyDeps() ++ Agg(
+      defaultVersions("chiseltest")
+    )
+  }
+  override def scalacOptions = super.scalacOptions() ++ Agg("-deprecation", "-feature")
+}
+
 // extends this trait to use XiangShan in other projects
 trait XiangShanModule extends ScalaModule {
 
@@ -296,9 +323,11 @@ trait XiangShanModule extends ScalaModule {
 
   def macrosModule: ScalaModule
 
-  def hbl2demoModule: ScalaModule
+  def hbl2AMUdemoModule: ScalaModule
 
   def ameModule: ScalaModule
+
+  def hbl2demoModule: ScalaModule
 
   override def moduleDeps = super.moduleDeps ++ Seq(
     rocketModule,
@@ -311,8 +340,9 @@ trait XiangShanModule extends ScalaModule {
     utilityModule,
     chiselAIAModule,
     macrosModule,
-    hbl2demoModule,
+    hbl2AMUdemoModule,
     ameModule,
+    hbl2demoModule,
   )
 
   val resourcesPATH = pwd.toString() + "/src/main/resources"
@@ -345,9 +375,11 @@ object xiangshan extends XiangShanModule with HasChisel with ScalafmtModule {
 
   def macrosModule = macros
 
-  def hbl2demoModule = hbl2demo
+  def hbl2AMUdemoModule = hbl2AMUdemo
 
   def ameModule = AME
+
+  def hbl2demoModule = hbl2demo
 
   // properties may be changed by user. Use `Task.Input` here.
   def forkArgsTask = Task.Input {
