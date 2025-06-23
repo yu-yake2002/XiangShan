@@ -51,6 +51,7 @@ class AmeTranslator(implicit p: Parameters) extends Module {
       // Set instruction type
       io.uop.InsType_io.is_mmacc := true.B
       io.uop.InsType_io.is_mlbe8 := false.B
+      io.uop.InsType_io.is_mlae8 := false.B
 
       // Set tile configuration
       io.uop.mtileConfig_io.mtilem := mmaio.mtilem
@@ -60,6 +61,7 @@ class AmeTranslator(implicit p: Parameters) extends Module {
     }.elsewhen(io.amuCtrl.bits.isMls()) {
       // Load/Store operation
       val lsuio = io.amuCtrl.bits.data.asTypeOf(new AmuLsuIO)
+      require(io.amuCtrl.bits.data.getWidth >= (new AmuLsuIO).getWidth, s"AmuCtrl(${io.amuCtrl.bits.data.getWidth}) should cover AmuLsuIO(${(new AmuLsuIO).getWidth}).")
 
       // Map LSU fields to Uop_io
       io.uop.Operands_io.md := lsuio.ms
@@ -67,12 +69,18 @@ class AmeTranslator(implicit p: Parameters) extends Module {
       io.uop.Operands_io.rs2 := lsuio.stride
 
       // Set instruction type
-      io.uop.InsType_io.is_mlbe8 := !lsuio.ls // is_mlbe8 is true for load operations
+      io.uop.InsType_io.is_mlbe8 := !lsuio.ls && lsuio.isB
+      io.uop.InsType_io.is_mlae8 := !lsuio.ls && lsuio.isA
+      assert(!lsuio.isA || !lsuio.isB, "MLA and MLB are exclusive.")
+      assert(!lsuio.ls, "Store is not supported by AME.")
 
       // Set tile configuration
-      io.uop.mtileConfig_io.mtilem := lsuio.row
-      io.uop.mtileConfig_io.mtilen := lsuio.column
-      io.uop.mtileConfig_io.mtilek := 0.U // Not used for load/store operations
+      io.uop.mtileConfig_io.mtilem := Mux(lsuio.isA, lsuio.row, 0.U)
+      io.uop.mtileConfig_io.mtilen := Mux(lsuio.isB, lsuio.column, 0.U)
+      io.uop.mtileConfig_io.mtilek := Mux(lsuio.isA, lsuio.column, lsuio.row)
+      val mtilek = io.uop.mtileConfig_io.mtilek
+      assert(!lsuio.isA || mtilek === lsuio.column)
+      assert(!lsuio.isB || mtilek === lsuio.row)
     }.elsewhen(io.amuCtrl.bits.isRelease()) {
       // Release operation
       val releaseio = io.amuCtrl.bits.data.asTypeOf(new AmuReleaseIO)

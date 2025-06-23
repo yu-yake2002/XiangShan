@@ -289,13 +289,17 @@ object Bundles {
     val transpose = Bool()            // 5
     // whether accumulation register
     val isacc     = Bool()            // 6
+    val isA       = Bool()            // 7
+    val isB       = Bool()            // 8
+    val isC       = Bool()            // 9
+    val isTile    = Bool()            // 10
 
-    val baseAddr  = UInt(PAddrBits.W) // 54 : 7
-    val stride    = UInt(PAddrBits.W) // 102 : 55
+    val baseAddr  = UInt(PAddrBits.W) // 58 : 11
+    val stride    = UInt(PAddrBits.W) // 106 : 59
     
-    val row       = Mtilex()          // 111 : 103
-    val column    = Mtilex()          // 120 : 112
-    val widths    = MtypeMSew()       // 123 : 121
+    val row       = Mtilex()          // 115 : 107
+    val column    = Mtilex()          // 124 : 116
+    val widths    = MtypeMSew()       // 127 : 125
   }
 
   object AmuLsuIO {
@@ -325,7 +329,7 @@ object Bundles {
     def isMls()     : Bool = op === AmuCtrlIO.mlsOp()
     def isRelease() : Bool = op === AmuCtrlIO.releaseOp()
     // data: The ctrl signal for op
-    val data = UInt(128.W)
+    val data = UInt(150.W)
   }
 
   object AmuCtrlIO {
