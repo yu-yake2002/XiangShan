@@ -19,7 +19,7 @@ object DataConfig {
   case class VAddrData()(implicit p: Parameters) extends DataConfig("vaddr", 48 + 2) // Todo: associate it with the width of vaddr
   case class V0Data() extends DataConfig("v0", 128)
   case class VlData() extends DataConfig("vl", log2Up(VecData().dataWidth) + 1 ) // 8
-  case class MxData() extends DataConfig("mx", log2Up(VecData().dataWidth) + 1 ) // 8
+  case class MxData() extends DataConfig("mx", log2Up(256) + 1) // commonly assume a length of 256B, therefore 9
   case class FakeIntData() extends DataConfig("fakeint", 64)
   case class NoData() extends DataConfig("nodata", 0)
 
