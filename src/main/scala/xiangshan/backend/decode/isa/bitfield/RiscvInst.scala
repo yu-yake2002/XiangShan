@@ -70,6 +70,7 @@ trait BitFieldsVec { this: Riscv32BitInst =>
   def ZIMM_VSETIVLI : UInt  = inst(29, 20)
   def UIMM_VSETIVLI : UInt  = inst(19, 15)
   def IMM5_OPIVI    : UInt  = inst(19, 15)
+  def ZIMM_MSETMTILEXI : UInt  = inst(19, 15)
 
   def getInstVType : InstVType = {
     val res = Wire(new InstVType)

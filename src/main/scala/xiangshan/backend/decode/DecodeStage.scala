@@ -58,31 +58,31 @@ class DecodeStageIO(implicit p: Parameters) extends XSBundle {
   val fromCSR = Input(new CSRToDecode)
   val fusion = Vec(DecodeWidth - 1, Input(Bool()))
 
-  // vtype & mtype update
-  val fromRob = new Bundle {
-    val isResumeVType = Input(Bool())
-    val walkToArchVType = Input(Bool())
-    val commitVType = new Bundle {
-      val vtype = Flipped(Valid(new VType))
-      val hasVsetvl = Input(Bool())
+    // vtype & mtype update
+    val fromRob = new Bundle {
+      val isResumeVType = Input(Bool())
+      val walkToArchVType = Input(Bool())
+      val commitVType = new Bundle {
+        val vtype = Flipped(Valid(new VType))
+        val hasVsetvl = Input(Bool())
+      }
+      val walkVType = Flipped(Valid(new VType))
+      val isResumeMType = Input(Bool())
+      val walkToArchMType = Input(Bool())
+      val commitMType = new Bundle {
+        val mtype = Flipped(Valid(new MType))
+        val hasMsettype = Input(Bool())
+      }
+      val walkMType = Flipped(Valid(new MType))
     }
-    val walkVType = Flipped(Valid(new VType))
-    val isResumeMType = Input(Bool())
-    val walkToArchMType = Input(Bool())
-    val commitMType = new Bundle {
-      val mtype = Flipped(Valid(new MType))
-      val hasMsetml = Input(Bool())
+    val stallReason = new Bundle {
+      val in = Flipped(new StallReasonIO(DecodeWidth))
+      val out = new StallReasonIO(DecodeWidth)
     }
-    val walkMType = Flipped(Valid(new MType))
-  }
-  val stallReason = new Bundle {
-    val in = Flipped(new StallReasonIO(DecodeWidth))
-    val out = new StallReasonIO(DecodeWidth)
-  }
-  val vsetvlVType = Input(VType())
-  val vstart = Input(Vl())
-  val msetmlMType = Input(MType())
-  val mstart = Input(Vl()) // FIXME: don't use Vl here
+    val vsetvlVType = Input(VType())
+    val vstart = Input(Vl())
+    val msettypeMType = Input(MType())
+    val mstart = Input(Vl()) // FIXME: don't use Vl here
 
   val toCSR = new Bundle {
     val trapInstInfo = ValidIO(new TrapInstInfo)
@@ -184,7 +184,7 @@ class DecodeStage(implicit p: Parameters) extends XSModule
   mtypeGen.io.walkToArchMType := io.fromRob.walkToArchMType
   mtypeGen.io.commitMType := io.fromRob.commitMType
   mtypeGen.io.walkMType := io.fromRob.walkMType
-  mtypeGen.io.msetmlMType := io.msetMType
+  mtypeGen.io.msettypeMType := io.msettypeMType
 
   //Comp 1
   decoderComp.io.redirect := io.redirect

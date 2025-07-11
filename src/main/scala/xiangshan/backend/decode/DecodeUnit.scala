@@ -803,7 +803,6 @@ object ImmUnion {
     SelImm.IMM_VSETIVLI,
     SelImm.IMM_VRORVI,
     SelImm.IMM_MSET,
-    SelImm.IMM_MSETSPI,
     SelImm.IMM_MSETVAL,
     SelImm.IMM_MSETFIELD,
   ).zip(imms)
@@ -1124,8 +1123,22 @@ class DecodeUnit(implicit p: Parameters) extends XSModule with DecodeUnitConstan
 
   decodedInst.vlsInstr := isVls
 
+  // TODO: connect mtype
   decodedInst.srcType(3) := Mux(inst.VM === 0.U, SrcType.vp, SrcType.DC) // mask src
   decodedInst.srcType(4) := SrcType.vp // vconfig
+
+  decodedInst.mpu := 0.U.asTypeOf(decodedInst.mpu)
+  decodedInst.mpu.mill := io.enq.mtype.illegal
+  decodedInst.mpu.mba := io.enq.mtype.mba
+  decodedInst.mpu.mfp64 := io.enq.mtype.mfp64
+  decodedInst.mpu.mfp32 := io.enq.mtype.mfp32
+  decodedInst.mpu.mfp16 := io.enq.mtype.mfp16
+  decodedInst.mpu.mfp8 := io.enq.mtype.mfp8
+  decodedInst.mpu.mint64 := io.enq.mtype.mint64
+  decodedInst.mpu.mint32 := io.enq.mtype.mint32
+  decodedInst.mpu.mint16 := io.enq.mtype.mint16
+  decodedInst.mpu.mint8 := io.enq.mtype.mint8
+  decodedInst.mpu.msew := io.enq.mtype.msew
 
   val uopInfoGen = Module(new UopInfoGen)
   uopInfoGen.io.in.preInfo.isVecArith := inst.isVecArith

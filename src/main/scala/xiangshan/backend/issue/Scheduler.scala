@@ -25,6 +25,7 @@ case class FpScheduler() extends SchedulerType
 case class MemScheduler() extends SchedulerType
 case class VfScheduler() extends SchedulerType
 case class NoScheduler() extends SchedulerType
+case class MfScheduler() extends SchedulerType
 
 class Scheduler(val params: SchdBlockParams)(implicit p: Parameters) extends LazyModule with HasXSParameter {
   override def shouldBeInlined: Boolean = false
@@ -42,6 +43,7 @@ class Scheduler(val params: SchdBlockParams)(implicit p: Parameters) extends Laz
     case FpScheduler()  => new SchedulerArithImp(this)(params, p)
     case MemScheduler() => new SchedulerMemImp(this)(params, p)
     case VfScheduler() => new SchedulerArithImp(this)(params, p)
+    case MfScheduler() => new SchedulerArithImp(this)(params, p)
     case _ => null
   }
 }
@@ -169,11 +171,13 @@ abstract class SchedulerImpBase(wrapper: Scheduler)(implicit params: SchdBlockPa
   val wakeupFromVfWBVec = Wire(params.genVfWBWakeUpSinkValidBundle)
   val wakeupFromV0WBVec = Wire(params.genV0WBWakeUpSinkValidBundle)
   val wakeupFromVlWBVec = Wire(params.genVlWBWakeUpSinkValidBundle)
+  val wakeupFromMfWBVec = Wire(params.genMfWBWakeUpSinkValidBundle)
   val wakeupFromIntWBVecDelayed = Wire(params.genIntWBWakeUpSinkValidBundle)
   val wakeupFromFpWBVecDelayed = Wire(params.genFpWBWakeUpSinkValidBundle)
   val wakeupFromVfWBVecDelayed = Wire(params.genVfWBWakeUpSinkValidBundle)
   val wakeupFromV0WBVecDelayed = Wire(params.genV0WBWakeUpSinkValidBundle)
   val wakeupFromVlWBVecDelayed = Wire(params.genVlWBWakeUpSinkValidBundle)
+  val wakeupFromMfWBVecDelayed = Wire(params.genMfWBWakeUpSinkValidBundle)
 
   val wakeupFromWBVec = Seq(wakeupFromIntWBVec, wakeupFromFpWBVec, wakeupFromVfWBVec, wakeupFromV0WBVec, wakeupFromVlWBVec)
   val allWriteBack = Seq(io.intWriteBack, io.fpWriteBack, io.vfWriteBack, io.v0WriteBack, io.vlWriteBack)
@@ -352,6 +356,7 @@ class SchedulerArithImp(override val wrapper: Scheduler)(implicit params: SchdBl
       case VfScheduler() => (wakeupFromVfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromV0WBVec.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromVlWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1))
+      case MfScheduler() => wakeupFromMfWBVec.zipWithIndex.filter(x => iq.params.needWakeupFromMfWBPort.keys.toSeq.contains(x._2)).map(_._1)
       case _ => null
     }
     val intWBIQDelayed = params.schdType match {
@@ -360,6 +365,7 @@ class SchedulerArithImp(override val wrapper: Scheduler)(implicit params: SchdBl
       case VfScheduler() => (wakeupFromVfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVfWBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromV0WBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromV0WBPort.keys.toSeq.contains(x._2)).map(_._1) ++
                              wakeupFromVlWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromVlWBPort.keys.toSeq.contains(x._2)).map(_._1))
+      case MfScheduler() => wakeupFromMfWBVecDelayed.zipWithIndex.filter(x => iq.params.needWakeupFromMfWBPort.keys.toSeq.contains(x._2)).map(_._1)
       case _ => null
     }
     iq.io.wakeupFromWB.zip(intWBIQ).foreach{ case (sink, source) => sink := source}

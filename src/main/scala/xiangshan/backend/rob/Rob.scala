@@ -103,8 +103,12 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
         val vtype = ValidIO(VType())
         val hasVsetvl = Output(Bool())
       }
+      val isResumeMType = Output(Bool())
+      val walkToArchMType = Output(Bool())
+      val walkMType = ValidIO(MType())
       val commitMType = new Bundle {
         val mtype = ValidIO(MType())
+        val hasMsettype = Output(Bool())
       }
     }
     val fromVecExcpMod = Input(new Bundle {
@@ -166,6 +170,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
 
   val rab = Module(new RenameBuffer(RabSize))
   val vtypeBuffer = Module(new VTypeBuffer(VTypeBufferSize))
+  val mtypeBuffer = Module(new MTypeBuffer(MTypeBufferSize))
   val bankNum = 8
   assert(RobSize % bankNum == 0, "RobSize % bankNum must be 0")
   val robEntries = RegInit(VecInit.fill(RobSize)((new RobEntryBundle).Lit(_.valid -> false.B)))
@@ -394,6 +399,27 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   io.toDecode.walkToArchVType := vtypeBuffer.io.toDecode.walkToArchVType
   io.toDecode.commitVType := vtypeBuffer.io.toDecode.commitVType
   io.toDecode.walkVType := vtypeBuffer.io.toDecode.walkVType
+
+  /**
+   * connection of [[mtypeBuffer]]
+   */
+  mtypeBuffer.io.redirect.valid := io.redirect.valid
+  
+  mtypeBuffer.io.req.zip(io.enq.req).map { case (sink, source) =>
+    sink.valid := source.valid && io.enq.canAccept
+    sink.bits := source.bits
+  }
+
+  private val commitIsMTypeVec = VecInit(io.commits.commitValid.zip(io.commits.info).map { case (valid, info) => io.commits.isCommit && valid && info.isMset })
+  private val walkIsMTypeVec = VecInit(io.commits.walkValid.zip(walkInfo).map { case (valid, info) => io.commits.isWalk && valid && info.isMset })
+  mtypeBuffer.io.fromRob.commitSize := PopCount(commitIsMTypeVec)
+  mtypeBuffer.io.fromRob.walkSize := PopCount(walkIsMTypeVec)
+  mtypeBuffer.io.snpt := io.snpt
+  mtypeBuffer.io.snpt.snptEnq := snptEnq
+  io.toDecode.isResumeMType := mtypeBuffer.io.toDecode.isResumeMType
+  io.toDecode.walkToArchMType := mtypeBuffer.io.toDecode.walkToArchMType
+  io.toDecode.commitMType := mtypeBuffer.io.toDecode.commitMType
+  io.toDecode.walkMType := mtypeBuffer.io.toDecode.walkMType
 
   // When blockBackward instruction leaves Rob (commit or walk), hasBlockBackward should be set to false.B
   // To reduce registers usage, for hasBlockBackward cases, we allow enqueue after ROB is empty.
@@ -689,6 +715,8 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   rab.io.fromRob.walkEnd := state === s_walk && walkFinished
   vtypeBuffer.io.fromRob.walkEnd := state === s_walk && walkFinished
 
+  mtypeBuffer.io.fromRob.walkEnd := state === s_walk && walkFinished // TODO: check if this is correct
+
   require(RenameWidth <= CommitWidth)
 
   // wiring to csr
@@ -845,7 +873,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
   state_next := Mux(
     io.redirect.valid || RegNext(io.redirect.valid), s_walk,
     Mux(
-      state === s_walk && walkFinished && rab.io.status.walkEnd && vtypeBuffer.io.status.walkEnd, s_idle,
+      state === s_walk && walkFinished && rab.io.status.walkEnd && vtypeBuffer.io.status.walkEnd, s_idle, // TODO: Check if need to check mtypeBuffer.io.status.walkEnd
       state
     )
   )
@@ -1172,6 +1200,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exceptionGen.io.enq(i).bits.isFetchMalAddr := io.enq.req(i).bits.isFetchMalAddr
     exceptionGen.io.enq(i).bits.flushPipe := io.enq.req(i).bits.flushPipe
     exceptionGen.io.enq(i).bits.isVset := io.enq.req(i).bits.isVset
+    exceptionGen.io.enq(i).bits.isMset := io.enq.req(i).bits.isMset
     exceptionGen.io.enq(i).bits.replayInst := false.B
     XSError(canEnqueue(i) && io.enq.req(i).bits.replayInst, "enq should not set replayInst")
     exceptionGen.io.enq(i).bits.singleStep := io.enq.req(i).bits.singleStep
@@ -1208,6 +1237,7 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
     exc_wb.bits.isFetchMalAddr  := false.B
     exc_wb.bits.flushPipe       := wb.bits.flushPipe.getOrElse(false.B)
     exc_wb.bits.isVset          := false.B
+    exc_wb.bits.isMset          := false.B
     exc_wb.bits.replayInst      := wb.bits.replay.getOrElse(false.B)
     exc_wb.bits.singleStep      := false.B
     exc_wb.bits.crossPageIPFFix := false.B

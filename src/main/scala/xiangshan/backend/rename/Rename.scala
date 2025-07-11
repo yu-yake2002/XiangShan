@@ -214,6 +214,7 @@ class Rename(implicit p: Parameters) extends XSModule with HasCircularQueuePtrHe
   private val sew          = vtype.map(_.vsew)
   private val lmul         = vtype.map(_.vlmul)
   private val eew          = uops.map(_.vpu.veew)
+  private val mtype        = uops.map(_.mpu.mtype)
   private val mop          = fuOpType.map(fuOpTypeItem => LSUOpType.getVecLSMop(fuOpTypeItem))
   private val isVlsType    = fuType.map(fuTypeItem => isVls(fuTypeItem))
   private val isSegment    = fuType.map(fuTypeItem => isVsegls(fuTypeItem))

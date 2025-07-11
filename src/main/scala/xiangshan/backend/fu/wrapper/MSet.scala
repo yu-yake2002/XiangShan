@@ -93,7 +93,7 @@ class MSetMtilexRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexB
   * @param cfg [[FuConfig]]
   * @param p [[Parameters]]
   */
-class MSetMtilexRvfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
+class MSetMtilexRmfWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtilexBase(cfg) {
   val oldMtilex = in.data.src(4)
   msetModule.io.in.atx := oldMtilex
   msetModule.io.in.mtype := oldMtype
@@ -129,4 +129,12 @@ class MSetMtypeBase(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit
   connect0LatencyCtrlSingal
   io.out.valid := io.in.valid
   io.in.ready := io.out.ready
+}
+
+class MSetMtypeRiWi(cfg: FuConfig)(implicit p: Parameters) extends MSetMtypeBase(cfg) {
+  // TODO: Implement MsetMtypeRiWi
+}
+
+class MSetMtypeRiWmf(cfg: FuConfig)(implicit p: Parameters) extends MSetMtypeBase(cfg) {
+  // TODO: Implement MsetMtypeRiWmf
 }

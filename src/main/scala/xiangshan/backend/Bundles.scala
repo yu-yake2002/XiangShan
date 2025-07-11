@@ -15,6 +15,7 @@ import xiangshan.backend.exu.ExeUnitParams
 import xiangshan.backend.fu.FuType
 import xiangshan.backend.fu.fpu.Bundles.Frm
 import xiangshan.backend.fu.vector.Bundles._
+import xiangshan.backend.fu.matrix.Bundles._
 import xiangshan.backend.issue.{IssueBlockParams, IssueQueueDeqRespBundle, SchedulerType}
 import xiangshan.backend.issue.EntryBundles._
 import xiangshan.backend.regfile.{RfReadPortWithConfig, RfWritePortWithConfig}
@@ -109,6 +110,7 @@ object Bundles {
     val fpu             = new FPUCtrlSignals
     val vpu             = new VPUCtrlSignals
     val vlsInstr        = Bool()
+    val mpu             = new MPUCtrlSignals
     val wfflags         = Bool()
     val isMove          = Bool()
     val uopIdx          = UopIdx()
@@ -209,6 +211,7 @@ object Bundles {
     val fpu             = new FPUCtrlSignals
     val vpu             = new VPUCtrlSignals
     val vlsInstr        = Bool()
+    val mpu             = new MPUCtrlSignals
     val wfflags         = Bool()
     val isMove          = Bool()
     val isDropAmocasSta = Bool()
@@ -499,6 +502,70 @@ object Bundles {
     }
   }
 
+  class MPUCtrlSignals(implicit p: Parameters) extends XSBundle {
+    // mtype
+    val mill     = Bool()
+    val mba      = Bool()
+    val mfp64    = Bool()
+    val mfp32    = UInt(2.W)
+    val mfp16    = UInt(2.W)
+    val mfp8     = UInt(2.W)
+    val mint64   = Bool()
+    val mint32   = Bool()
+    val mint16   = Bool()
+    val mint8    = Bool()
+    val mint4    = Bool()
+    val msew     = MSew()
+
+    // spec mtype
+    val specMill     = Bool()
+    val specMba      = Bool()
+    val specMfp64    = Bool()
+    val specMfp32    = UInt(2.W)
+    val specMfp16    = UInt(2.W)
+    val specMfp8     = UInt(2.W)
+    val specMint64   = Bool()
+    val specMint32   = Bool()
+    val specMint16   = Bool()
+    val specMint8    = Bool()
+    val specMint4    = Bool()
+    val sepcMsew     = MSew()
+
+    def mtype: MType = {
+      val res = Wire(MType())
+      res.illegal := this.mill
+      res.mba     := this.mba
+      res.mfp64   := this.mfp64
+      res.mfp32   := this.mfp32
+      res.mfp16   := this.mfp16
+      res.mfp8    := this.mfp8
+      res.mint64  := this.mint64
+      res.mint32  := this.mint32
+      res.mint16  := this.mint16
+      res.mint8   := this.mint8
+      res.mint4   := this.mint4
+      res.msew    := this.msew
+      res
+    }
+
+    def specMType: MType = {
+      val res = Wire(MType())
+      res.illegal := this.specMill
+      res.mba     := this.specMba
+      res.mfp64   := this.specMfp64
+      res.mfp32   := this.specMfp32
+      res.mfp16   := this.specMfp16
+      res.mfp8    := this.specMfp8
+      res.mint64  := this.specMint64
+      res.mint32  := this.specMint32
+      res.mint16  := this.specMint16
+      res.mint8   := this.specMint8
+      res.mint4   := this.specMint4
+      res.msew    := this.sepcMsew
+      res
+    }
+  }
+
   class NeedFrmBundle(implicit p: Parameters) extends XSBundle {
     val scalaNeedFrm = Bool()
     val vectorNeedFrm = Bool()
@@ -630,6 +697,7 @@ object Bundles {
     val vlWen         = if (params.needVlWen)     Some(Bool())                        else None
     val fpu           = if (params.writeFflags)   Some(new FPUCtrlSignals)            else None
     val vpu           = if (params.needVPUCtrl)   Some(new VPUCtrlSignals)            else None
+    val mpu           = if (params.needMPUCtrl)   Some(new MPUCtrlSignals)            else None
     val flushPipe     = if (params.flushPipe)     Some(Bool())                        else None
     val pc            = if (params.needPc)        Some(UInt(VAddrData().dataWidth.W)) else None
     val preDecode     = if (params.hasPredecode)  Some(new PreDecodeInfo)             else None
@@ -680,6 +748,7 @@ object Bundles {
       this.vlWen         .foreach(_ := source.common.vlWen.get)
       this.fpu           .foreach(_ := source.common.fpu.get)
       this.vpu           .foreach(_ := source.common.vpu.get)
+      this.mpu           .foreach(_ := source.common.mpu.get)
       this.flushPipe     .foreach(_ := source.common.flushPipe.get)
       this.pc            .foreach(_ := source.common.pc.get)
       this.preDecode     .foreach(_ := source.common.preDecode.get)

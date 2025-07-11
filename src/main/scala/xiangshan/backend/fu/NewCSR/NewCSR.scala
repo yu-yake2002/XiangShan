@@ -13,6 +13,7 @@ import xiangshan.backend.fu.NewCSR.CSRDefines._
 import xiangshan.backend.fu.NewCSR.CSREnumTypeImplicitCast._
 import xiangshan.backend.fu.NewCSR.CSREvents.{CSREvents, DretEventSinkBundle, EventUpdatePrivStateOutput, MNretEventSinkBundle, MretEventSinkBundle, SretEventSinkBundle, SretEventSDTSinkBundle,  TargetPCBundle, TrapEntryDEventSinkBundle, TrapEntryEventInput, TrapEntryHSEventSinkBundle, TrapEntryMEventSinkBundle, TrapEntryMNEventSinkBundle, TrapEntryVSEventSinkBundle}
 import xiangshan.backend.fu.fpu.Bundles.Frm
+import xiangshan.backend.fu.matrix.Bundles.{Mstart}
 import xiangshan.backend.fu.vector.Bundles.{Vl, Vstart, Vxrm, Vxsat}
 import xiangshan.backend.fu.wrapper.CSRToDecode
 import xiangshan.backend.rob.RobPtr
@@ -189,6 +190,7 @@ class NewCSR(implicit val p: Parameters) extends Module
         val off = Bool()
       }
       val matrixState = new Bundle {
+        val mstart = Mstart()
         val mtype = UInt(XLEN.W)
         val mtilem = UInt(XLEN.W)
         val mtilen = UInt(XLEN.W)
@@ -1165,6 +1167,7 @@ class NewCSR(implicit val p: Parameters) extends Module
   io.status.vecState.vtype := vtype.rdata.asUInt // Todo: check correct
   io.status.vecState.vlenb := vlenb.rdata.asUInt
   io.status.vecState.off := mstatus.regOut.VS === ContextStatus.Off
+  io.status.matrixState.mstart := mstart.rdata.asUInt
   io.status.matrixState.mtype := mtype.rdata.asUInt
   io.status.matrixState.mtilem := mtilem.rdata.asUInt
   io.status.matrixState.mtilen := mtilen.rdata.asUInt
