@@ -82,6 +82,9 @@ object FuType extends OHEnumeration {
   val mldu = addType(name = "mldu")
   val mstu = addType(name = "mstu")
 
+  // matrix multiplication
+  val mmul = addType(name = "mmul")
+
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)
   // dq0 includes int's iq0 and iq1
   // dq1 includes int's iq2 and iq3
