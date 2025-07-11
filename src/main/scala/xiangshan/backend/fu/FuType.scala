@@ -72,11 +72,11 @@ object FuType extends OHEnumeration {
   val vsegstu = addType(name = "vsegstu")
 
   // matrix
-  val msettilexiwi = addType(name = "msettilexiwi") // msettilex read rs write rd
-  val msettilexiwf = addType(name = "msettilexiwf") // msettilex read rs write mtilex
-  val msettilexfwf = addType(name = "msettilexfwf") // msettilex read old mtilex write mtilex
-  val msettypeiwi = addType(name = "msettypeiwi") // msettype read rs write rd
-  val msettypeiwf = addType(name = "msettypeiwf") // msettype read rs write mtype
+  val msetmtilexiwi = addType(name = "msetmtilexiwi") // msettilex read rs write rd
+  val msetmtilexiwf = addType(name = "msetmtilexiwf") // msettilex read rs write mtilex
+  val msetmtilexfwf = addType(name = "msetmtilexfwf") // msettilex read old mtilex write mtilex
+  val msetmtypeiwi = addType(name = "msetmtypeiwi") // msettype read rs write rd
+  val msetmtypeiwf = addType(name = "msetmtypeiwf") // msettype read rs write mtype
 
   // matrix ls
   val mldu = addType(name = "mldu")
@@ -149,7 +149,7 @@ object FuType extends OHEnumeration {
   val scalaNeedFrm = Seq(i2f, fmac, fDivSqrt)
   val vectorNeedFrm = Seq(vfalu, vfma, vfdiv, vfcvt)
 
-  val matrixMSET = Seq(msettilexiwi, msettilexiwf, msettilexfwf)
+  val matrixMSET = Seq(msetmtilexiwi, msetmtilexiwf, msetmtilexfwf)
 
   def X = BitPat.N(num) // Todo: Don't Care
 

@@ -306,6 +306,7 @@ class DataPathImp(override val wrapper: DataPath)(implicit p: Parameters, params
   )
 
   io.diffVl.foreach(_ := vlDiffReadData.get)
+  io.diffMtx.foreach(_ := 0.U)
 
   IntRegFileSplit("IntRegFile", intSchdParams.numPregs, splitNum = 4, intRfRaddr, intRfRdata, intRfWen, intRfWaddr, intRfWdata,
     bankNum = 1,

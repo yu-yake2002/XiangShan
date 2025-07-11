@@ -4,7 +4,7 @@ import org.chipsalliance.cde.config.Parameters
 import chisel3._
 import chisel3.util._
 import xiangshan._
-import xiangshan.backend.fu.MsetMtilexModule
+import xiangshan.backend.fu.{MsetMtilexModule, MsetMtypeModule}
 import xiangshan.backend.fu.matrix.Bundles.{MType, MsetMType}
 import xiangshan.backend.decode.isa.bitfield.{InstMType, Riscv32BitInst, XSInstBitFields}
 
@@ -15,28 +15,25 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
     val walkMType   = Flipped(Valid(new MType))
     val canUpdateMType = Input(Bool())
     val mtype = Output(new MType)
-    val msetmlMType = Input(new MType)
+    val msettypeMType = Input(new MType)
     val commitMType = new Bundle {
       val mtype = Flipped(Valid(new MType))
-      val hasMsetmtilex = Input(Bool())
+      val hasMsettype = Input(Bool())
     }
   })
   private val instValidVec = io.insts.map(_.valid)
   private val instFieldVec = io.insts.map(_.bits.asTypeOf(new XSInstBitFields))
-  // // Only check vsetvli and vsetivli here.
-  // // vsetvl will flush pipe, need not to generate new vtype in decode stage.
-  // private val isVsetVec = VecInit(instFieldVec.map(fields =>
-  //   (fields.OPCODE === "b1010111".U) && (fields.WIDTH === "b111".U) && (
-  //     fields.ALL(31) === "b0".U ||
-  //     fields.ALL(31, 30) === "b11".U
-  //   )
-  // ).zip(instValidVec).map { case (isVset, valid) => valid && isVset})
-  
-  // TODO: Follow the above comment to implement isMsetVec
-  private val isMsetVec = VecInit(instFieldVec.map(field => false.B)) // placeholder
+  private val isMsettypeVec = VecInit(instFieldVec.map(field => (
+    (field.OPCODE === "b1110111".U) && (field.ALL(31, 26) === "b000000".U) && (
+      field.ALL(14) === "b1".U)
+  )).zip(instValidVec).map { case (isMsettype, valid) => valid && isMsettype })
 
-  private val firstMsetOH: Vec[Bool] = VecInit(PriorityEncoderOH(isMsetVec))
+  private val firstMsetOH: Vec[Bool] = VecInit(PriorityEncoderOH(isMsettypeVec))
   private val firstMsetInstField: XSInstBitFields = PriorityMux(firstMsetOH, instFieldVec)
+
+  private val isMsetmtilexi = (firstMsetInstField.OPCODE === "b1110111".U) && 
+    (firstMsetInstField.ALL(31, 25) === "b0000011".U) && 
+    (firstMsetInstField.ALL(14) === "b1".U)
 
   private val mtypeArch = RegInit(MType.initMtype())
   private val mtypeSpec = RegInit(MType.initMtype())
@@ -47,44 +44,36 @@ class MTypeGen(implicit p: Parameters) extends XSModule{
   mtypeArch := mtypeArchNext
   mtypeSpec := mtypeSpecNext
 
-  // private val isMsetmli= (firstVsetInstField.OPCODE === "b1010111".U) && 
-  //   (firstVsetInstField.WIDTH === "b111".U) && 
-  //   (firstVsetInstField.ALL(31) === "b0".U)
-  // private val instVType: InstVType = Mux(isVsetvli, firstVsetInstField.ZIMM_VSETVLI.asTypeOf(new InstVType), 
-  //   firstVsetInstField.ZIMM_VSETIVLI.asTypeOf(new InstVType))
-  // TODO: Follow the above comment to implement instMType
-  private val instMType: InstMType = new InstMType() // placeholder
+  private val instMType: InstMType = firstMsetInstField.ZIMM_MSETMTILEXI.asTypeOf(new InstMType)
   private val mtypei: MsetMType = MsetMType.fromInstMType(instMType)
+  // TODO: use correct mtype and mask
+  private val msettypeModule = Module(new MsetMtypeModule)
+  msettypeModule.io.in.oldmtype := 0.U.asTypeOf(new MsetMType)
+  msettypeModule.io.in.newmtype := mtypei
+  msettypeModule.io.in.mask := 0.U
+  private val mtypeNew = msettypeModule.io.out.mtype
 
-  private val msetMtilexModule = Module(new MsetMtilexModule)
-  msetMtilexModule.io.in.atx := 0.U
-  msetMtilexModule.io.in.mtype := mtypei
-  msetMtilexModule.io.in.func := MatrixSETOpType.placeholder
-
-  // FIXME:
-  // private val mtypeNew = msetModule.io.out.outval.asTypeOf(new MType)
-
-  when(io.commitMType.hasMsetmtilex) {
-    mtypeArchNext := io.msetmlMType
+  when(io.commitMType.hasMsettype) {
+    mtypeArchNext := io.msettypeMType
   }.elsewhen(io.commitMType.mtype.valid) {
     mtypeArchNext := io.commitMType.mtype.bits
   }
 
-  private val inHasMset = isMsetVec.asUInt.orR
+  private val inHasMsettype = isMsettypeVec.asUInt.orR
 
-  when(io.commitMType.hasMsetmtilex) {
-    // when vsetvl instruction commit, also update vtypeSpec, because vsetvl flush pipe
-    mtypeSpecNext := io.msetmlMType
+  when(io.commitMType.hasMsettype) {
+    // when msettype instruction commit, also update mtypeSpec, because msettype flush pipe
+    mtypeSpecNext := io.msettypeMType
   }.elsewhen(io.walkMType.valid) {
     mtypeSpecNext := io.walkMType.bits
   }.elsewhen(io.walkToArchMType) {
     mtypeSpecNext := mtypeArch
-  }.elsewhen(inHasMset && io.canUpdateMType) {
+  }.elsewhen(inHasMsettype && io.canUpdateMType) {
     mtypeSpecNext := mtypeNew
   }
 
   io.mtype := mtypeSpec
 
   // just make verilog more readable
-  dontTouch(isMsetVec)
+  dontTouch(isMsettypeVec)
 }

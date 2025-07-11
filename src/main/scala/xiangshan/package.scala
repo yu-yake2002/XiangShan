@@ -554,6 +554,8 @@ package object xiangshan {
     def isMreadMtilex (func: UInt) = isRead(func) && (isTileM(func) || isTileN(func) || isTileK(func))
 
     def isMsetMtypeFromImm (func: UInt) = isSet(func) && (isSetImm(func) || isSetImmH(func) || isSetImmL(func)) && isMType(func)
+
+    def isMsettype (func: UInt) = false.B // TODO: Implement me!
   }
 
   object MlduType {
@@ -590,6 +592,10 @@ package object xiangshan {
     def mscte  = "b00100_1_000".U
     def mstre  = "b01000_0_000".U
     def msacce = "b10000_0_000".U
+  }
+
+  object MmulType {
+    def placeholder = "b0000_0000".U
   }
 
   object BRUOpType {
@@ -864,9 +870,8 @@ package object xiangshan {
     def IMM_VRORVI = "b01111".U
 
     def IMM_MSET = "b10000".U
-    def IMM_MSETSPI = "b10001".U
-    def IMM_MSETVAL = "b10010".U
-    def IMM_MSETFIELD = "b10011".U
+    def IMM_MSETVAL = "b10001".U
+    def IMM_MSETFIELD = "b10010".U
 
     def X      = BitPat("b00000")
 
@@ -889,7 +894,6 @@ package object xiangshan {
         IMM_VRORVI.litValue    -> "VRORVI",
         INVALID_INSTR.litValue -> "INVALID",
         IMM_MSET.litValue      -> "MSET",
-        IMM_MSETSPI.litValue   -> "MSETSPI",
         IMM_MSETVAL.litValue   -> "MSETVAL",
         IMM_MSETFIELD.litValue -> "MSETFIELD",
       )
@@ -912,7 +916,6 @@ package object xiangshan {
         IMM_LUI32.litValue     -> ImmUnion.LUI32,
         IMM_VRORVI.litValue    -> ImmUnion.VRORVI,
         IMM_MSET.litValue      -> ImmUnion.MSET,
-        IMM_MSETSPI.litValue   -> ImmUnion.MSETSPI,
         IMM_MSETVAL.litValue   -> ImmUnion.MSETVAL,
         IMM_MSETFIELD.litValue -> ImmUnion.MSETFIELD,
       )

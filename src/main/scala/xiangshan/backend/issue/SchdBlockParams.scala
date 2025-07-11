@@ -69,6 +69,10 @@ case class SchdBlockParams(
 
   def VstuCnt: Int = issueBlockParams.map(_.VstuCnt).sum
 
+  def MlduCnt: Int = issueBlockParams.map(_.MlduCnt).sum
+
+  def MstuCnt: Int = issueBlockParams.map(_.MstuCnt).sum
+
   def numExu: Int = issueBlockParams.map(_.exuBlockParams.count(!_.fakeUnit)).sum
 
   def hasCSR = CsrCnt > 0
@@ -219,6 +223,10 @@ case class SchdBlockParams(
 
   def genVlWBWakeUpSinkValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueWBWakeUpBundle]] = {
     MixedVec(backendParam.getVlWBExeGroup.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq)
+  }
+
+  def genMfWBWakeUpSinkValidBundle(implicit p: Parameters): MixedVec[ValidIO[IssueQueueWBWakeUpBundle]] = {
+    MixedVec(backendParam.getMfWBExeGroup.map(x => ValidIO(new IssueQueueWBWakeUpBundle(x._2.map(_.exuIdx), backendParam))).toSeq)
   }
 
   // cfgs(issueIdx)(exuIdx)(set of exu's wb)

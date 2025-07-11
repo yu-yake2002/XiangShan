@@ -39,6 +39,8 @@ case class ExeUnitParams(
   val numVfSrc: Int = fuConfigs.map(_.numVfSrc).max
   val numV0Src: Int = fuConfigs.map(_.numV0Src).max
   val numVlSrc: Int = fuConfigs.map(_.numVlSrc).max
+  val numMatrixSrc: Int = fuConfigs.map(_.numMatrixSrc).max
+  val numMfSrc: Int = fuConfigs.map(_.numMfSrc).max
   val numRegSrc: Int = fuConfigs.map(_.numRegSrc).max
   val numSrc: Int = fuConfigs.map(_.numSrc).max
   val destDataBitsMax: Int = fuConfigs.map(_.destDataBits).max
@@ -78,6 +80,7 @@ case class ExeUnitParams(
   val needSrcVxrm: Boolean = fuConfigs.map(_.needSrcVxrm).reduce(_ || _)
   val needFPUCtrl: Boolean = fuConfigs.map(_.needFPUCtrl).reduce(_ || _)
   val needVPUCtrl: Boolean = fuConfigs.map(_.needVecCtrl).reduce(_ || _)
+  val needMPUCtrl: Boolean = fuConfigs.map(_.needMPUCtrl).reduce(_ || _)
   val writeVConfig: Boolean = fuConfigs.map(_.writeVlRf).reduce(_ || _)
   val writeVType: Boolean = fuConfigs.map(_.writeVType).reduce(_ || _)
   val writeMType: Boolean = fuConfigs.map(_.writeMType).reduce(_ || _)
@@ -371,6 +374,12 @@ case class ExeUnitParams(
   def getVlWBPort = {
     wbPortConfigs.collectFirst {
       case x: VlWB => x
+    }
+  }
+
+  def getMfWBPort = {
+    wbPortConfigs.collectFirst {
+      case x: MfWB => x
     }
   }
 

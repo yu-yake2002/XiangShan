@@ -7,6 +7,7 @@ import freechips.rocketchip.util.uintToBitPat
 import xiangshan.backend.fu.FuType
 import xiangshan.{SrcType, MatrixSETOpType, UopSplitType, SelImm, MlduType, MstuType}
 import freechips.rocketchip.amba.ahb.AHBParameters.transBits
+import xiangshan.MmulType
 
 // Set a specific field in mtype
 case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.X) extends XSDecodeBase {
@@ -14,7 +15,7 @@ case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm
     val src1 = SrcType.imm
     val src2 = SrcType.imm
     // TODO: MSETINST could be implemented as MSETTYPEINST with a mask
-    XSDecode(src1, src2, SrcType.X, FuType.msettypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -24,7 +25,7 @@ case class MSETTYPEINST(mtypei: Boolean, fuOp: BitPat, flushPipe: Boolean, block
   def generate(): List[BitPat] = {
     val src1 = if (mtypei) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msettypeiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtypeiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
@@ -34,7 +35,7 @@ case class MSETTXINST(txi: Boolean, fuOp: BitPat, flushPipe: Boolean, blockBack:
   def generate(): List[BitPat] = {
     val src1 = if (txi) SrcType.imm else SrcType.xp
     val src2 = SrcType.imm
-    XSDecode(src1, src2, SrcType.X, FuType.msettilexiwf, fuOp, selImm, uopSplitType,
+    XSDecode(src1, src2, SrcType.X, FuType.msetmtilexiwf, fuOp, selImm, uopSplitType,
       xWen = T, fWen = F, vWen = F, mWen = F, xsTrap = F, noSpec = F, blockBack = blockBack, flushPipe = flushPipe).generate()
   }
 }
