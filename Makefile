@@ -275,6 +275,7 @@ init:
 	git submodule update --init
 	cd rocket-chip && git submodule update --init cde hardfloat
 	cd openLLC && git submodule update --init openNCB
+	cd AME && git submodule update --init FP8fpu
 
 bump:
 	git submodule foreach "git fetch origin&&git checkout master&&git reset --hard origin/master"
