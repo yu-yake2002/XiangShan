@@ -1020,11 +1020,8 @@ class NewCSR(implicit val p: Parameters) extends Module
   val frmChange = fcsr.wAliasFfm.wen && (!frmIsReserved && frmWdataReserved || frmIsReserved && !frmWdataReserved) ||
     fcsr.w.wen && (!frmIsReserved && fcsrWdataReserved || frmIsReserved && !fcsrWdataReserved)
 
-  // val flushPipe = resetSatp ||
-  //   triggerFrontendChange || floatStatusOnOff || vectorStatusOnOff || matrixStatusOnOff ||
-  //   vstartChange || frmChange
   val flushPipe = resetSatp ||
-    triggerFrontendChange || floatStatusOnOff || vectorStatusOnOff ||
+    triggerFrontendChange || floatStatusOnOff || vectorStatusOnOff || matrixStatusOnOff ||
     vstartChange || frmChange
 
   /**
