@@ -9,7 +9,7 @@ import xiangshan.backend.Bundles._
 import xiangshan.backend.ctrlblock.{DebugLsInfoBundle, LsTopdownInfo}
 import xiangshan.backend.fu._
 import xiangshan.backend.fu.FuConfig._
-import xiangshan.backend.fu.matrix.Bundles.{AmuLsuIO, AmuCtrlIO}
+import xiangshan.backend.fu.matrix.Bundles.{AmuLsuIO, AmuCtrlIO, Mtilex}
 import xiangshan.backend.fu.NewCSR._
 import xiangshan.backend.fu.util.SdtrigExt
 import xiangshan.cache._
@@ -507,11 +507,22 @@ class MlsUnit(implicit p: Parameters) extends XSModule
   amuCtrl.isacc     := MldstOpType.isMatrixC(s3_in.uop.fuOpType)
   when (MldstOpType.isWholeReg(s3_in.uop.fuOpType)) {
     amuCtrl.row     := (coreParams.MLEN / coreParams.RLEN).U
-    amuCtrl.column  := Mux1H(Seq(
-      MldstOpType.isFp8(s3_in.uop.fuOpType)  -> (coreParams.RLEN / 8).U,
-      MldstOpType.isFp16(s3_in.uop.fuOpType) -> (coreParams.RLEN / 16).U,
-      MldstOpType.isFp32(s3_in.uop.fuOpType) -> (coreParams.RLEN / 32).U,
-    ))
+    when (MldstOpType.isAccum(s3_in.uop.fuOpType)) {
+      amuCtrl.column := Mux1H(Seq(
+        MldstOpType.isFp8(s3_in.uop.fuOpType)  ->
+          (coreParams.RLEN * coreParams.AMUL / 8).U,
+        MldstOpType.isFp16(s3_in.uop.fuOpType) ->
+          (coreParams.RLEN * coreParams.AMUL / 16).U,
+        MldstOpType.isFp32(s3_in.uop.fuOpType) ->
+          (coreParams.RLEN * coreParams.AMUL / 32).U,
+      ))
+    } .otherwise { // MldstOpType.isTile(s3_in.uop.fuOpType)
+      amuCtrl.column := Mux1H(Seq(
+        MldstOpType.isFp8(s3_in.uop.fuOpType)  -> (coreParams.RLEN / 8).U,
+        MldstOpType.isFp16(s3_in.uop.fuOpType) -> (coreParams.RLEN / 16).U,
+        MldstOpType.isFp32(s3_in.uop.fuOpType) -> (coreParams.RLEN / 32).U,
+      ))
+    }
   } .otherwise {
     amuCtrl.row     := s3_in.mtile0
     amuCtrl.column  := s3_in.mtile1
