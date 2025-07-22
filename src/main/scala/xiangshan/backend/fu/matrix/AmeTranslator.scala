@@ -72,6 +72,21 @@ class AmeTranslator(implicit p: Parameters) extends Module {
       io.uop.mtileConfig_io.mtilem := lsuio.row
       io.uop.mtileConfig_io.mtilen := lsuio.column
       io.uop.mtileConfig_io.mtilek := 0.U // Not used for load/store operations
+    }.elsewhen(io.amuCtrl.bits.isRelease()) {
+      // Release operation
+      val releaseio = io.amuCtrl.bits.data.asTypeOf(new AmuReleaseIO)
+
+      // Map release fields to Uop_io
+      io.uop.Operands_io.rs1 := releaseio.start
+      io.uop.Operands_io.rs2 := releaseio.end
+
+      // Set instruction type
+      io.uop.InsType_io.is_mrelease := true.B
+
+      // Set instruction type
+      io.uop.mtileConfig_io.mtilem := 0.U
+      io.uop.mtileConfig_io.mtilen := 0.U
+      io.uop.mtileConfig_io.mtilek := 0.U
     }
   }
 
