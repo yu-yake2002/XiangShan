@@ -24,8 +24,10 @@ import xiangshan.mem.Std
   * @param writeVecRf the $fu write vector regfiles
   * @param writeV0Rf the $fu write v0 regfiles
   * @param writeVlRf the $fu write vl regfiles
+  * @param writeMxRf the $fu write mx regfiles
   * @param writeFflags the $fu write fflags csr
   * @param writeVxsat the $fu write vxsat csr
+  * @param needAmuCtrl the $fu need amu ctrl signal
   * @param destDataBits the width of output data in the $fu
   * @param srcDataBits the width of input data in the $fu, the default value is destDataBits
   * @param latency the latency of instuction executed in the $fu

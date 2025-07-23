@@ -271,6 +271,7 @@ object Bundles {
     val mtilek = Mtilex()  // 39 : 31
     val types  = UInt(3.W) // 42 : 40
     val typed  = UInt(3.W) // 45 : 43
+    val isfp   = Bool()    // 46
   }
 
   object AmuMmaIO {

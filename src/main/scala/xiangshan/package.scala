@@ -570,82 +570,112 @@ package object xiangshan {
   object MldstOpType {
     def placeholder = "b0_00000_0_00".U
 
-    // bit encoding: ldst (1b) | matrix type (5b) | transposed (1b) | width (2b)
-    // matrix type [4:0]
-    // 0 0 0 0 1 : output matrix, C
-    // 0 0 0 1 0 : left matrix, A
-    // 0 0 1 0 0 : right matrix, B
-    // 0 1 0 0 0 : tile matrix without considering the size
-    // 1 0 0 0 0 : accumulation matrix without considering the size
-    def isLoad (func: UInt) = func(8) === "b0".U
-    def isStore(func: UInt) = func(8) === "b1".U
+    // bit encoding: ldst (1b) | async (1b) | matrix type (4b) | transposed (1b) | width (2b)
+    // matrix type [3:0]
+    // 0 0 0 1 : output matrix, C
+    // 0 0 1 0 : left matrix, A
+    // 0 1 0 0 : right matrix, B
+    // 1 0 0 0 : whole tile/accum matrix without considering the size
+    def isLoad  (func: UInt) = func(8) === "b0".U
+    def isStore (func: UInt) = func(8) === "b1".U
+    
+    def isSync  (func: UInt) = func(7) === "b0".U
+    def isAsync (func: UInt) = func(7) === "b1".U
+    
+    def isMatrixA  (func: UInt) = func(3) === "b1".U
+    def isMatrixB  (func: UInt) = func(4) === "b1".U
+    def isMatrixC  (func: UInt) = func(5) === "b1".U
+    def isWholeReg (func: UInt) = func(6) === "b1".U
+    def isTile     (func: UInt) = func(6) === "b1".U && func(2) === "b0".U
+    def isAccum    (func: UInt) = func(6) === "b1".U && func(2) === "b1".U
 
-    def isMatrixA (func: UInt) = func(3) === "b1".U
-    def isMatrixB (func: UInt) = func(4) === "b1".U
-    def isMatrixC (func: UInt) = func(5) === "b1".U
-    def isTile    (func: UInt) = func(6) === "b1".U
-    def isAccum   (func: UInt) = func(7) === "b1".U
-    def isWholeReg (func: UInt) = isTile(func) || isAccum(func)
-
-    def isUntransposed (func: UInt) = func(2) === "b0".U
-    def isTransposed   (func: UInt) = func(2) === "b1".U
+    def isUntransposed (func: UInt) = func(6) =/= "b1".U && func(2) === "b0".U
+    def isTransposed   (func: UInt) = func(6) =/= "b1".U && func(2) === "b1".U
     
     def isFp8  (func: UInt) = func(1, 0) === "b00".U
     def isFp16 (func: UInt) = func(1, 0) === "b01".U
     def isFp32 (func: UInt) = func(1, 0) === "b10".U
     // def isFp64 (func: UInt) = func(1, 0) === "b11".U
     
-    def mlaeFp8    = "b0_00001_0_00".U
-    def mlaeFp16   = "b0_00001_0_01".U
-    def mlaeFp32   = "b0_00001_0_10".U
-    def mlateFp8   = "b0_00001_1_00".U
-    def mlateFp16  = "b0_00001_1_01".U
-    def mlateFp32  = "b0_00001_1_10".U
-    def mlbeFp8    = "b0_00010_0_00".U
-    def mlbeFp16   = "b0_00010_0_01".U
-    def mlbeFp32   = "b0_00010_0_10".U
-    def mlbteFp8   = "b0_00010_1_00".U
-    def mlbteFp16  = "b0_00010_1_01".U
-    def mlbteFp32  = "b0_00010_1_10".U
-    def mlceFp8    = "b0_00100_0_00".U
-    def mlceFp16   = "b0_00100_0_01".U
-    def mlceFp32   = "b0_00100_0_10".U
-    def mlcteFp8   = "b0_00100_1_00".U
-    def mlcteFp16  = "b0_00100_1_01".U
-    def mlcteFp32  = "b0_00100_1_10".U
+    // Sync load/store
+    def mlaeFp8    = "b0_0_0001_0_00".U
+    def mlaeFp16   = "b0_0_0001_0_01".U
+    def mlaeFp32   = "b0_0_0001_0_10".U
+    def mlateFp8   = "b0_0_0001_1_00".U
+    def mlateFp16  = "b0_0_0001_1_01".U
+    def mlateFp32  = "b0_0_0001_1_10".U
+    def mlbeFp8    = "b0_0_0010_0_00".U
+    def mlbeFp16   = "b0_0_0010_0_01".U
+    def mlbeFp32   = "b0_0_0010_0_10".U
+    def mlbteFp8   = "b0_0_0010_1_00".U
+    def mlbteFp16  = "b0_0_0010_1_01".U
+    def mlbteFp32  = "b0_0_0010_1_10".U
+    def mlceFp8    = "b0_0_0100_0_00".U
+    def mlceFp16   = "b0_0_0100_0_01".U
+    def mlceFp32   = "b0_0_0100_0_10".U
+    def mlcteFp8   = "b0_0_0100_1_00".U
+    def mlcteFp16  = "b0_0_0100_1_01".U
+    def mlcteFp32  = "b0_0_0100_1_10".U
 
-    def mltreFp8   = "b0_01000_0_00".U
-    def mltreFp16  = "b0_01000_0_01".U
-    def mltreFp32  = "b0_01000_0_10".U
-    def mlacceFp8  = "b0_10000_0_00".U
-    def mlacceFp16 = "b0_10000_0_01".U
-    def mlacceFp32 = "b0_10000_0_10".U
+    def mltreFp8   = "b0_0_1000_0_00".U
+    def mltreFp16  = "b0_0_1000_0_01".U
+    def mltreFp32  = "b0_0_1000_0_10".U
+    def mlacceFp8  = "b0_0_1000_1_00".U
+    def mlacceFp16 = "b0_0_1000_1_01".U
+    def mlacceFp32 = "b0_0_1000_1_10".U
 
-    def msaeFp8    = "b1_00001_0_00".U
-    def msaeFp16   = "b1_00001_0_01".U
-    def msaeFp32   = "b1_00001_0_10".U
-    def msateFp8   = "b1_00001_1_00".U
-    def msateFp16  = "b1_00001_1_01".U
-    def msateFp32  = "b1_00001_1_10".U
-    def msbeFp8    = "b1_00010_0_00".U
-    def msbeFp16   = "b1_00010_0_01".U
-    def msbeFp32   = "b1_00010_0_10".U
-    def msbteFp8   = "b1_00010_1_00".U
-    def msbteFp16  = "b1_00010_1_01".U
-    def msbteFp32  = "b1_00010_1_10".U
-    def msceFp8    = "b1_00100_0_00".U
-    def msceFp16   = "b1_00100_0_01".U
-    def msceFp32   = "b1_00100_0_10".U
-    def mscteFp8   = "b1_00100_1_00".U
-    def mscteFp16  = "b1_00100_1_01".U
-    def mscteFp32  = "b1_00100_1_10".U
+    def msaeFp8    = "b1_0_0001_0_00".U
+    def msaeFp16   = "b1_0_0001_0_01".U
+    def msaeFp32   = "b1_0_0001_0_10".U
+    def msateFp8   = "b1_0_0001_1_00".U
+    def msateFp16  = "b1_0_0001_1_01".U
+    def msateFp32  = "b1_0_0001_1_10".U
+    def msbeFp8    = "b1_0_0010_0_00".U
+    def msbeFp16   = "b1_0_0010_0_01".U
+    def msbeFp32   = "b1_0_0010_0_10".U
+    def msbteFp8   = "b1_0_0010_1_00".U
+    def msbteFp16  = "b1_0_0010_1_01".U
+    def msbteFp32  = "b1_0_0010_1_10".U
+    def msceFp8    = "b1_0_0100_0_00".U
+    def msceFp16   = "b1_0_0100_0_01".U
+    def msceFp32   = "b1_0_0100_0_10".U
+    def mscteFp8   = "b1_0_0100_1_00".U
+    def mscteFp16  = "b1_0_0100_1_01".U
+    def mscteFp32  = "b1_0_0100_1_10".U
 
-    def mstreFp8   = "b1_01000_0_00".U
-    def mstreFp16  = "b1_01000_0_01".U
-    def mstreFp32  = "b1_01000_0_10".U
-    def msacceFp8  = "b1_10000_0_00".U
-    def msacceFp16 = "b1_10000_0_01".U
-    def msacceFp32 = "b1_10000_0_10".U
+    def mstreFp8   = "b1_0_1000_0_00".U
+    def mstreFp16  = "b1_0_1000_0_01".U
+    def mstreFp32  = "b1_0_1000_0_10".U
+    def msacceFp8  = "b1_0_1000_1_00".U
+    def msacceFp16 = "b1_0_1000_1_01".U
+    def msacceFp32 = "b1_0_1000_1_10".U
+
+    // Async store
+    def msaeFp8Async    = "b1_1_0001_0_00".U
+    def msaeFp16Async   = "b1_1_0001_0_01".U
+    def msaeFp32Async   = "b1_1_0001_0_10".U
+    def msateFp8Async   = "b1_1_0001_1_00".U
+    def msateFp16Async  = "b1_1_0001_1_01".U
+    def msateFp32Async  = "b1_1_0001_1_10".U
+    def msbeFp8Async    = "b1_1_0010_0_00".U
+    def msbeFp16Async   = "b1_1_0010_0_01".U
+    def msbeFp32Async   = "b1_1_0010_0_10".U
+    def msbteFp8Async   = "b1_1_0010_1_00".U
+    def msbteFp16Async  = "b1_1_0010_1_01".U
+    def msbteFp32Async  = "b1_1_0010_1_10".U
+    def msceFp8Async    = "b1_1_0100_0_00".U
+    def msceFp16Async   = "b1_1_0100_0_01".U
+    def msceFp32Async   = "b1_1_0100_0_10".U
+    def mscteFp8Async   = "b1_1_0100_1_00".U
+    def mscteFp16Async  = "b1_1_0100_1_01".U
+    def mscteFp32Async  = "b1_1_0100_1_10".U
+    
+    def mstreFp8Async   = "b1_1_1000_0_00".U
+    def mstreFp16Async  = "b1_1_1000_0_01".U
+    def mstreFp32Async  = "b1_1_1000_0_10".U
+    def msacceFp8Async  = "b1_1_1000_1_00".U
+    def msacceFp16Async = "b1_1_1000_1_01".U
+    def msacceFp32Async = "b1_1_1000_1_10".U
   }
 
   object MmulOpType {

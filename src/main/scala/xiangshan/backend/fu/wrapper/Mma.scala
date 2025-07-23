@@ -38,6 +38,7 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   output.mtilem := mtilem
   output.mtilen := mtilen
   output.mtilek := mtilek
+  output.isfp   := MmulOpType.isFloat(realFuOpType)
   
   out.res.data := output.asUInt
 

@@ -240,6 +240,47 @@ object MatrixDecoder extends DecodeConstants {
     MSACCE32_M -> MLS(MldstOpType.msacceFp32),
     // MSACCE64_M -> MLS(MldstOpType.placeholder),
 
+    // Store left matrix, Async, A
+    MSAE8_M -> MLS(MldstOpType.msaeFp8Async),
+    MSAE16_M -> MLS(MldstOpType.msaeFp16Async),
+    MSAE32_M -> MLS(MldstOpType.msaeFp32Async),
+    // MSAE64_M -> MLS(MldstOpType.placeholder),
+    // Store right matrix, Async, B
+    MSBE8_M -> MLS(MldstOpType.msbeFp8Async),
+    MSBE16_M -> MLS(MldstOpType.msbeFp16Async),
+    MSBE32_M -> MLS(MldstOpType.msbeFp32Async),
+    // MSBE64_M -> MLS(MldstOpType.placeholder),
+    // Store output matrix, Async, C
+    MSCE8_M -> MLS(MldstOpType.msceFp8Async),
+    MSCE16_M -> MLS(MldstOpType.msceFp16Async),
+    MSCE32_M -> MLS(MldstOpType.msceFp32Async),
+    // MSCE64_M -> MLS(MldstOpType.placeholder),
+    // Store a whole tile matrix to memory without considering the size, Async
+    MSTRE8_M -> MLS(MldstOpType.mstreFp8Async),
+    MSTRE16_M -> MLS(MldstOpType.mstreFp16Async),
+    MSTRE32_M -> MLS(MldstOpType.mstreFp32Async),
+    // MSTRE64_M -> MLS(MldstOpType.placeholder),
+    // Store transposed left matrix, Async, A
+    MSATE8_M -> MLS(MldstOpType.msateFp8Async),
+    MSATE16_M -> MLS(MldstOpType.msateFp16Async),
+    MSATE32_M -> MLS(MldstOpType.msateFp32Async),
+    // MSATE64_M -> MLS(MldstOpType.placeholder),
+    // Store transposed right matrix, Async, B
+    MSBTE8_M -> MLS(MldstOpType.msbteFp8Async),
+    MSBTE16_M -> MLS(MldstOpType.msbteFp16Async),
+    MSBTE32_M -> MLS(MldstOpType.msbteFp32Async),
+    // MSBTE64_M -> MLS(MldstOpType.placeholder),
+    // Store transposed output matrix, Async, C
+    MSCTE8_M -> MLS(MldstOpType.mscteFp8Async),
+    MSCTE16_M -> MLS(MldstOpType.mscteFp16Async),
+    MSCTE32_M -> MLS(MldstOpType.mscteFp32Async),
+    // MSCTE64_M -> MLS(MldstOpType.placeholder),
+    // Store a whole accumulation matrix to memory without considering the size, Async
+    MSACCE8_M -> MLS(MldstOpType.msacceFp8Async),
+    MSACCE16_M -> MLS(MldstOpType.msacceFp16Async),
+    MSACCE32_M -> MLS(MldstOpType.msacceFp32Async),
+    // MSACCE64_M -> MLS(MldstOpType.placeholder),
+
     // TODO: Zmv: Matrix for Vector operations
     // MLAE8_V -> MLS(),
     // MLAE16_V -> MLS(),
