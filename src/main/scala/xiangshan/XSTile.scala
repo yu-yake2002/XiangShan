@@ -232,6 +232,10 @@ class XSTile()(implicit p: Parameters) extends LazyModule
 
     l2top.module.io.matrixDataOut512L2.foreach(_.ready := true.B)
 
+    // FIXME: Implement release in AME, and then connect me!
+    core.module.io.amuRelease <> DontCare
+    core.module.io.amuRelease.valid := false.B
+
     // ChiselDB for uop
     val ameDB = ChiselDB.createTable("ame", ame.io, basicDB = true)
     val ameLogEn = ame.io.Uop_io.ShakeHands_io.valid || ame.io.MLU_L2_io.Cacheline_Read_io.map(_.valid).reduce(_ || _)

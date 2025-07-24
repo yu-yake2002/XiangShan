@@ -83,6 +83,7 @@ object FuType extends OHEnumeration {
   val marith = addType(name = "marith") // arith, mve (for matrix), cvt, logic
   // val mmvei  = addType(name = "mmvei")  // mve (for integer)
   val mmvef  = addType(name = "mmvef")  // mve (for float)
+  val mrelease = addType(name = "mrelease")
 
   val intArithAll = Seq(jmp, brh, i2f, i2v, csr, alu, mul, div, fence, bku)
   // dq0 includes int's iq0 and iq1
@@ -150,7 +151,7 @@ object FuType extends OHEnumeration {
 
   val matrixMSETtilex = Seq(msetmtilexiwi, msetmtilexiwf, msetmtilexfwf)
   val matrixMSETtype = Seq(msetmtypeiwi, msetmtypeiwf)
-  val matrixMSET = matrixMSETtilex ++ matrixMSETtype
+  val matrixMSET = matrixMSETtilex ++ matrixMSETtype ++ Seq(mrelease)
   val matrixArith = Seq(mma, marith)
   val matrixMem = Seq(mls)
   val matrixAll = matrixMSET ++ matrixArith ++ matrixMem

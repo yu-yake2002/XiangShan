@@ -116,6 +116,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
     val dft = Option.when(hasDFT)(Input(new SramBroadcastBundle))
     val dft_reset = Option.when(hasDFT)(Input(new DFTResetSignals()))
     val amuCtrl = Vec(CommitWidth, Decoupled(new AmuCtrlIO))
+    val amuRelease = Flipped(Decoupled(new AmuReleaseIO))
   })
 
   dontTouch(io.l2_flush_done)
@@ -207,6 +208,7 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   io.amuCtrl.zip(backend.io.toAmu).foreach { case (amuIO, amuBackend) =>
     amuIO <> amuBackend
   }
+  io.amuRelease.ready := true.B
 
   // top -> memBlock
   memBlock.io.fromTopToBackend.clintTime := io.clintTime

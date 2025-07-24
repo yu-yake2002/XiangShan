@@ -375,6 +375,19 @@ object FuConfig {
     flushPipe = true
   )
 
+  val MreleaseCfg: FuConfig = FuConfig (
+    name = "mrelease",
+    FuType.mrelease,
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new Mrelease(cfg)(p).suggestName("Mrelease")),
+    srcData = Seq(
+      Seq(IntData()),
+    ),
+    piped = true,
+    writeIntRf = false,
+    latency = CertainLatency(0),
+    needAmuCtrl = true,
+  )
+
   // Todo: split it to simple bitmap exu and complex bku
   val BkuCfg: FuConfig = FuConfig (
     name = "bku",

@@ -170,6 +170,7 @@ case class XSCoreParameters
   V0LogicRegs: Int = 1, // V0
   VlLogicRegs: Int = 1, // Vl
   MxLogicRegs: Int = 3, // Mtilem, Mtilen, Mtilek
+  TokenRegs: Int = 8,  // 8 / 16 / 32
   V0_IDX: Int = 0,
   Vl_IDX: Int = 0,
   Mtilem_IDX: Int = 0,
@@ -438,7 +439,7 @@ case class XSCoreParameters
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
       IssueBlockParams(Seq(
         ExeUnitParams("MSET0", Seq(MSetMtilexRiWiCfg, MSetMtilexRiWmfCfg), Seq(IntWB(port = 2, 2), MxWB(port = intSchdMxWbPort, 0)), Seq(Seq(IntRD(0, 2)))),
-        ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2))))
+        ExeUnitParams("MSETTYPE", Seq(MSetMtypeRiWiCfg, MreleaseCfg), Seq(IntWB(port = 3, 2)), Seq(Seq(IntRD(2, 2))))
       ), numEntries = IssueQueueSize, numEnq = 2, numComp = IssueQueueCompEntrySize),
     ),
       numPregs = intPreg.numEntries,
@@ -804,6 +805,7 @@ trait HasXSParameter {
   def VlLogicRegs = coreParams.VlLogicRegs
   def MxLogicRegs = coreParams.MxLogicRegs
   def MaxLogicRegs = Set(IntLogicRegs, FpLogicRegs, VecLogicRegs, V0LogicRegs, VlLogicRegs).max
+  def TokenRegs = coreParams.TokenRegs
   def LogicRegsWidth = log2Ceil(MaxLogicRegs)
   def V0_IDX = coreParams.V0_IDX
   def Vl_IDX = coreParams.Vl_IDX

@@ -304,15 +304,26 @@ object Bundles {
     }
   }
 
+  class AmuReleaseIO(implicit p: Parameters) extends XSBundle {
+    val tokenRd = UInt(log2Up(p(XSCoreParamsKey).TokenRegs).W)
+  }
+
+  object AmuReleaseIO {
+    def apply()(implicit p: Parameters) : AmuReleaseIO = {
+      new AmuReleaseIO()
+    }
+  }
+
   class AmuCtrlIO(implicit p: Parameters) extends XSBundle {
     // op: Determine the operation
     // 0: MMA
     // 1: Load/Store
-    val op = UInt(1.W)
+    // 2: Release
+    val op = UInt(2.W)
     
-    def isMma() : Bool = op === AmuCtrlIO.mmaOp()
-    def isMls() : Bool = op === AmuCtrlIO.mlsOp()
-    
+    def isMma()     : Bool = op === AmuCtrlIO.mmaOp()
+    def isMls()     : Bool = op === AmuCtrlIO.mlsOp()
+    def isRelease() : Bool = op === AmuCtrlIO.releaseOp()
     // data: The ctrl signal for op
     val data = UInt(128.W)
   }
@@ -322,7 +333,8 @@ object Bundles {
       new AmuCtrlIO()
     }
 
-    def mmaOp() : UInt = "b0".U
-    def mlsOp() : UInt = "b1".U
+    def mmaOp()     : UInt = "b00".U
+    def mlsOp()     : UInt = "b01".U
+    def releaseOp() : UInt = "b10".U
   }
 }

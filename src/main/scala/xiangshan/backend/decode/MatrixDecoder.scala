@@ -653,5 +653,11 @@ object MatrixDecoder extends DecodeConstants {
     // ...
   )
 
-  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls ++ mmve ++ mmul ++ marith ++ mcvt
+  val msync: Array[(BitPat, XSDecodeBase)] = Array(
+    MRELEASE -> XSDecode(SrcType.imm, SrcType.X, SrcType.X,
+      FuType.mrelease, "b0".U, SelImm.IMM_MSETVAL
+    )
+  )
+
+  override val decodeArray: Array[(BitPat, XSDecodeBase)] = mset ++ mls ++ mmve ++ mmul ++ marith ++ mcvt ++ msync
 }
