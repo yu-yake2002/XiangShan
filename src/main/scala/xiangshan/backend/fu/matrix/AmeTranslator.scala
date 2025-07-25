@@ -50,7 +50,7 @@ class AmeTranslator(implicit p: Parameters) extends Module {
       // Map MMA fields to Uop_io
       io.uop.Operands_io.ms1 := mmaio.ms1
       io.uop.Operands_io.ms2 := mmaio.ms2
-      io.uop.Operands_io.md := mmaio.md
+      io.uop.Operands_io.md := Consts.numTr.U + mmaio.md
 
       // Set instruction type
       io.uop.InsType_io.is_mmacc := true.B
