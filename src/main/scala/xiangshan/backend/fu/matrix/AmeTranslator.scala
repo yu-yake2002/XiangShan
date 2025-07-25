@@ -2,6 +2,7 @@ package xiangshan.backend.fu.matrix
 
 import chisel3._
 import chisel3.util._
+import common._
 import org.chipsalliance.cde.config._
 import Expander._
 import xiangshan.backend.fu.matrix.Bundles._
@@ -35,13 +36,16 @@ class AmeTranslator(implicit p: Parameters) extends Module {
   }
   io.mlu_l2.Cacheline_Read_io.foreach(_.ready := true.B)
 
+  val mmaio = WireDefault(0.U.asTypeOf(new AmuMmaIO))
+  val lsuio = WireDefault(0.U.asTypeOf(new AmuLsuIO))
+
   /** Decode the control signals */
   when(io.amuCtrl.valid) {
     io.uop.ShakeHands_io.valid := true.B
 
     when(io.amuCtrl.bits.isMma()) {
       // MMA operation
-      val mmaio = io.amuCtrl.bits.data.asTypeOf(new AmuMmaIO)
+      mmaio := io.amuCtrl.bits.data.asTypeOf(new AmuMmaIO)
 
       // Map MMA fields to Uop_io
       io.uop.Operands_io.ms1 := mmaio.ms1
@@ -60,7 +64,7 @@ class AmeTranslator(implicit p: Parameters) extends Module {
 
     }.elsewhen(io.amuCtrl.bits.isMls()) {
       // Load/Store operation
-      val lsuio = io.amuCtrl.bits.data.asTypeOf(new AmuLsuIO)
+      lsuio := io.amuCtrl.bits.data.asTypeOf(new AmuLsuIO)
       require(io.amuCtrl.bits.data.getWidth >= (new AmuLsuIO).getWidth, s"AmuCtrl(${io.amuCtrl.bits.data.getWidth}) should cover AmuLsuIO(${(new AmuLsuIO).getWidth}).")
 
       // Map LSU fields to Uop_io
@@ -71,16 +75,36 @@ class AmeTranslator(implicit p: Parameters) extends Module {
       // Set instruction type
       io.uop.InsType_io.is_mlbe8 := !lsuio.ls && lsuio.isB
       io.uop.InsType_io.is_mlae8 := !lsuio.ls && lsuio.isA
-      assert(!lsuio.isA || !lsuio.isB, "MLA and MLB are exclusive.")
-      assert(!lsuio.ls, "Store is not supported by AME.")
+      io.uop.InsType_io.is_mlce32 := !lsuio.ls && (lsuio.isC || lsuio.isacc)
+      io.uop.InsType_io.is_msce32 := lsuio.ls
 
       // Set tile configuration
-      io.uop.mtileConfig_io.mtilem := Mux(lsuio.isA, lsuio.row, 0.U)
-      io.uop.mtileConfig_io.mtilen := Mux(lsuio.isB, lsuio.column, 0.U)
-      io.uop.mtileConfig_io.mtilek := Mux(lsuio.isA, lsuio.column, lsuio.row)
+      val mtilem = io.uop.mtileConfig_io.mtilem
+      val mtilen = io.uop.mtileConfig_io.mtilen
       val mtilek = io.uop.mtileConfig_io.mtilek
-      assert(!lsuio.isA || mtilek === lsuio.column)
-      assert(!lsuio.isB || mtilek === lsuio.row)
+
+      // TileA case
+      when(lsuio.isA) {
+        mtilem := lsuio.row
+        mtilen := 0.U
+        mtilek := lsuio.column
+      }
+
+      // TileB case
+      when(lsuio.isB) {
+        mtilem := 0.U
+        mtilen := lsuio.column
+        mtilek := lsuio.row
+      }
+
+      // MNK in TileC / TileAcc case
+      when (io.uop.InsType_io.is_mlce32 || io.uop.InsType_io.is_msce32) {
+        // m,n,k = row, column, 0
+        mtilem := lsuio.row
+        mtilen := lsuio.column
+        mtilek := 0.U
+        io.uop.Operands_io.md := Consts.numTr.U + lsuio.ms
+      }
     }.elsewhen(io.amuCtrl.bits.isRelease()) {
       // Release operation
       val releaseio = io.amuCtrl.bits.data.asTypeOf(new AmuReleaseIO)
