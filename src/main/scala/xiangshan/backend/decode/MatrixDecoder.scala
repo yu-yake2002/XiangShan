@@ -5,11 +5,9 @@ import chisel3.util._
 import freechips.rocketchip.rocket.Instructions._
 import freechips.rocketchip.util.uintToBitPat
 import xiangshan.backend.fu.FuType
-import xiangshan.{SrcType, MSETtilexOpType, MSETtypeOpType, UopSplitType, SelImm, MldstOpType, MarithOpType, MmvefOpType}
+import xiangshan.{SrcType, MSETtilexOpType, MSETtypeOpType, UopSplitType, SelImm, MldstOpType, MarithOpType, MmvefOpType, FenceOpType}
 import freechips.rocketchip.amba.ahb.AHBParameters.transBits
 import xiangshan.MmulOpType
-import xiangshan.SrcType
-import xiangshan.SrcType
 
 // Set a specific field in mtype
 case class MSETINST(fuOp: BitPat, flushPipe: Boolean, blockBack: Boolean, selImm: BitPat, uopSplitType: BitPat = UopSplitType.MSETTYPE) extends XSDecodeBase {
@@ -654,6 +652,9 @@ object MatrixDecoder extends DecodeConstants {
   )
 
   val msync: Array[(BitPat, XSDecodeBase)] = Array(
+    MSYNCRESET -> XSDecode(SrcType.imm, SrcType.X, SrcType.X,
+      FuType.fence, FenceOpType.msyncregreset, SelImm.IMM_MSETVAL
+    ),
     MRELEASE -> XSDecode(SrcType.imm, SrcType.X, SrcType.X,
       FuType.mrelease, "b0".U, SelImm.IMM_MSETVAL
     )

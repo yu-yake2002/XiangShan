@@ -22,11 +22,12 @@ import org.chipsalliance.cde.config.Parameters
 import utility.XSDebug
 import xiangshan.ExceptionNO.{illegalInstr, virtualInstr}
 import xiangshan._
-
+import xiangshan.backend.fu.matrix.Bundles.AmuReleaseIO
 class FenceIO(implicit p: Parameters) extends XSBundle {
   val sfence = Output(new SfenceBundle)
   val fencei = Output(Bool())
   val sbuffer = new FenceToSbuffer
+  val amuRelease = Flipped(Decoupled(new AmuReleaseIO))
 }
 
 class FenceToSbuffer extends Bundle {
@@ -39,12 +40,13 @@ class Fence(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
   val sfence = io.fenceio.get.sfence
   val fencei = io.fenceio.get.fencei
   val toSbuffer = io.fenceio.get.sbuffer
+  val amuRelease = io.fenceio.get.amuRelease
   val (valid, src1) = (
     io.in.valid,
     io.in.bits.data.src(0)
   )
 
-  val s_idle :: s_wait :: s_tlb :: s_icache :: s_fence :: s_nofence :: Nil = Enum(6)
+  val s_idle :: s_wait :: s_tlb :: s_icache :: s_fence :: s_nofence :: s_msync :: Nil = Enum(7)
 
   val state = RegInit(s_idle)
   /* fsm
@@ -54,7 +56,11 @@ class Fence(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
    * s_icache: flush icache, just hold one cycle
    * s_fence : do nothing, for timing optimiaztion
    * s_nofence: do nothing , for Svinval extension
+   * s_msync : do nothing
    */
+
+  // tokens regs for mrelease & macquire
+  val tokens = RegInit(VecInit(Seq.fill(8)(0.U(64.W))))
 
   val sbuffer = toSbuffer.flushSb
   val sbEmpty = toSbuffer.sbIsEmpty
@@ -72,8 +78,13 @@ class Fence(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
   sfence.bits.hg := func === FenceOpType.hfence_g
   sfence.bits.addr := RegEnable(io.in.bits.data.src(0), io.in.fire)
   sfence.bits.id   := RegEnable(io.in.bits.data.src(1), io.in.fire)
+  amuRelease.ready := true.B
 
-  when (state === s_idle && io.in.valid) { state := s_wait }
+  when (state === s_idle && io.in.valid && func =/= FenceOpType.msyncregreset) { state := s_wait }
+  when (state === s_idle && io.in.valid && func === FenceOpType.msyncregreset) {
+    // skip s_wait to avoid sbflush
+    state := s_msync
+  }
   when (state === s_wait && func === FenceOpType.fencei && sbEmpty) { state := s_icache }
   when (state === s_wait && ((func === FenceOpType.sfence || func === FenceOpType.hfence_g || func === FenceOpType.hfence_v) && sbEmpty)) { state := s_tlb }
   when (state === s_wait && func === FenceOpType.fence  && sbEmpty) { state := s_fence }
@@ -89,6 +100,21 @@ class Fence(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
   io.out.bits.ctrl.exceptionVec.get := 0.U.asTypeOf(io.out.bits.ctrl.exceptionVec.get)
   io.out.bits.perfDebugInfo := io.in.bits.perfDebugInfo
   io.out.bits.debug_seqNum := io.in.bits.debug_seqNum
+
+  when (state === s_idle && io.in.valid && func === FenceOpType.msyncregreset) {
+    tokens(io.in.bits.data.src(0)) := 0.U
+  }
+  
+  when (amuRelease.fire) {
+    // check if there is address conflict
+    val hasConflict = io.in.valid && (func === FenceOpType.msyncregreset) && 
+                     (io.in.bits.data.src(0) === amuRelease.bits.tokenRd)
+    
+    when (!hasConflict) {
+      // no conflict, normal execution
+      tokens(amuRelease.bits.tokenRd) := tokens(amuRelease.bits.tokenRd) + 1.U
+    }
+  }
 
   XSDebug(io.in.valid, p"In(${io.in.valid} ${io.in.ready}) state:${state} InrobIdx:${io.in.bits.ctrl.robIdx}\n")
   XSDebug(state =/= s_idle, p"state:${state} sbuffer(flush:${sbuffer} empty:${sbEmpty}) fencei:${fencei} sfence:${sfence}\n")

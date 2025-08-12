@@ -280,6 +280,7 @@ package object xiangshan {
     def fencei = "b10010".U
     def hfence_v = "b10011".U
     def hfence_g = "b10100".U
+    def msyncregreset = "b11000".U
     def nofence= "b00000".U
   }
 
