@@ -281,7 +281,10 @@ package object xiangshan {
     def hfence_v = "b10011".U
     def hfence_g = "b10100".U
     def msyncregreset = "b11000".U
+    def macquire = "b11001".U
     def nofence= "b00000".U
+
+    def isMatrix(op: UInt) = op(4, 3) === "b11".U
   }
 
   object ALUOpType {
