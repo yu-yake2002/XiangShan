@@ -652,11 +652,11 @@ object MatrixDecoder extends DecodeConstants {
   )
 
   val msync: Array[(BitPat, XSDecodeBase)] = Array(
-    MSYNCRESET -> XSDecode(SrcType.imm, SrcType.X, SrcType.X,
+    MSYNCRESET -> XSDecode(SrcType.pc, SrcType.imm, SrcType.X,
       FuType.fence, FenceOpType.msyncregreset, SelImm.IMM_MSETVAL,
       noSpec = T
     ),
-    MRELEASE -> XSDecode(SrcType.imm, SrcType.X, SrcType.X,
+    MRELEASE -> XSDecode(SrcType.pc, SrcType.imm, SrcType.X,
       FuType.mrelease, "b0".U, SelImm.IMM_MSETVAL
     ),
     MACQUIRE -> XSDecode(SrcType.xp, SrcType.imm, SrcType.X,

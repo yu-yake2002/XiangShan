@@ -372,7 +372,8 @@ object FuConfig {
     piped = false,
     latency = UncertainLatency(),
     exceptionOut = Seq(illegalInstr, virtualInstr),
-    flushPipe = true
+    flushPipe = true,
+    immType = Set(SelImm.IMM_MSETVAL)
   )
 
   val MreleaseCfg: FuConfig = FuConfig (
