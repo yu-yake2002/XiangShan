@@ -209,7 +209,6 @@ class XSCoreImp(outer: XSCoreBase) extends LazyModuleImp(outer)
   io.amuCtrl.zip(backend.io.toAmu).foreach { case (amuIO, amuBackend) =>
     amuIO <> amuBackend
   }
-  io.amuRelease.ready := true.B
 
   // top -> memBlock
   memBlock.io.fromTopToBackend.clintTime := io.clintTime

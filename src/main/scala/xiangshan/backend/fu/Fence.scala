@@ -117,7 +117,7 @@ class Fence(cfg: FuConfig)(implicit p: Parameters) extends FuncUnit(cfg) {
   // store macquire info
   when (state === s_idle && io.in.valid && io.in.bits.ctrl.fuOpType === FenceOpType.macquire) {
     macquire_r1 := io.in.bits.data.src(0)
-    macquire_t1_idx := io.in.bits.data.imm(7, 5)
+    macquire_t1_idx := io.in.bits.data.imm(10, 6)
   }
 
   // maintain token registers

@@ -26,7 +26,6 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
   }
 
   val output = Wire(new AmuMmaIO)
-  dontTouch(output)
   output.ms1    := in.data.imm(7, 4)
   output.ms2    := in.data.imm(11, 8)
   output.md     := in.data.imm(3, 0)
@@ -44,4 +43,5 @@ class Mma(cfg: FuConfig)(implicit p: Parameters) extends PipedFuncUnit(cfg) {
 
   out.ctrl.amuCtrl.get.op   := AmuCtrlIO.mmaOp()
   out.ctrl.amuCtrl.get.data := output.asUInt
+  dontTouch(out.ctrl.amuCtrl.get)
 }
