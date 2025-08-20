@@ -35,6 +35,7 @@ import xiangshan.backend.fu.matrix._
 import xiangshan.backend.fu.matrix.Bundles._
 import hbl2demo.AMU
 import AME.AME
+import utility.RegNextN
 
 class XSTile()(implicit p: Parameters) extends LazyModule
   with HasXSParameter
@@ -222,6 +223,7 @@ class XSTile()(implicit p: Parameters) extends LazyModule
 
     ame.io <> DontCare
     amuCtrlArbiter.io.in <> core.module.io.amuCtrl
+    dontTouch(amuCtrlArbiter.io.in)
     ameTranslator.io.amuCtrl <> amuCtrlArbiter.io.out
 
     ame.io.Uop_io.ShakeHands_io <> ameTranslator.io.uop.ShakeHands_io
@@ -232,9 +234,23 @@ class XSTile()(implicit p: Parameters) extends LazyModule
 
     l2top.module.io.matrixDataOut512L2.foreach(_.ready := true.B)
 
+    // FIXME: Just for debug. Remove me when AME is ready.
+    val mreleaseValid = RegInit(false.B)
+    val mreleaseBuffer = RegInit(0.U.asTypeOf(new AmuReleaseIO))
+    when (core.module.io.amuCtrl(0).valid && core.module.io.amuCtrl(0).bits.isRelease()) {
+      mreleaseValid := true.B
+      mreleaseBuffer := core.module.io.amuCtrl(0).bits.asTypeOf(mreleaseBuffer)
+    }.otherwise {
+      mreleaseValid := false.B
+    }
+    val mreleaseValidOut = RegNextN(mreleaseValid, 100, Some(false.B))
+    val mreleaseBufferOut = RegNextN(mreleaseBuffer, 100)
+    core.module.io.amuRelease.valid := mreleaseValidOut
+    core.module.io.amuRelease.bits := mreleaseBufferOut
+
     // FIXME: Implement release in AME, and then connect me!
-    core.module.io.amuRelease <> DontCare
-    core.module.io.amuRelease.valid := false.B
+    // core.module.io.amuRelease <> DontCare
+    // core.module.io.amuRelease.valid := false.B
 
     // ChiselDB for uop
     val ameDB = ChiselDB.createTable("ame", ame.io, basicDB = true)

@@ -387,6 +387,7 @@ object FuConfig {
     writeIntRf = false,
     latency = CertainLatency(0),
     needAmuCtrl = true,
+    immType = Set(SelImm.IMM_MSETVAL)
   )
 
   // Todo: split it to simple bitmap exu and complex bku

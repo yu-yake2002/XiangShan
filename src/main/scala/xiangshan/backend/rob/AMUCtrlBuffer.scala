@@ -138,7 +138,7 @@ class AmuCtrlBuffer()(implicit override val p: Parameters, val params: BackendPa
   for (i <- 0 until RobSize) {
     val indexMatch = io.enq.map(_.allocPtr.value === i.U)
     val enqOH = VecInit(io.enq.zip(indexMatch).map(x => x._1.valid && x._2))
-    val needOH = VecInit(io.enq.zip(indexMatch).map(x => x._1.needAMU && x._2))
+    val needOH = VecInit(io.enq.zip(enqOH).map(x => x._1.needAMU && x._2))
     val entry = amuCtrlEntries(i)
     when (enqOH.asUInt.orR) {
       entry := AmuCtrlEntry.zero

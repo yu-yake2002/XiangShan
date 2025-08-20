@@ -191,6 +191,11 @@ trait BitFieldMatrix { this: Riscv32BitInst =>
     this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
       this.MATRIX_FUNCT6(5, 2) === "b0110".U
   }
+
+  def isMsync = {
+    this.OPCODE === xiangshan.backend.decode.isa.bitfield.OPCODE7Bit.MATRIX_INSTS &&
+      (this.MATRIX_FUNCT6(5, 1) === "b11000".U || this.MATRIX_FUNCT6 === "b110010".U)
+  }
 }
 
 trait BitFieldsRVK { this: Riscv32BitInst =>
